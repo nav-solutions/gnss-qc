@@ -1,9 +1,11 @@
-RINEX / GNSS QC
-===============
+GNSS Quality Control
+====================
 
-The QC library was created to analyze complex GNSS datasets.  
-It currently accepts RINEX (all supported formats) and/or SP3 files, which are the
-basic requirements to precise navigation.
+The GNSS Quality Control library (`gnss-qc`) offers high level and performant
+API and operations that are required in the processing of GNSS.
+
+The origin of this topic is the need to combine both RINEX and SP3 formats
+to answer the basic requirement of (post processed) precise navigation 
 
 The Qc library generates a `QcReport` (also refered to as output product), from the input context.
 The report content depends on the provided combination of input files (also refered
@@ -27,109 +29,3 @@ as long as you can implement the rendition Trait.
 - activate the `sp3` feature to support SP3 format
 - activate the `plot` feature for your reports to integrate graphs analysis
 - activate the `flate2` feature to directly load Gzip compressed input products
-
-## RINEX analysis
-
-Parse one or more RINEX files and render an analysis.
-When built with `flate2` support, gzip compressed files can be naturally loaded:
-
-```rust
-use rinex_qc::prelude::*;
-
-
-// Build a setup
-// This will not deploy with latest Almanac set for highest performances
-let update_model = false;
-let mut ctx = QcContext::new(update_model)
-    .unwrap();
-
-let cfg = QcConfig::default(); // basic
-
-let path = Path::new(
-    "../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz"
-);
-let rinex = Rinex::from_path(&path)
-    .unwrap();
-ctx.load_rinex(&path, rinex);
-
-// Generate a report
-let report = QcReport::new(&ctx, cfg);
-let _ = report.render().into_string();
-```
-
-## SP3 analysis
-
-The QcReport works on any file combination and any supported input product.
-The resulting report solely depends on the provided product combination.
-
-Once again, gzip compressed files are naturally supported when built with `flate2` feature:
-
-```rust
-use rinex_qc::prelude::*;
-
-// Build a setup
-let update_model = false;
-let mut ctx = QcContext::new(update_model)
-    .unwrap();
-
-let cfg = QcConfig::default(); // basic
-
-let path = Path::new("../test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz");
-let sp3 = SP3::from_path(&path)
-    .unwrap();
-
-ctx.load_sp3(&path, sp3);
-
-// Generate a report
-let report = QcReport::new(&ctx, cfg);
-let _ = report.render().into_string();
-```
-
-## SP3 / NAV RINEX
-
-When both SP3 and NAV RINEX files exist, we prefer SP3 for everything related
-to Orbit states, because they provide highest accuracy. You can
-force the consideration (along SP3) by using a custom `QcConfig`:
-
-```rust
-use rinex_qc::prelude::*;
-
-// Build a setup
-let update_model = false;
-
-let mut ctx = QcContext::new(update_model)
-    .unwrap();
-
-let cfg = QcConfig::default(); // basic
-```
-
-## PPP analysis
-
-PPP compliant contexts are made of RINEX files and SP3 files, for the same time frame.
-The QcSummary report will let you know how compliant your input context is
-and what may restrict performances. 
-
-
-```rust
-use rinex_qc::prelude::*;
-
-// basic setup
-let update_model = false;
-let mut ctx = QcContext::new(update_model).unwrap();
-```
-
-## Custom chapters
-
-Format your custom chapters as `QcExtraPage` so you can create your own report!
-
-```rust
-use rinex_qc::prelude::*;
-
-let update_model = false;
-let mut ctx = QcContext::new(update_model).unwrap();
-```
-
-## More info
-
-Refer to the RINEX Wiki pages hosted on Github and the tutorial scripts data base, shipped
-with the RINEX library, for high level examples.
