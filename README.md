@@ -1,6 +1,17 @@
 GNSS Quality Control
 ====================
 
+[![Rust](https://github.com/rtk-rs/gnss-qc/actions/workflows/rust.yml/badge.svg)](https://github.com/rtk-rs/gnss-qc/actions/workflows/rust.yml)
+[![crates.io](https://docs.rs/gnss-qc/badge.svg)](https://docs.rs/gnss-qc/)
+[![crates.io](https://img.shields.io/crates/d/gnss-qc.svg)](https://crates.io/crates/gnss-qc)
+
+[![License](https://img.shields.io/badge/license-MPL_2.0-orange?style=for-the-badge&logo=mozilla)](https://github.com/rtk-rs/qc-traits/blob/main/LICENSE)
+
+The Quality Control traits library (`gnss-qc-traits`) is a small library
+that offers the basic operations to form a geodesy processing pipeline, as used by
+our [Quality Control library](https://github.com/rtk-rs/gnss-qc).
+
+
 The `GNSS-Qc` (Quality Control) library answers the demanding task
 of GNSS data (post) processing. This topic usually involves several different formats
 at the input of a processing pipeline. 
