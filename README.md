@@ -13,12 +13,12 @@ that we offer by means of this very trait.
 
 The Qc library offers several important features
 
-- the definition of an Almanac by means of the
+- the definition of an Almanac using
 the [ANISE](https://github.com/nyx-space/anise)
 - the definition of a precise Earth centered Reference [Frame](https://github.com/nyx-space/anise)
-- the possibility to inject [RINEX](https://github.com/georust/rinex) data at the input
-of the processing pipeline, which one of the most convenient format for GNSS post processing
-- the possibility to inject [SP3](https://github.com/georust/rinex/tree/main/sp3) data
+- Injecting [RINEX](https://github.com/georust/rinex) data at the input
+of the pipeline, which is one of the most convenient format for GNSS post processing
+- Injecting [SP3](https://github.com/georust/rinex/tree/main/sp3) data
 at the input of the pipeline, which is the standard format for post processed high precision GNSS navigation.
 - precise timing thanks to the [Hifitime](https://github.com/nyx-space/hifitime) library
 
