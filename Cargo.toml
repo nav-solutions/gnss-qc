@@ -40,9 +40,11 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 map_3d = "0.1.5"
 
 hifitime = "4.0"
-anise = { version = "0.5.2", features = ["embed_ephem"] }
+anise = { version = "0.5.3", features = ["embed_ephem"] }
 gnss-rs = { version = "2.3.1", features = ["serde"] }
-gnss-qc-traits = { path = "../traits", version = "=0.0.1", features = ["processing"] }
+
+gnss-qc-traits = { version = "0.0.1", features = ["processing"] }
+# gnss-qc-traits = { path = "../traits", version = "=0.0.1", features = ["processing"] }
 
 maud = "0.26"
 
@@ -51,10 +53,10 @@ plotly = "0.9"
 # plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo"} 
 
 # SP3 lib
-sp3 = { path = "../../../rinex/sp3", version = "=1.1.0-alpha-1", features = ["qc", "processing", "serde"], optional = true }
+sp3 = { path = "../../rinex/sp3", version = "=1.1.0-alpha-1", features = ["qc", "processing", "serde"], optional = true }
 
 # RINEX lib
-rinex = { path = "../../../rinex/rinex", version = "=0.17.0-alpha-1", features = ["full"] }
+rinex = { path = "../../rinex/rinex", version = "=0.17.0-alpha-1", features = ["full"] }
 
 [dev-dependencies]
 serde_json = "1"
