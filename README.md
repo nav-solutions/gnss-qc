@@ -15,4 +15,4 @@ to a processing pipeline
 ## Licensing
 
 These libraries is part of the [RTK-rs framework](https://github.com/rtk-rs) which
-is delivered under the [Mozilla Public v2](https://www.mozilla.org/en-US/MPL/2.0) license.
+is delivered under the [Mozilla V2 Public](https://www.mozilla.org/en-US/MPL/2.0) license.
