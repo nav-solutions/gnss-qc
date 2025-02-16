@@ -2,11 +2,14 @@ GNSS Quality Control
 ====================
 
 The `GNSS-Qc` (Quality Control) library answers the demanding task
-of GNSS data (post) processing. This topic usually involves several different format
-at the input of a processing pipeline. A processing pipeline
+of GNSS data (post) processing. This topic usually involves several different formats
+at the input of a processing pipeline. 
 
-This library offers to form a procesing pipeline for all formats that implement
+A pipeline may be formed using all types that implement
 our [Qc Traits](https://github.com/rtk-rs/qc-traits) (low level traits).
+
+A processing pipeline usually requires `Preprocessing`,
+that we offer by means of this very trait.
 
 The Qc library offers several important features
 
