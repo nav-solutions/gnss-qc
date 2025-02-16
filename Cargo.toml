@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "traits", 
+    "qc", 
+]
+
+[profile.release]
+strip = true
+opt-level = 3
+lto = "thin"
+codegen-units = 1
