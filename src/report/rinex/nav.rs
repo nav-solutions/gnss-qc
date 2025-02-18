@@ -11,7 +11,7 @@ struct ConstellationPage {
 impl ConstellationPage {
     fn new(rinex: &Rinex) -> Self {
         Self {
-            satellites: rinex.sv_iter().collect(),
+            satellites: rinex.sv().collect(),
         }
     }
 }
@@ -44,7 +44,7 @@ impl NavReport {
         Self {
             pages: {
                 let mut pages = HashMap::<Constellation, ConstellationPage>::new();
-                for constell in rinex.constellations_iter() {
+                for constell in rinex.constellation() {
                     let filter = Filter::mask(
                         MaskOperand::Equals,
                         FilterItem::ConstellationItem(vec![constell]),
