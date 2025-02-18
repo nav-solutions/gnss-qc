@@ -48,7 +48,7 @@ gnss-qc-traits = { version = "0.0.2", features = ["processing"] }
 
 maud = "0.26"
 
-plotly = "0.9"
+plotly = "0.12"
 # plotly = { path = "../../plotly-rs/plotly" }
 # plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo"} 
 
