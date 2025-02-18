@@ -2,6 +2,7 @@ GNSS Quality Control
 ====================
 
 [![Rust](https://github.com/rtk-rs/gnss-qc/actions/workflows/rust.yml/badge.svg)](https://github.com/rtk-rs/gnss-qc/actions/workflows/rust.yml)
+[![Rust](https://github.com/rtk-rs/gnss-qc/actions/workflows/daily.yml/badge.svg)](https://github.com/rtk-rs/gnss-qc/actions/workflows/daily.yml)
 [![crates.io](https://docs.rs/gnss-qc/badge.svg)](https://docs.rs/gnss-qc/)
 [![crates.io](https://img.shields.io/crates/d/gnss-qc.svg)](https://crates.io/crates/gnss-qc)
 
