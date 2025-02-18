@@ -1,6 +1,6 @@
 use rinex::{
     navigation::Ephemeris,
-    prelude::{nav::Orbit, Constellation, Epoch, Rinex, SV},
+    prelude::{Constellation, Epoch, GroundPosition, Orbit, Rinex, SV},
 };
 use std::collections::{BTreeMap, HashMap};
 
@@ -158,19 +158,13 @@ pub struct OrbitReport {
 }
 
 impl OrbitReport {
-    pub fn new(ctx: &QcContext, reference: Option<Orbit>, force_brdc_sky: bool) -> Self {
-        let (x0_km, y0_km, z0_km) = match reference {
-            Some(orbit) => {
-                let pos_vel = orbit.to_cartesian_pos_vel();
-                (pos_vel[0], pos_vel[1], pos_vel[2])
-            }
-            None => (0.0, 0.0, 0.0),
-        };
+    pub fn new(ctx: &QcContext, reference: Option<GroundPosition>, force_brdc_sky: bool) -> Self {
+        let (x0, y0, z0) = reference.unwrap_or_default().to_ecef_wgs84();
+        let (x0_km, y0_km, z0_km) = (x0 / 1000.0, y0 / 1000.0, z0 / 1000.0);
 
         // TODO: brdc needs a timeserie..
         #[cfg(feature = "sp3")]
         let brdc_skyplot = ctx.has_brdc_navigation() && ctx.has_sp3() && force_brdc_sky;
-
         #[cfg(not(feature = "sp3"))]
         let brdc_skyplot = ctx.has_brdc_navigation();
 
@@ -218,9 +212,8 @@ impl OrbitReport {
                     }
                     if brdc_skyplot {
                         let brdc = ctx.brdc_navigation().unwrap();
-
                         if let Some(el_az_range) =
-                            brdc.nav_azimuth_elevation_range(sv_sp3, t, rx_orbit, &ctx.almanac)
+                            brdc.sv_azimuth_elevation_range(sv_sp3, t, rx_orbit, &ctx.almanac)
                         {
                             let (el_deg, az_deg) =
                                 (el_az_range.elevation_deg, el_az_range.azimuth_deg);
@@ -382,7 +375,7 @@ impl OrbitReport {
                     if let Some(nav) = ctx.brdc_navigation() {
                         for constellation in sp3.constellation() {
                             if let Some(constellation) = nav
-                                .constellations_iter()
+                                .constellation()
                                 .filter(|c| *c == constellation)
                                 .reduce(|k, _| k)
                             {

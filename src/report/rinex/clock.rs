@@ -1,8 +1,7 @@
 use itertools::Itertools;
 use maud::{html, Markup, Render};
 use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
-
-use rinex::prelude::{clock::ClockProfileType, Constellation, Rinex, TimeScale, DOMES, SV};
+use rinex::prelude::{ClockProfileType, Constellation, Rinex, TimeScale, DOMES, SV};
 use std::collections::HashMap;
 
 use crate::report::shared::SamplingReport;
@@ -20,7 +19,7 @@ struct ConstellPage {
 
 impl ConstellPage {
     fn new(rinex: &Rinex) -> Self {
-        let satellites = rinex.sv_iter().collect::<Vec<_>>();
+        let satellites = rinex.sv().collect::<Vec<_>>();
 
         Self {
             offset_plot: {
@@ -196,7 +195,7 @@ impl ClkReport {
             sampling: SamplingReport::from_rinex(rnx),
             constellations: {
                 let mut pages = HashMap::<Constellation, ConstellPage>::new();
-                for constellation in rnx.constellations_iter() {
+                for constellation in rnx.constellation() {
                     let filter = Filter::mask(
                         MaskOperand::Equals,
                         FilterItem::ConstellationItem(vec![constellation]),

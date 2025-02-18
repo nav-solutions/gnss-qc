@@ -15,7 +15,7 @@ pub struct IonexReport {
     map_dimension: u8,
     epoch_first_map: Epoch,
     epoch_last_map: Epoch,
-    sampling_interval: Option<Duration>,
+    sampling_interval: Duration,
     reference: Reference,
     description: Option<String>,
     mapping: Option<MappingFunction>,
@@ -24,7 +24,7 @@ pub struct IonexReport {
 
 impl IonexReport {
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {
-        let nb_of_maps = rnx.epoch_iter().count();
+        let nb_of_maps = rnx.epoch().count();
         let header = rnx.header.ionex.as_ref().ok_or(Error::MissingIonexHeader)?;
         Ok(Self {
             nb_of_maps,
@@ -34,7 +34,7 @@ impl IonexReport {
             mapping: header.mapping.clone(),
             reference: header.reference.clone(),
             description: header.description.clone(),
-            sampling_interval: rnx.sampling_interval(),
+            sampling_interval: rnx.dominant_sample_rate().ok_or(Error::SamplingAnalysis)?,
             world_map: {
                 let mut plot = Plot::world_map(
                     "ionex_tec",
@@ -44,17 +44,14 @@ impl IonexReport {
                     0,
                     true,
                 );
-
-                // Build one trace (1 map) per Epoch
                 let mut buttons = Vec::<Button>::new();
-
-                for (epoch_index, epoch) in rnx.epoch_iter().enumerate() {
+                // one trace(=map) per Epoch
+                for (epoch_index, epoch) in rnx.epoch().enumerate() {
                     let label = epoch.to_string();
-
                     let lat = rnx
-                        .ionex_tecu_latlong_ddeg_alt_km_iter()
+                        .tec()
                         .filter_map(
-                            |(t, _, lat, _, _)| {
+                            |(t, lat, _, _, _)| {
                                 if t == epoch {
                                     Some(lat)
                                 } else {
@@ -63,9 +60,8 @@ impl IonexReport {
                             },
                         )
                         .collect::<Vec<_>>();
-
                     let long = rnx
-                        .ionex_tecu_latlong_ddeg_alt_km_iter()
+                        .tec()
                         .filter_map(
                             |(t, _, long, _, _)| {
                                 if t == epoch {
@@ -76,13 +72,12 @@ impl IonexReport {
                             },
                         )
                         .collect::<Vec<_>>();
-
-                    let tecu = rnx
-                        .ionex_tecu_latlong_ddeg_alt_km_iter()
+                    let tec = rnx
+                        .tec()
                         .filter_map(
-                            |(t, tecu, _, _, _)| {
+                            |(t, _, _, _, tec)| {
                                 if t == epoch {
-                                    Some(tecu)
+                                    Some(tec)
                                 } else {
                                     None
                                 }
@@ -93,13 +88,12 @@ impl IonexReport {
                     let trace = Plot::density_mapbox(
                         lat.clone(),
                         long.clone(),
-                        tecu,
+                        tec,
                         &label,
                         0.6,
                         3,
                         epoch_index == 0,
                     );
-
                     plot.add_trace(trace);
 
                     buttons.push(
@@ -120,7 +114,6 @@ impl IonexReport {
                             .build(),
                     );
                 }
-
                 plot.add_custom_controls(buttons);
                 plot
             },
@@ -167,16 +160,10 @@ impl Render for IonexReport {
                 }
                 tr {
                     th class="is-info" {
-                        "Sampling Period"
+                        "Time Interval"
                     }
-                    @ if let Some(sampling_interval) = &self.sampling_interval {
-                        td {
-                            (sampling_interval.to_string())
-                        }
-                    } @ else {
-                        td class="is-warning" {
-                            "Unknown"
-                        }
+                    td {
+                        (self.sampling_interval.to_string())
                     }
                 }
                 tr {
