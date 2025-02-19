@@ -4,9 +4,9 @@ version = "0.0.2"
 license = "MPL-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "GNSS data Quality Control"
-homepage = "https://github.com/rtk-rs/gnss-qc"
+homepage = "https://github.com/rtk-rs"
 repository = "https://github.com/rtk-rs/gnss-qc"
-keywords = ["rinex", "gnss", "gps", "glonass", "galileo"]
+keywords = ["geo", "gnss", "gps"]
 categories = ["science", "science::geo"]
 edition = "2021"
 
@@ -34,7 +34,8 @@ thiserror = "2"
 
 strum = "0.26"
 strum_macros = "0.27"
-itertools = "0.13.0"
+strum_macros = "0.26"
+itertools = "0.14.0"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 map_3d = "0.1.5"
