@@ -1,4 +1,4 @@
-#![doc(html_logo_url = "https://raw.githubusercontent.com/rtk-rs/.github/master/logos/logo2.jpg")]
+#![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -25,7 +25,8 @@ pub mod prelude {
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
     pub use maud::{html, Markup, Render};
     pub use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
-    pub use rinex::prelude::{Almanac, Error as RinexError, Rinex};
+    pub use rinex::prelude::nav::Almanac;
+    pub use rinex::prelude::{Error as RinexError, Rinex};
     #[cfg(feature = "sp3")]
     pub use sp3::prelude::{Error as SP3Error, SP3};
     pub use std::path::Path;
