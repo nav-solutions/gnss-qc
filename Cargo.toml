@@ -53,10 +53,10 @@ plotly = "0.9"
 # plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo"} 
 
 # RINEX lib
-rinex = { path = "../../rinex/rinex", features = ["full"] }
+rinex = { git = "https://github.com/georust/rinex", branch = "rinex-backend", features = ["full"] }
 
 # SP3 lib
-sp3 = { path = "../../rinex/sp3", features = ["qc", "processing", "serde"], optional = true }
+sp3 = { git = "https://github.com/georust/rinex", branch = "rinex-backend", features = ["qc", "processing", "serde"], optional = true }
 
 [dev-dependencies]
 serde_json = "1"
