@@ -226,11 +226,7 @@ impl QcReport {
             #[cfg(feature = "sp3")]
             orbit: {
                 if (context.has_sp3() || context.has_brdc_navigation()) && !summary_only {
-                    Some(OrbitReport::new(
-                        context,
-                        ref_position,
-                        cfg.force_brdc_skyplot,
-                    ))
+                    Some(OrbitReport::new(context, ref_position))
                 } else {
                     None
                 }

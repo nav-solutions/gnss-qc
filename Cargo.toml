@@ -11,7 +11,7 @@ categories = ["science", "science::geo"]
 edition = "2021"
 
 [features]
-default = [] # no features by default
+default = ["sp3"] # no features by default
 
 # Unlock support of high precision SP3 files.
 # When targetting highest precision analysis and solutions, like in PPP,
@@ -47,7 +47,7 @@ plotly = "0.12"
 
 rinex = { git = "https://github.com/georust/rinex", branch = "main",  features = ["qc", "processing", "obs", "clock", "nav", "ionex", "serde"]  }
 
-sp3 = { git = "https://github.com/georust/rinex", branch = "main", features = ["qc", "processing", "serde"], optional = true }
+sp3 = { git = "https://github.com/georust/rinex", branch = "main", features = ["qc", "processing", "anise", "serde"], optional = true }
 
 [dev-dependencies]
 serde_json = "1"

@@ -378,7 +378,7 @@ impl QcContext {
     pub fn timescale(&self) -> Option<TimeScale> {
         #[cfg(feature = "sp3")]
         if let Some(sp3) = self.sp3() {
-            return Some(sp3.time_scale);
+            return Some(sp3.header.timescale);
         }
 
         if let Some(obs) = self.observation() {
@@ -600,7 +600,7 @@ impl QcContext {
     /// Returns true if High Precision Orbits also contains temporal information.
     pub fn sp3_has_clock(&self) -> bool {
         if let Some(sp3) = self.sp3() {
-            sp3.sv_clock().count() > 0
+            sp3.has_satellite_clock_offset()
         } else {
             false
         }

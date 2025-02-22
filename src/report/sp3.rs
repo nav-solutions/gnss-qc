@@ -107,30 +107,30 @@ impl SP3Report {
     }
     pub fn new(sp3: &SP3) -> Self {
         Self {
-            agency: sp3.agency.clone(),
-            version: sp3.version.to_string(),
-            coord_system: sp3.coord_system.clone(),
-            orbit_fit: sp3.orbit_type.to_string(),
-            time_scale: sp3.time_scale.to_string(),
+            agency: sp3.header.agency.clone(),
+            version: sp3.header.version.to_string(),
+            coord_system: sp3.header.coord_system.clone(),
+            orbit_fit: sp3.header.orbit_type.to_string(),
+            time_scale: sp3.header.timescale.to_string(),
             sampling: SamplingReport::from_sp3(sp3),
-            constellation: sp3.constellation.to_string(),
+            constellation: sp3.header.constellation.to_string(),
             pages: {
                 let mut pages = HashMap::<Constellation, SP3Page>::new();
-                for constellation in sp3.constellation() {
+                for constellation in sp3.constellations_iter() {
                     let filter = Filter::mask(
                         MaskOperand::Equals,
                         FilterItem::ConstellationItem(vec![constellation]),
                     );
                     let focused = sp3.filter(&filter);
                     //let epochs = focused.epoch().collect::<Vec<_>>();
-                    let satellites = focused.sv().collect::<Vec<_>>();
+                    let satellites = focused.satellites_iter().collect::<Vec<_>>();
                     pages.insert(
                         constellation,
                         SP3Page {
-                            has_clock: focused.sv_clock().count() > 0,
+                            has_clock: focused.has_satellite_clock_offset(),
                             sampling: SamplingReport::from_sp3(&focused),
-                            has_velocity: focused.sv_velocities().count() > 0,
-                            has_clock_drift: focused.sv_clock_rate().count() > 0,
+                            has_velocity: focused.has_satellite_velocity(),
+                            has_clock_drift: focused.has_satellite_clock_drift(),
                             satellites,
                         },
                     );

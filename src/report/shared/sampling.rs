@@ -55,18 +55,20 @@ impl SamplingReport {
     }
     #[cfg(feature = "sp3")]
     pub fn from_sp3(sp3: &SP3) -> Self {
-        let t_start = sp3.first_epoch().expect("badly formed sp3: empty?");
-        let t_end = sp3.last_epoch().expect("badly formed sp3: empty?");
+        let t_start = sp3.first_epoch();
+        let t_end = sp3
+            .last_epoch()
+            .expect("undetermined last epoch: SP3 format error");
         Self {
-            total: sp3.epoch().count(),
+            total: sp3.epochs_iter().count(),
             gaps: Vec::new(),   // TODO
             longest_gap: None,  //TODO
             shortest_gap: None, //TODO
             last_epoch: t_end,
             first_epoch: t_start,
             duration: t_end - t_start,
-            sampling_interval: Some(sp3.epoch_interval),
-            dominant_sample_rate: Some(1.0 / sp3.epoch_interval.to_seconds()),
+            sampling_interval: Some(sp3.header.epoch_interval),
+            dominant_sample_rate: Some(1.0 / sp3.header.epoch_interval.to_seconds()),
         }
     }
 }
