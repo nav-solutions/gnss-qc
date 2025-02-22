@@ -1,4 +1,3 @@
-use hifitime::Unit;
 use maud::{html, Markup, Render};
 use rinex::prelude::{Duration, Epoch, Rinex};
 
@@ -16,9 +15,9 @@ pub struct SamplingReport {
     /// Time span of this RINEX context
     pub duration: Duration,
     /// File [`Header`] sample rate
-    pub sample_rate: Option<Duration>,
+    pub sampling_interval: Option<Duration>,
     /// Dominant sample rate
-    pub dominant_sample_rate: Option<Duration>,
+    pub dominant_sample_rate: Option<f64>,
     /// Unusual data gaps
     pub gaps: Vec<(Epoch, Duration)>,
     /// longest gap detected
@@ -31,7 +30,7 @@ impl SamplingReport {
     pub fn from_rinex(rinex: &Rinex) -> Self {
         let gaps = rinex.data_gaps(None).collect::<Vec<_>>();
         Self {
-            total: rinex.epoch().count(),
+            total: rinex.epoch_iter().count(),
             first_epoch: rinex
                 .first_epoch()
                 .expect("failed to determine first RINEX epoch, badly formed?"),
@@ -41,8 +40,8 @@ impl SamplingReport {
             duration: rinex
                 .duration()
                 .expect("failed to determine RINEX time frame, badly formed?"),
-            sample_rate: rinex.sample_rate(),
-            dominant_sample_rate: rinex.dominant_sample_rate(),
+            sampling_interval: rinex.sampling_interval(),
+            dominant_sample_rate: rinex.dominant_sampling_rate_hz(),
             shortest_gap: gaps
                 .iter()
                 .min_by(|(_, dur_a), (_, dur_b)| dur_a.partial_cmp(dur_b).unwrap())
@@ -56,18 +55,20 @@ impl SamplingReport {
     }
     #[cfg(feature = "sp3")]
     pub fn from_sp3(sp3: &SP3) -> Self {
-        let t_start = sp3.first_epoch().expect("badly formed sp3: empty?");
-        let t_end = sp3.last_epoch().expect("badly formed sp3: empty?");
+        let t_start = sp3.first_epoch();
+        let t_end = sp3
+            .last_epoch()
+            .expect("undetermined last epoch: SP3 format error");
         Self {
-            total: sp3.epoch().count(),
+            total: sp3.epochs_iter().count(),
             gaps: Vec::new(),   // TODO
             longest_gap: None,  //TODO
             shortest_gap: None, //TODO
             last_epoch: t_end,
             first_epoch: t_start,
             duration: t_end - t_start,
-            sample_rate: Some(sp3.epoch_interval),
-            dominant_sample_rate: Some(sp3.epoch_interval),
+            sampling_interval: Some(sp3.header.epoch_interval),
+            dominant_sample_rate: Some(1.0 / sp3.header.epoch_interval.to_seconds()),
         }
     }
 }
@@ -105,45 +106,27 @@ impl Render for SamplingReport {
                                 (self.duration.to_string())
                             }
                         }
-                        @if let Some(sample_rate) = self.sample_rate {
+                        @if let Some(sampling_interval) = self.sampling_interval {
                             tr {
                                 th class="is-info" {
-                                    "Sampling"
+                                    "Sampling Period"
                                 }
                             }
                             tr {
-                                th {
-                                    "Rate"
-                                }
                                 td {
-                                    (format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second)))
-                                }
-                                th {
-                                    "Period"
-                                }
-                                td {
-                                    (sample_rate.to_string())
+                                    (sampling_interval.to_string())
                                 }
                             }
                         }
                         @if let Some(sample_rate) = self.dominant_sample_rate {
                             tr {
                                 th class="is-info" {
-                                    "Dominant Sampling"
+                                    "Dominant Sampling Rate"
                                 }
                             }
                             tr {
-                                th {
-                                    "Rate"
-                                }
                                 td {
-                                    (format!("{:.3} Hz", 1.0 / sample_rate.to_unit(Unit::Second)))
-                                }
-                                th {
-                                    "Period"
-                                }
-                                td {
-                                    (sample_rate.to_string())
+                                    (format!("{:.3} Hz", sample_rate))
                                 }
                             }
                         }
