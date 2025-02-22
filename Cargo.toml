@@ -45,9 +45,9 @@ gnss-qc-traits = { version = "0.1.0", features = ["processing"] }
 maud = "0.26"
 plotly = "0.12"
 
-rinex = { git = "https://github.com/georust/rinex", branch = "main",  features = ["qc", "processing", "obs", "clock", "nav", "ionex", "serde"]  }
+rinex = { git = "https://github.com/rtk-rs/rinex", branch = "main",  features = ["qc", "processing", "obs", "clock", "nav", "ionex", "serde"]  }
 
-sp3 = { git = "https://github.com/georust/rinex", branch = "main", features = ["qc", "processing", "anise", "serde"], optional = true }
+sp3 = { git = "https://github.com/rtk-rs/sp3", branch = "main", features = ["qc", "processing", "anise", "serde"], optional = true }
 
 [dev-dependencies]
 serde_json = "1"
