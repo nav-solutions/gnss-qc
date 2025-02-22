@@ -32,10 +32,9 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 log = "0.4"
 thiserror = "2"
 
-strum = "0.26"
+strum = "0.27"
 strum_macros = "0.26"
-itertools = "0.13.0"
-map_3d = "0.1.5"
+itertools = "0.14.0"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 hifitime = "4.0"
@@ -44,7 +43,7 @@ gnss-rs = { version = "2.3.3", features = ["serde"] }
 gnss-qc-traits = { version = "0.1.0", features = ["processing"] }
 
 maud = "0.26"
-plotly = "0.9"
+plotly = "0.12"
 
 rinex = { git = "https://github.com/georust/rinex", branch = "main",  features = ["qc", "processing", "obs", "clock", "nav", "ionex", "serde"]  }
 
