@@ -1,6 +1,4 @@
 //! GNSS processing context definition.
-use thiserror::Error;
-
 use std::{
     collections::HashMap,
     ffi::OsStr,
@@ -33,76 +31,7 @@ use sp3::prelude::SP3;
 
 use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
 
-/// Context Error
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("almanac error: {0}")]
-    Almanac(#[from] AlmanacError),
-    #[error("meta error: {0}")]
-    MetaAlmanac(#[from] MetaAlmanacError),
-    #[error("planetary data error")]
-    PlanetaryData(#[from] PlanetaryDataError),
-    #[error("non supported file format")]
-    NonSupportedFileFormat,
-    #[error("failed to determine filename")]
-    FileNameDetermination,
-    #[error("failed to extend context")]
-    Merge(#[from] MergeError),
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ProductType {
-    /// GNSS carrier signal observation in the form
-    /// of Observation RINEX data.
-    Observation,
-    /// Meteo sensors data wrapped as Meteo RINEX files.
-    MeteoObservation,
-    /// DORIS measurements wrapped as special RINEX observation file.
-    DORIS,
-    /// Broadcast Navigation message as contained in
-    /// Navigation RINEX files.
-    BroadcastNavigation,
-    /// High precision orbital attitudes wrapped in Clock RINEX files.
-    HighPrecisionClock,
-    /// Antenna calibration information wrapped in ANTEX special RINEX files.
-    ANTEX,
-    /// Precise Ionosphere state wrapped in IONEX special RINEX files.
-    IONEX,
-    #[cfg(feature = "sp3")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    /// High precision clock data wrapped in SP3 files.
-    HighPrecisionOrbit,
-}
-
-impl std::fmt::Display for ProductType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::ANTEX => write!(f, "ANTEX"),
-            Self::IONEX => write!(f, "IONEX"),
-            Self::DORIS => write!(f, "DORIS RINEX"),
-            Self::Observation => write!(f, "Observation"),
-            Self::MeteoObservation => write!(f, "Meteo"),
-            Self::HighPrecisionClock => write!(f, "High Precision Clock"),
-            Self::BroadcastNavigation => write!(f, "Broadcast Navigation (BRDC)"),
-            #[cfg(feature = "sp3")]
-            Self::HighPrecisionOrbit => write!(f, "High Precision Orbit (SP3)"),
-        }
-    }
-}
-
-impl From<RinexType> for ProductType {
-    fn from(rt: RinexType) -> Self {
-        match rt {
-            RinexType::ObservationData => Self::Observation,
-            RinexType::NavigationData => Self::BroadcastNavigation,
-            RinexType::MeteoData => Self::MeteoObservation,
-            RinexType::ClockData => Self::HighPrecisionClock,
-            RinexType::IonosphereMaps => Self::IONEX,
-            RinexType::AntennaData => Self::ANTEX,
-            RinexType::DORIS => Self::DORIS,
-        }
-    }
-}
+use crate::{error::Error, prelude::ProductType};
 
 enum BlobData {
     /// RINEX content

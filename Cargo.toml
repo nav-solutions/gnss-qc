@@ -39,8 +39,9 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 hifitime = "4.0"
 anise = { version = "0.5.3", features = ["embed_ephem"] }
-gnss-rs = { version = "2.3.3", features = ["serde"] }
-gnss-qc-traits = { version = "0.1.0", features = ["processing"] }
+
+gnss-rs = { version = "2.3.5", features = ["serde"] }
+gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", features = ["processing"] }
 
 maud = "0.26"
 plotly = "0.12"
