@@ -9,16 +9,19 @@ extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 
 mod cfg;
-
-pub mod plot;
-
 mod context;
+mod product;
 mod report;
+
+pub mod error;
+pub mod plot;
 
 pub mod prelude {
     pub use crate::{
         cfg::{QcConfig, QcReportType},
-        context::{ProductType, QcContext},
+        context::QcContext,
+        error::Error,
+        product::ProductType,
         report::{QcExtraPage, QcReport},
     };
     // Pub re-export
