@@ -23,11 +23,20 @@ jobs:
     - name: Build (Default)
       run: cargo build
     
+    - name: Clean
+      run: cargo clean
+    
     - name: Build (SP3)
       run: cargo build --features sp3
     
+    - name: Clean
+      run: cargo clean
+    
     - name: Build (all features)
       run: cargo build --all-features
+    
+    - name: Clean
+      run: cargo clean
     
     - name: Run tests
       run: cargo test --all-features
@@ -40,11 +49,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
       
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+      
       - name: Publish
         env:
           TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
