@@ -2,6 +2,18 @@
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+/*
+ * GNSS-Qc is part of the rtk-rs framework.
+ * Authors: Guillaume W. Bres <guillaume.bressaix@gmail.com> et al.
+ * (cf. https://github.com/rtk-rs/gnss-qc/graphs/contributors)
+ * This framework is shipped under Mozilla Public V2 license.
+ *
+ * Documentation:
+ * - https://github.com/rtk-rs/gnss-qc
+ * - https://github.com/rtk-rs/rinex
+ * - https://github.com/rtk-rs/sp3
+ */
+
 #[macro_use]
 extern crate log;
 
