@@ -47,7 +47,7 @@ maud = "0.26"
 plotly = "0.12"
 
 sp3 = { version = "1.1.2", features = ["qc", "processing", "anise", "serde"], optional = true }
-rinex = { version = "0.17.0", features = ["qc", "processing", "obs", "clock", "nav", "ionex", "serde"]  }
+rinex = { git = "https://github.com/rtk-rs/rinex", branch = "main", features = ["qc", "processing", "obs", "clock", "nav", "ionex", "serde"]  }
 
 [dev-dependencies]
 serde_json = "1"
