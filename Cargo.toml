@@ -19,6 +19,11 @@ default = ["sp3"] # no features by default
 # such files into a context, only RINEX post processing is possible.
 sp3 = ["dep:sp3"]
 
+# Unlock "embedded ephemeris" option,
+# which removes the need of Internet access on very first (ever) deployment
+# in order to obtain the ANISE database
+embed_ephem = ["anise/embed_ephem"]
+
 # Unlock graphical analysis (plots rendering), otherwise reports are solely text based
 # plot = [
 #     "dep:plotly", 
@@ -37,8 +42,8 @@ strum_macros = "0.26"
 itertools = "0.14.0"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
+anise = "0.5.3"
 hifitime = "4.0"
-anise = { version = "0.5.3", features = ["embed_ephem"] }
 
 gnss-rs = { version = "2.3.5", features = ["serde"] }
 gnss-qc-traits = { version = "0.1.1", features = ["processing"] }
