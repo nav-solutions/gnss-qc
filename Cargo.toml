@@ -11,7 +11,7 @@ categories = ["science", "science::geo"]
 edition = "2021"
 
 [features]
-default = ["sp3"] # no features by default
+default = ["sp3"]
 
 # Unlock support of high precision SP3 files.
 # When targetting highest precision analysis and solutions, like in PPP,

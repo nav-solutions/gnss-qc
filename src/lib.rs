@@ -22,6 +22,7 @@ extern crate gnss_rs as gnss;
 
 mod cfg;
 mod context;
+mod nav;
 mod product;
 mod report;
 
@@ -33,6 +34,7 @@ pub mod prelude {
         cfg::{QcConfig, QcReportType},
         context::QcContext,
         error::Error,
+        nav::{NavFilter, NavFilterType},
         product::ProductType,
         report::{QcExtraPage, QcReport},
     };

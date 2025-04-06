@@ -10,19 +10,14 @@ use std::{
 
 use rinex::prelude::{
     nav::{Almanac, Orbit},
-    Rinex, RinexType, TimeScale,
+    Rinex, TimeScale,
 };
 
-use qc_traits::{Merge, MergeError};
+use qc_traits::Merge;
 
 use anise::{
-    almanac::{
-        metaload::MetaAlmanacError,
-        metaload::{MetaAlmanac, MetaFile},
-        planetary::PlanetaryDataError,
-    },
+    almanac::metaload::{MetaAlmanac, MetaFile},
     constants::frames::{EARTH_ITRF93, IAU_EARTH_FRAME},
-    errors::AlmanacError,
     prelude::Frame,
 };
 
@@ -670,6 +665,7 @@ impl QcContext {
             data.filter_mut(filter);
         }
     }
+
     /// Fix given [Repair] condition
     pub fn repair_mut(&mut self, r: Repair) {
         if let Some(rinex) = self.observation_mut() {

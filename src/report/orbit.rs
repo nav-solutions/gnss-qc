@@ -168,7 +168,6 @@ impl OrbitReport {
         if let Some(sp3) = ctx.sp3() {
             if let Some(rx_orbit) = reference {
                 for (t, sp3_sv, sp3_orbit) in sp3.satellites_orbit_iter(ctx.earth_cef) {
-
                     if let Ok(az_el_range) = ctx
                         .almanac
                         .azimuth_elevation_range_sez(sp3_orbit, rx_orbit, None, None)
