@@ -4,7 +4,7 @@ use thiserror::Error;
 use qc_traits::MergeError;
 
 use anise::{
-    almanac::{metaload::MetaAlmanac, metaload::MetaAlmanacError, planetary::PlanetaryDataError},
+    almanac::{metaload::MetaAlmanacError, planetary::PlanetaryDataError},
     errors::AlmanacError,
 };
 
@@ -25,4 +25,6 @@ pub enum Error {
     Merge(#[from] MergeError),
     #[error("unknown / non supported product type")]
     UnknownProductType,
+    #[error("invalid nav filter")]
+    InvalidNavFilter,
 }

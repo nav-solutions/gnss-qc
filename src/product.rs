@@ -1,7 +1,6 @@
 //! Input / Output Products definition
 use crate::error::Error;
 use rinex::prelude::RinexType;
-use std::str::FromStr;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ProductType {
