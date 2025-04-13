@@ -41,7 +41,7 @@ pub mod prelude {
     // Pub re-export
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
     pub use maud::{html, Markup, Render};
-    pub use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
+    pub use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing, Repair, RepairTrait};
     pub use rinex::prelude::nav::Almanac;
     pub use rinex::prelude::{Error as RinexError, Rinex};
     #[cfg(feature = "sp3")]
