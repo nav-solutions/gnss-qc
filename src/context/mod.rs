@@ -58,15 +58,19 @@ pub struct QcContext {
 }
 
 impl QcContext {
-    // Creates a new [QcContext] for GNSS post processing.
-    //
-    // For people interested in Post Processed navigation:
-    // - if the library was compiled with "embed_ephem" option, you are good
-    // to go for high precision navigation. Otherwise, this method will require
-    // that a navigation cache is created and requires internet access on first deployment.
-    // - for people targeting ultra high navigation precision, you should
-    // use the JPL BPC cache and keep it up to date, by using [Self::with_jpl_update],
-    // which requires internet access at all times.
+    /// Creates a new [QcContext] for GNSS post processing.
+    ///
+    /// For people interested in Post Processed navigation:
+    /// - if the library was compiled with "embed_ephem" option, you are good
+    /// to go for high precision navigation. Otherwise, this method will require
+    /// that a navigation cache is created and requires internet access on first deployment.
+    /// - for people targeting ultra high navigation precision, you should
+    /// use the JPL BPC cache and keep it up to date, by using [Self::with_jpl_update],
+    /// which requires internet access at all times.
+    ///
+    /// ```
+    /// let context = 
+    /// ```
     pub fn new() -> Self {
         #[cfg(feature = "navigation")]
         let (almanac, earth_cef) = Self::default_almanac_frame();

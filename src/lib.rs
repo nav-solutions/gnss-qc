@@ -24,7 +24,6 @@ mod cfg;
 mod context;
 mod product;
 mod report;
-mod time;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]

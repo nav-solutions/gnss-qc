@@ -80,6 +80,19 @@ impl QcContext {
         }
     }
 
+    /// Create a new [QcContext] using your own [Almanac] and [Frame] definitions
+    /// (obtained externally). NB: [Frame] is supposed to be one of the 
+    /// Earth Centered Frame as we are supposed to operate on planet Earth.
+    /// This is typically used by advanced users targetting high precision naviation.
+    pub fn new_alamac_frame(almanac: Almanac, frame: Frame) -> Self {
+        Self {
+            files: Default::default(),
+            blob: Default::default(),
+            almanac,
+            earth_cef: frame,
+        }
+    }
+
     /// Obtains [Almanac] + ECEF [Frame] definition from ANISE database
     pub(crate) fn default_almanac_frame() -> (Almanac, Frame) {
         let mut meta = Self::default_meta_almanac();
