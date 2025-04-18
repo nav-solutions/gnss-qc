@@ -41,6 +41,12 @@ impl QcContext {
         Ok(())
     }
 
+    /// Load readable [SP3] file into this [QcContext].
+    pub fn load_sp3_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
+        let sp3 = SP3::from_file(&path)?;
+        self.load_sp3(path, sp3)
+    }
+
     /// Returns true if [ProductType::HighPrecisionOrbit] are present in current [QcContext]
     pub fn has_sp3(&self) -> bool {
         self.sp3().is_some()

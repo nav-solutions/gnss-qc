@@ -50,7 +50,10 @@ pub mod prelude {
 
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
 
-    pub use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing, Repair, RepairTrait};
+    pub use qc_traits::{
+        Filter, FilterItem, GnssAbsoluteTime, MaskOperand, Preprocessing, Repair, RepairTrait,
+        TimePolynomial,
+    };
 
     pub use rinex::prelude::{Error as RinexError, Rinex};
 

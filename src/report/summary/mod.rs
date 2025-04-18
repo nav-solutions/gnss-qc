@@ -67,50 +67,6 @@ impl Render for QcSummary {
                             }
                         }
                         tr {
-                            @if let Some(orbit) = self.cfg.manual_rx_orbit {
-                                @match orbit.latlongalt() {
-                                    Ok((lat_ddeg, long_ddeg, alt_km)) => {
-                                        th {
-                                            button aria-label="RX reference position" data-balloon-pos="up" {
-                                                "(Manual) Reference position"
-                                            }
-                                        }
-                                        td {
-                                            button aria-label="Manually defined" data-balloon-pos="up" {
-                                                "TODO"
-                                            }
-                                        }
-                                    },
-                                    Err(e) => {
-                                        th {
-                                            button aria-label="RX reference position" data-balloon-pos="up" {
-                                                "(Manual) Reference position"
-                                            }
-                                        }
-                                        td {
-                                            button aria-label="Manually defined" data-balloon-pos="up" {
-                                                "Invalid"
-                                            }
-                                        }
-
-                                    },
-                                }
-                            } @else {
-                                th {
-                                    button aria-label="Ground based reference position" data-balloon-pos="up" {
-                                        "Reference position"
-                                    }
-                                }
-                                td {
-                                    button aria-label="Compass projection is disabled.
-Most navigation geometric/attibutes filter cannot apply.
-Initial survey/guess is implied." data-balloon-pos="up" {
-                                        "None"
-                                    }
-                                }
-                            }
-                        }
-                        tr {
                             th class="is-info" {
                                 button aria-label="Context / Dataset compliancy" data-balloon-pos="right" {
                                     "Compliancy"

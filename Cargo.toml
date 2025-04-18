@@ -10,8 +10,15 @@ keywords = ["geo", "gnss", "gps"]
 categories = ["science", "science::geo"]
 edition = "2021"
 
+[package.metadata]
+msrv = "1.81"
+
+[package.metadata.docs.rs]
+features = ["sp3", "flate2", "navigation"]
+rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
+
 [features]
-default = ["flate2", "sp3", "navigation"]
+default = ["flate2"] # gzip compressed files
 
 # Support Gzip compressed files natively
 flate2 = [
@@ -44,10 +51,6 @@ embed_ephem = ["anise/embed_ephem"]
 #     "dep:plotly", 
 # ]
 
-[package.metadata.docs.rs]
-features = ["sp3", "flate2", "navigation"]
-rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
-
 [dependencies]
 thiserror = "2"
 
@@ -62,13 +65,13 @@ log = { version = "0.4", optional = true }
 anise = { version = "0.5.3", optional = true }
 
 gnss-rs = { version = "2.3.5", features = ["serde"] }
-gnss-qc-traits = { path = "../qc-traits", features = ["processing"] }
+gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", branch = "main", features = ["processing"] }
 
 maud = "0.26"
 plotly = "0.12"
 
-sp3 = { path = "../sp3", features = ["qc", "processing", "serde"], optional = true }
-rinex = { path = "../rinex", features = ["qc", "processing", "obs", "clock", "ionex", "serde"]  }
+sp3 = { git = "https://github.com/rtk-rs/sp3", branch = "main", features = ["qc", "processing", "serde"], optional = true }
+rinex = { git = "https://github.com/rtk-rs/rinex", branch = "main", features = ["qc", "processing", "obs", "clock", "ionex", "serde"]  }
 
 [dev-dependencies]
 serde_json = "1"

@@ -6,7 +6,7 @@ impl QcContext {
     /// Form a [GnssAbsoluteTime] solver from this [QcContext],
     /// used to allow transposition into other [TimeScale]s.
     /// This requires navigation both feature and compatibility to truly be effective.
-    fn gnss_absolute_time_solver(&self) -> GnssAbsoluteTime {
+    pub fn gnss_absolute_time_solver(&self) -> GnssAbsoluteTime {
         let mut polynomials = Vec::<TimePolynomial>::new();
 
         if let Some(brdc) = self.brdc_navigation() {

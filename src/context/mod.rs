@@ -9,10 +9,10 @@ use crate::prelude::{Rinex, TimeScale};
 
 use qc_traits::Merge;
 
+pub mod time;
+
 pub(crate) mod blob;
 use blob::BlobData;
-
-mod time;
 
 #[cfg(feature = "flate2")]
 #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
