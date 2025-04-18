@@ -22,9 +22,13 @@ extern crate gnss_rs as gnss;
 
 mod cfg;
 mod context;
-mod nav;
 mod product;
 mod report;
+mod time;
+
+#[cfg(feature = "navigation")]
+#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+mod navigation;
 
 pub mod error;
 pub mod plot;
@@ -34,17 +38,29 @@ pub mod prelude {
         cfg::{QcConfig, QcReportType},
         context::QcContext,
         error::Error,
-        nav::{NavFilter, NavFilterType},
         product::ProductType,
         report::{QcExtraPage, QcReport},
     };
-    // Pub re-export
+
+    pub use hifitime::prelude::{Epoch, TimeScale, Duration};
+    pub use gnss::prelude::{Constellation, COSPAR, SV};
+
+    #[cfg(feature = "navigation")]
+    pub use crate::navigation::{NavFilter, NavFilterType, ReferenceEcefPosition};
+
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
-    pub use maud::{html, Markup, Render};
+
     pub use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing, Repair, RepairTrait};
-    pub use rinex::prelude::nav::Almanac;
+
     pub use rinex::prelude::{Error as RinexError, Rinex};
+
+    #[cfg(feature = "navigation")]
+    pub use anise::prelude::{Orbit, Almanac, Frame};
+
     #[cfg(feature = "sp3")]
     pub use sp3::prelude::{Error as SP3Error, SP3};
+
     pub use std::path::Path;
+
+    pub use maud::{html, Markup, Render};
 }
