@@ -81,7 +81,7 @@ impl QcContext {
     }
 
     /// Create a new [QcContext] using your own [Almanac] and [Frame] definitions
-    /// (obtained externally). NB: [Frame] is supposed to be one of the 
+    /// (obtained externally). NB: [Frame] is supposed to be one of the
     /// Earth Centered Frame as we are supposed to operate on planet Earth.
     /// This is typically used by advanced users targetting high precision naviation.
     pub fn new_alamac_frame(almanac: Almanac, frame: Frame) -> Self {
@@ -112,22 +112,26 @@ impl QcContext {
         (almanac, frame)
     }
 
-    /// Upgrade this [QcContext] for ultra high precision navigation.
-    pub fn with_jpl_bpc(&self) -> Result<(), NavigationError> {
-        let mut s = self.clone();
+    /// Returns a possible [ReferenceEcefPosition] if defined in current [QcContext].
+    /// NB: this is only picked from a possible [Rinex] Observations, not any
+    /// other possible source. If no Observations were loaded, there is no point
+    /// asking for this in this current form.
+    pub fn reference_rx_position(&self) -> Option<ReferenceEcefPosition> {
+        let obs_rinex = self.observation()?;
+        let t = obs_rinex.first_epoch()?;
+        let rx_orbit = obs_rinex.header.rx_orbit(t, self.earth_cef)?;
+        let pos = ReferenceEcefPosition::from_orbit(&rx_orbit);
+        Some(pos)
+    }
 
-        let mut meta = Self::high_precision_meta_almanac();
-        let almanac = meta.process(true)?;
-
-        s.almanac = almanac;
-
-        let mut meta = Self::default_meta_almanac();
-        let almanac = meta.process(true)?;
-
-        let frame = almanac.frame_from_uid(EARTH_ITRF93)?;
-        s.earth_cef = frame;
-
-        Ok(())
+    /// Returns a possible reference position, expressed as [Orbit], if defined in current [QcContext].
+    /// NB: this is only picked from a possible [Rinex] Observations, not any
+    /// other possible source. If no Observations were loaded, there is no point
+    /// asking for this in this current form.
+    pub fn reference_rx_orbit(&self) -> Option<Orbit> {
+        let obs_rinex = self.observation()?;
+        let t = obs_rinex.first_epoch()?;
+        obs_rinex.header.rx_orbit(t, self.earth_cef)
     }
 
     /// Applies complex [NavFilter] to mutable [QcContext].
@@ -196,35 +200,21 @@ impl QcContext {
         }
     }
 
-    /// True if current [QcContext] is compatible with CPP positioning method
-    /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>
-    pub fn is_cpp_navigation_compatible(&self) -> bool {
-        // TODO: improve: only PR
-        if let Some(obs) = self.observation() {
-            obs.carrier_iter().count() > 1
-        } else {
-            false
-        }
-    }
+    /// Upgrade this [QcContext] for ultra high precision navigation.
+    pub fn with_jpl_bpc(&self) -> Result<(), NavigationError> {
+        let mut s = self.clone();
 
-    /// Returns True if current [QcContext] is compatible with PPP positioning method
-    /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.PPP>
-    pub fn is_ppp_navigation_compatible(&self) -> bool {
-        // TODO: check PH as well
-        self.is_cpp_navigation_compatible()
-    }
+        let mut meta = Self::high_precision_meta_almanac();
+        let almanac = meta.process(true)?;
 
-    #[cfg(not(feature = "sp3"))]
-    /// SP3 is required for 100% PPP compatibility
-    pub fn ppp_ultra_navigation_compatible(&self) -> bool {
-        false
-    }
+        s.almanac = almanac;
 
-    #[cfg(feature = "sp3")]
-    pub fn is_ppp_ultra_navigation_compatible(&self) -> bool {
-        // TODO: improve
-        //      verify clock().ts and obs().ts do match
-        //      and have common time frame
-        self.clock().is_some() && self.sp3_has_clock() && self.is_cpp_navigation_compatible()
+        let mut meta = Self::default_meta_almanac();
+        let almanac = meta.process(true)?;
+
+        let frame = almanac.frame_from_uid(EARTH_ITRF93)?;
+        s.earth_cef = frame;
+
+        Ok(())
     }
 }

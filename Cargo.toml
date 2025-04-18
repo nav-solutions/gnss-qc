@@ -11,7 +11,7 @@ categories = ["science", "science::geo"]
 edition = "2021"
 
 [features]
-default = ["flate2", "sp3", "navigation"]
+default = ["flate2", "sp3"]
 
 # Support Gzip compressed files natively
 flate2 = [
@@ -21,8 +21,7 @@ flate2 = [
 
 # Unlock support of high precision SP3 files.
 # When targetting highest precision analysis and solutions, like in PPP,
-# SP3 files are mandatory. When deactivated, we simply cannot load
-# such files into a context, only RINEX post processing is possible.
+# Otherwise, your processing (and possible navigation) only relies on RINEX.
 sp3 = ["dep:sp3"]
 
 # Unlock Post Processed Navigation.
@@ -45,7 +44,7 @@ embed_ephem = ["anise/embed_ephem"]
 # ]
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["sp3", "flate2", "navigation"]
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [dependencies]

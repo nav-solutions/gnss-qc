@@ -20,7 +20,6 @@ impl ReferenceEcefPosition {
 
     /// Express this [ReferenceEcefPosition] as an [Orbit]
     pub fn to_orbit(&self, t: Epoch, frame: Frame) -> Orbit {
-
         let (x_km, y_km, z_km) = (
             self.ecef_m.0 * 1.0E-3,
             self.ecef_m.1 * 1.0E-3,

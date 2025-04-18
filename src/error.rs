@@ -3,7 +3,6 @@ use thiserror::Error;
 
 use qc_traits::MergeError;
 
-
 use rinex::error::ParsingError as RinexParsingError;
 
 #[cfg(feature = "sp3")]

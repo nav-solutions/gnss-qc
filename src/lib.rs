@@ -14,8 +14,8 @@
  * - https://github.com/rtk-rs/sp3
  */
 
-#[macro_use]
-extern crate log;
+// #[macro_use]
+// extern crate log;
 
 extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
@@ -41,8 +41,8 @@ pub mod prelude {
         report::{QcExtraPage, QcReport},
     };
 
-    pub use hifitime::prelude::{Epoch, TimeScale, Duration};
     pub use gnss::prelude::{Constellation, COSPAR, SV};
+    pub use hifitime::prelude::{Duration, Epoch, TimeScale};
 
     #[cfg(feature = "navigation")]
     pub use crate::navigation::{NavFilter, NavFilterType, ReferenceEcefPosition};
@@ -54,7 +54,7 @@ pub mod prelude {
     pub use rinex::prelude::{Error as RinexError, Rinex};
 
     #[cfg(feature = "navigation")]
-    pub use anise::prelude::{Orbit, Almanac, Frame};
+    pub use anise::prelude::{Almanac, Frame, Orbit};
 
     #[cfg(feature = "sp3")]
     pub use sp3::prelude::{Error as SP3Error, SP3};

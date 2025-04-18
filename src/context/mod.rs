@@ -5,14 +5,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::prelude::{
-    Orbit, Almanac,
-    TimeScale, Rinex, ReferenceEcefPosition,
-};
+use crate::prelude::{Rinex, TimeScale};
 
 use qc_traits::Merge;
-
-use anise::prelude::Frame;
 
 pub(crate) mod blob;
 use blob::BlobData;
@@ -69,7 +64,7 @@ impl QcContext {
     /// which requires internet access at all times.
     ///
     /// ```
-    /// let context = 
+    /// let context =
     /// ```
     pub fn new() -> Self {
         #[cfg(feature = "navigation")]
@@ -372,28 +367,6 @@ impl QcContext {
         self.has_meteo()
     }
 
-    /// Returns a possible [ReferenceEcefPosition] if defined in current [QcContext].
-    /// NB: this is only picked from a possible [Rinex] Observations, not any
-    /// other possible source. If no Observations were loaded, there is no point
-    /// asking for this in this current form.
-    pub fn reference_rx_position(&self) -> Option<ReferenceEcefPosition> {
-        let obs_rinex = self.observation()?;
-        let t = obs_rinex.first_epoch()?;
-        let rx_orbit = obs_rinex.header.rx_orbit(t, self.earth_cef)?;
-        let pos = ReferenceEcefPosition::from_orbit(&rx_orbit);
-        Some(pos)
-    } 
-
-    /// Returns a possible reference position, expressed as [Orbit], if defined in current [QcContext].
-    /// NB: this is only picked from a possible [Rinex] Observations, not any
-    /// other possible source. If no Observations were loaded, there is no point
-    /// asking for this in this current form.
-    pub fn reference_rx_orbit(&self) -> Option<Orbit> {
-        let obs_rinex = self.observation()?;
-        let t = obs_rinex.first_epoch()?;
-        obs_rinex.header.rx_orbit(t, self.earth_cef)
-    } 
-
     /// Apply preprocessing filter algorithm to mutable [Self].
     /// Filter will apply to all data contained in the context.
     pub fn filter_mut(&mut self, filter: &Filter) {
@@ -415,6 +388,7 @@ impl QcContext {
         if let Some(data) = self.ionex_mut() {
             data.filter_mut(filter);
         }
+
         #[cfg(feature = "sp3")]
         if let Some(data) = self.sp3_mut() {
             data.filter_mut(filter);
@@ -426,6 +400,34 @@ impl QcContext {
         if let Some(rinex) = self.observation_mut() {
             rinex.repair_mut(r);
         }
+    }
+
+    /// True if current [QcContext] is compatible with CPP positioning method
+    /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>.
+    /// This does not mean you can deploy a navigation solver, because that requires
+    /// the "navigation" create feature.
+    pub fn is_cpp_navigation_compatible(&self) -> bool {
+        // TODO: improve: only PR
+        if let Some(obs) = self.observation() {
+            obs.carrier_iter().count() > 1
+        } else {
+            false
+        }
+    }
+
+    /// Returns True if current [QcContext] is compatible with PPP positioning method
+    /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.PPP>.
+    /// This does not mean you can deploy a navigation solver, because that requires
+    /// the "navigation" create feature.
+    pub fn is_ppp_navigation_compatible(&self) -> bool {
+        // TODO: check PH as well
+        self.is_cpp_navigation_compatible()
+    }
+
+    #[cfg(not(feature = "sp3"))]
+    /// SP3 is required for 100% PPP compatibility
+    pub fn is_ppp_ultra_navigation_compatible(&self) -> bool {
+        false
     }
 }
 

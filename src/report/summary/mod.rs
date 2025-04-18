@@ -1,5 +1,5 @@
 use maud::{html, Markup, Render};
-use rinex::prelude::{nav::Orbit, TimeScale};
+use rinex::prelude::TimeScale;
 
 use crate::prelude::{QcConfig, QcContext};
 
@@ -23,6 +23,7 @@ pub struct QcSummary {
     /// BIAS summary
     bias_sum: QcBiasSummary,
     /// reference position
+    #[cfg(feature = "navigation")]
     reference_position: Option<Orbit>,
 }
 
@@ -34,6 +35,7 @@ impl QcSummary {
             timescale: context.timescale(),
             bias_sum: QcBiasSummary::new(context),
             navi: QcNavPostSummary::new(context),
+            #[cfg(feature = "navigation")]
             reference_position: context.reference_rx_orbit(),
         }
     }
@@ -96,34 +98,6 @@ impl Render for QcSummary {
                                             }
                                         }
 
-                                    },
-                                }
-                            } @else if let Some(orbit) = self.reference_position {
-                                @match orbit.latlongalt() {
-                                    Ok(latlongalt) => {
-                                        th {
-                                            button aria-label="RX reference position" data-balloon-pos="up" {
-                                                "Reference position"
-                                            }
-                                        }
-                                        td {
-                                            button aria-label="Parsed from RINEX" data-balloon-pos="up" {
-                                                "TODO"
-                                            }
-                                        }
-                                    },
-                                    Err(e) => {
-
-                                        th {
-                                            button aria-label="RX reference position" data-balloon-pos="up" {
-                                                "Reference position"
-                                            }
-                                        }
-                                        td {
-                                            button aria-label="Parsed from RINEX" data-balloon-pos="up" {
-                                                "TODO"
-                                            }
-                                        }
                                     },
                                 }
                             } @else {

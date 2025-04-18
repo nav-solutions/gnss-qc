@@ -1,7 +1,7 @@
 use crate::{
-    prelude::{QcContext, SP3, ProductType},
-    error::Error,
     context::BlobData,
+    error::Error,
+    prelude::{ProductType, QcContext, SP3},
 };
 
 use qc_traits::Merge;
@@ -9,7 +9,6 @@ use qc_traits::Merge;
 use std::path::Path;
 
 impl QcContext {
-
     /// Add this [SP3] into current [QcContext].
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
@@ -60,11 +59,16 @@ impl QcContext {
     pub fn sp3(&self) -> Option<&SP3> {
         self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
     }
-    
+
     /// Returns mutable reference to inner [ProductType::HighPrecisionOrbit] data
-    #[cfg(feature = "sp3")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     pub fn sp3_mut(&mut self) -> Option<&mut SP3> {
         self.data_mut(ProductType::HighPrecisionOrbit)?.as_mut_sp3()
+    }
+
+    pub fn is_ppp_ultra_navigation_compatible(&self) -> bool {
+        // TODO: improve
+        //      verify clock().ts and obs().ts do match
+        //      and have common time frame
+        self.clock().is_some() && self.sp3_has_clock() && self.is_cpp_navigation_compatible()
     }
 }

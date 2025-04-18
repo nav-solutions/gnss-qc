@@ -43,7 +43,6 @@ impl QcContext {
     }
 
     pub fn timescale_transposition_mut(&mut self, target: TimeScale) {
-
         let solver = self.gnss_absolute_time_solver();
 
         if let Some(observations) = self.observation_mut() {

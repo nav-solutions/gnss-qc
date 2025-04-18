@@ -1,9 +1,6 @@
 use rinex::Rinex;
 
-use crate::{
-    error::Error,
-    prelude::QcContext,
-};
+use crate::{error::Error, prelude::QcContext};
 
 use std::path::Path;
 
@@ -11,7 +8,6 @@ use std::path::Path;
 use crate::prelude::SP3;
 
 impl QcContext {
-
     /// Load a Gzip compressed RINEX file from readable [Path].
     pub fn load_gzip_rinex_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
         let rinex = Rinex::from_gzip_file(&path)?;
