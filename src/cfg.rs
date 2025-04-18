@@ -68,7 +68,7 @@ impl QcConfig {
     #[cfg(feature = "navigation")]
     #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
     pub fn set_reference_rx_orbit(&mut self, ecef_m: (f64, f64, f64)) {
-        self.user_rx_ecef = Some(orbit);
+        self.user_rx_ecef = Some(ecef_m);
     }
 
     /// Build a [QcConfig] with updated [QcReportType] preference.
