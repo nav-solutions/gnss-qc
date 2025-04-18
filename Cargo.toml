@@ -46,12 +46,41 @@ navigation = [
 # Unlock "embedded ephemeris" option,
 # which removes the need of Internet access on very first (ever) deployment
 # in order to obtain the ANISE database
-embed_ephem = ["anise/embed_ephem"]
+embed_ephem = [
+    "dep:anise",
+    "anise/embed_ephem",
+]
 
 # Unlock graphical analysis (plots rendering), otherwise reports are solely text based
 # plot = [
 #     "dep:plotly", 
 # ]
+
+[dependencies.rinex]
+git = "https://github.com/rtk-rs/rinex"
+branch = "main"
+features = [
+    "qc", 
+    "processing", 
+    "obs", 
+    "nav", 
+    "ut1", 
+    "meteo", 
+    "clock", 
+    "ionex", 
+    "antex", 
+    "serde",
+]
+
+[dependencies.sp3]
+git = "https://github.com/rtk-rs/sp3"
+branch = "main"
+features = [
+    "qc", 
+    "processing", 
+    "serde"
+]
+optional = true
 
 [dependencies]
 thiserror = "2"
@@ -71,9 +100,6 @@ gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", branch = "main",
 
 maud = "0.26"
 plotly = "0.12"
-
-sp3 = { git = "https://github.com/rtk-rs/sp3", branch = "main", features = ["qc", "processing", "serde"], optional = true }
-rinex = { git = "https://github.com/rtk-rs/rinex", branch = "main", features = ["qc", "processing", "obs", "clock", "ionex", "serde"]  }
 
 [dev-dependencies]
 serde_json = "1"
