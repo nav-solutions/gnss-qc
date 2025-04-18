@@ -18,9 +18,6 @@ use rinex::RINEXReport;
 #[cfg(feature = "navigation")]
 mod orbital;
 
-#[cfg(feature = "navigation")]
-use orbital::OrbitalReport;
-
 #[cfg(feature = "sp3")]
 mod sp3;
 
@@ -149,12 +146,6 @@ pub struct QcReport {
     /// Report Summary (always present)
     summary: QcSummary,
 
-    // /// Preprocessed NAVI (only when compatible)
-    // navi: Option<QcNavi>,
-    /// Orbital projections (only when compatible)
-    #[cfg(feature = "navigation")]
-    orbit: Option<OrbitalReport>,
-
     /// In depth analysis per input product.
     /// In summary mode, these do not exist (empty).
     products: HashMap<ProductType, ProductReport>,
@@ -210,20 +201,6 @@ impl QcReport {
                     }
                 }
                 items
-            },
-            #[cfg(feature = "navigation")]
-            orbit: {
-                // orbital report (if feasible)
-                if let Some(reference_orbit) = context.reference_rx_orbit() {}
-                if context.has_brdc_navigation() && !summary_only {
-                    Some(OrbitalReport::new(
-                        context,
-                        ref_position,
-                        cfg.force_brdc_skyplot,
-                    ))
-                } else {
-                    None
-                }
             },
             summary,
         }

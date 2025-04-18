@@ -22,9 +22,6 @@ pub struct QcSummary {
     timescale: Option<TimeScale>,
     /// BIAS summary
     bias_sum: QcBiasSummary,
-    /// reference position
-    #[cfg(feature = "navigation")]
-    reference_position: Option<Orbit>,
 }
 
 impl QcSummary {
@@ -35,8 +32,6 @@ impl QcSummary {
             timescale: context.timescale(),
             bias_sum: QcBiasSummary::new(context),
             navi: QcNavPostSummary::new(context),
-            #[cfg(feature = "navigation")]
-            reference_position: context.reference_rx_orbit(),
         }
     }
 }

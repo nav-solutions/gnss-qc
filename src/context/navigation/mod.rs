@@ -13,6 +13,8 @@
 
 use thiserror::Error;
 
+use log::error;
+
 use anise::{
     almanac::{
         metaload::{MetaAlmanacError, MetaFile},
@@ -27,6 +29,9 @@ use crate::{
     navigation::{NavFilter, NavFilterType},
     prelude::{Constellation, QcContext},
 };
+
+#[cfg(feature = "navigation")]
+use crate::prelude::{Orbit, ReferenceEcefPosition};
 
 #[derive(Debug, Error)]
 pub enum NavigationError {

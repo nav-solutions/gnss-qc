@@ -30,6 +30,9 @@ use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
 
 use crate::{error::Error, prelude::ProductType};
 
+#[cfg(feature = "navigation")]
+use crate::prelude::{Almanac, Frame};
+
 /// [QcContext] is a general structure capable to store most common
 /// GNSS data. It is dedicated to post processing workflows,
 /// precise timing or atmosphere analysis.
