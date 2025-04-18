@@ -18,7 +18,9 @@ features = ["sp3", "flate2", "navigation"]
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [features]
-default = ["flate2"] # gzip compressed files
+# Supports SP3 files by default
+# Support Gzip compressed files by default
+default = ["sp3", "flate2"]
 
 # Support Gzip compressed files natively
 flate2 = [
