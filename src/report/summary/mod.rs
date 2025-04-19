@@ -49,7 +49,7 @@ impl Render for QcSummary {
                         }
                         tr {
                             th {
-                                button aria-label="Timescale in which samples observation are expressed.
+                                button aria-label="Timescale in which observations are expressed.
         Navigation solutions are expressed in this timescale by default." data-balloon-pos="right" {
                                     "Timescale"
                                 }
