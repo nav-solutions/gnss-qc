@@ -33,6 +33,9 @@ mod navigation;
 pub mod error;
 pub mod plot;
 
+#[cfg(test)]
+mod tests;
+
 pub mod prelude {
     pub use crate::{
         cfg::{QcConfig, QcReportType},
@@ -52,7 +55,7 @@ pub mod prelude {
 
     pub use qc_traits::{
         Filter, FilterItem, GnssAbsoluteTime, MaskOperand, Preprocessing, Repair, RepairTrait,
-        TimePolynomial,
+        TimePolynomial, Timeshift,
     };
 
     pub use rinex::prelude::{Error as RinexError, Rinex};
