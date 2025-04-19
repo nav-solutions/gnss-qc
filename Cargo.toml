@@ -57,8 +57,7 @@ embed_ephem = [
 # ]
 
 [dependencies.rinex]
-git = "https://github.com/rtk-rs/rinex"
-branch = "main"
+path = "../rinex"
 features = [
     "qc", 
     "processing", 
@@ -73,8 +72,7 @@ features = [
 ]
 
 [dependencies.sp3]
-git = "https://github.com/rtk-rs/sp3"
-branch = "main"
+path = "../sp3"
 features = [
     "qc", 
     "processing", 
@@ -90,13 +88,13 @@ strum_macros = "0.26"
 itertools = "0.14.0"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
-hifitime = "4.0"
+hifitime = { git = "https://github.com/nyx-space/hifitime", branch = "master", features = ["serde", "std"] }
+anise = { git = "https://github.com/nyx-space/anise", branch = "dep/hifitime-github", optional = true }
 
 log = { version = "0.4", optional = true }
-anise = { version = "0.5.3", optional = true }
 
-gnss-rs = { version = "2.3.5", features = ["serde"] }
-gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", branch = "main", features = ["processing"] }
+gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "dep/hifitime", features = ["serde"] }
+gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", branch = "dep/hifitime", features = ["processing"] }
 
 maud = "0.26"
 plotly = "0.12"

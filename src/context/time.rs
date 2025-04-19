@@ -1,5 +1,5 @@
+use hifitime::{Polynomial, Duration};
 use crate::prelude::{QcContext, TimeScale};
-
 use qc_traits::{GnssAbsoluteTime, TimePolynomial, Timeshift};
 
 impl QcContext {
@@ -17,7 +17,11 @@ impl QcContext {
                         time_offset.t_ref.0,
                         time_offset.t_ref.1,
                         time_offset.rhs,
-                        time_offset.polynomials,
+                        Polynomial {
+                            constant: Duration::from_seconds(time_offset.polynomials.0),
+                            rate: Duration::from_seconds(time_offset.polynomials.1),
+                            accel: Duration::from_seconds(time_offset.polynomials.2),
+                        },
                     ));
                 }
             }
