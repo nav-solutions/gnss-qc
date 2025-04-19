@@ -67,20 +67,17 @@ impl QcContext {
     /// which requires internet access at all times.
     ///
     /// ```
-    /// use gnss_qc::prelude::QcContext;
+    /// use gnss_qc::prelude::{QcContext, TimeScale};
     ///
     /// // create a new (empty) context
     /// let mut context = QcContext::new();
     ///
-    /// // load some data (just an example)
+    /// // load some data
     /// context.load_rinex_file("data/OBS/V2/AJAC3550.21O")
     ///     .unwrap();
     ///
-    /// context.load_rinex_file("data/NAV/V2/amel0010.21g")
-    ///     .unwrap();
-    ///
     /// // do something
-    /// assert!(context.is_cpp_navigation_compatible());
+    /// assert_eq!(context.timescale(), Some(TimeScale::GPST));
     /// ```
     pub fn new() -> Self {
         #[cfg(feature = "navigation")]
@@ -96,7 +93,40 @@ impl QcContext {
         }
     }
 
-    /// Returns main [TimeScale] for current [QcContext]
+    /// Returns "main" [TimeScale] for current [QcContext].
+    ///
+    /// In case measurements where provided, they will always prevail:
+    /// ```
+    /// use gnss_qc::prelude::{QcContext, TimeScale};
+    ///
+    /// // create a new (empty) context
+    /// let mut context = QcContext::new();
+    ///
+    /// // load some data
+    /// context.load_rinex_file("data/OBS/V2/AJAC3550.21O")
+    ///     .unwrap();
+    ///
+    /// context.load_rinex_file("data/NAV/V2/amel0010.21g")
+    ///     .unwrap();
+    ///
+    /// assert_eq!(context.timescale(), Some(TimeScale::GPST));
+    /// ```
+    ///
+    /// SP3 files have unambiguous timescale definition as well.
+    /// So they will prevail as long as RINEX measurements were not provided:
+    ///
+    /// ```
+    /// use gnss_qc::prelude::{QcContext, TimeScale};
+    ///
+    /// // create a new (empty) context
+    /// let mut context = QcContext::new();
+    ///
+    /// // load some data
+    /// context.load_gzip_sp3_file("data/SP3/D/COD0MGXFIN_20230500000_01D_05M_ORB.SP3.gz")
+    ///     .unwrap();
+    ///
+    /// assert_eq!(context.timescale(), Some(TimeScale::GPST));
+    /// ```
     pub fn timescale(&self) -> Option<TimeScale> {
         if let Some(obs) = self.observation() {
             let first = obs.first_epoch()?;
@@ -196,7 +226,7 @@ impl QcContext {
     }
 
     /// Returns reference to inner data of given category
-    fn data(&self, product: ProductType) -> Option<&BlobData> {
+    pub(crate) fn data(&self, product: ProductType) -> Option<&BlobData> {
         self.blob
             .iter()
             .filter_map(|(prod_type, data)| {
@@ -210,7 +240,7 @@ impl QcContext {
     }
 
     /// Returns mutable reference to inner data of given category
-    fn data_mut(&mut self, product: ProductType) -> Option<&mut BlobData> {
+    pub(crate) fn data_mut(&mut self, product: ProductType) -> Option<&mut BlobData> {
         self.blob
             .iter_mut()
             .filter_map(|(prod_type, data)| {
@@ -224,6 +254,23 @@ impl QcContext {
     }
 
     /// Returns reference to inner RINEX data of given category
+    /// ```
+    /// use gnss_qc::prelude::{QcContext, ProductType};
+    ///
+    /// // create a new (empty) context
+    /// let mut context = QcContext::new();
+    ///
+    /// // load some data
+    /// context.load_rinex_file("data/OBS/V2/AJAC3550.21O")
+    ///     .unwrap();
+    ///
+    /// // retrieve
+    /// let rinex = context.rinex(ProductType::Observation)
+    ///     .unwrap();
+    ///
+    /// // do something
+    /// assert!(rinex.is_observation_rinex());
+    /// ```
     pub fn rinex(&self, product: ProductType) -> Option<&Rinex> {
         self.data(product)?.as_rinex()
     }
