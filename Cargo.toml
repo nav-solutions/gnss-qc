@@ -46,7 +46,7 @@ anise = "0.5.3"
 hifitime = "4.0"
 
 gnss-rs = { version = "2.3.5", features = ["serde"] }
-gnss-qc-traits = { version = "0.1.1", features = ["processing"] }
+gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", branch = "main", features = ["processing"] }
 
 maud = "0.26"
 plotly = "0.12"
