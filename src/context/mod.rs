@@ -67,7 +67,20 @@ impl QcContext {
     /// which requires internet access at all times.
     ///
     /// ```
-    /// let context =
+    /// use gnss_qc::prelude::QcContext;
+    ///
+    /// // create a new (empty) context
+    /// let mut context = QcContext::new();
+    ///
+    /// // load some data (just an example)
+    /// context.load_rinex_file("data/OBS/V2/AJAC3550.21O")
+    ///     .unwrap();
+    ///
+    /// context.load_rinex_file("data/NAV/V2/amel0010.21g")
+    ///     .unwrap();
+    ///
+    /// // do something
+    /// assert!(context.is_cpp_navigation_compatible());
     /// ```
     pub fn new() -> Self {
         #[cfg(feature = "navigation")]
