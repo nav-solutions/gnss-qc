@@ -58,7 +58,7 @@ embed_ephem = [
 
 [dependencies.rinex]
 git = "https://github.com/rtk-rs/rinex"
-branch = "dep/hifitime"
+branch = "main"
 features = [
     "qc", 
     "processing", 
@@ -74,7 +74,7 @@ features = [
 
 [dependencies.sp3]
 git = "https://github.com/rtk-rs/sp3"
-branch = "dep/hifitime"
+branch = "main"
 features = [
     "qc", 
     "processing", 
@@ -95,8 +95,8 @@ anise = { git = "https://github.com/nyx-space/anise", branch = "dep/hifitime-git
 
 log = { version = "0.4", optional = true }
 
-gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "dep/hifitime", features = ["serde"] }
-gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", branch = "dep/hifitime", features = ["processing"] }
+gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
+gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", branch = "main", features = ["processing"] }
 
 maud = "0.26"
 plotly = "0.12"
