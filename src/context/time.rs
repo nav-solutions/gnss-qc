@@ -1,5 +1,5 @@
-use hifitime::{Polynomial, Duration};
 use crate::prelude::{QcContext, TimeScale};
+use hifitime::{Duration, Polynomial};
 use qc_traits::{GnssAbsoluteTime, TimePolynomial, Timeshift};
 
 impl QcContext {
