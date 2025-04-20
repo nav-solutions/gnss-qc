@@ -25,6 +25,20 @@ impl QcContext {
                     ));
                 }
             }
+
+            for (_, time_offset) in brdc.nav_system_time_frames_iter() {
+                polynomials.push(TimePolynomial::from_reference_time_of_week_nanos(
+                    time_offset.lhs,
+                    time_offset.t_ref.0,
+                    time_offset.t_ref.1,
+                    time_offset.rhs,
+                    Polynomial {
+                        constant: Duration::from_seconds(time_offset.polynomials.0),
+                        rate: Duration::from_seconds(time_offset.polynomials.1),
+                        accel: Duration::from_seconds(time_offset.polynomials.2),
+                    },
+                ));
+            }
         }
 
         GnssAbsoluteTime::new(&polynomials)
