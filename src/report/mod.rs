@@ -4,7 +4,7 @@ use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::prelude::{ProductType, QcConfig, QcContext, QcReportType};
+use crate::prelude::{ProductType, QcContext, QcReportType};
 
 // shared analysis, that may apply to several products
 mod shared;
@@ -154,12 +154,19 @@ pub struct QcReport {
     custom_chapters: Vec<QcExtraPage>,
 }
 
-impl QcReport {
-    /// Builds a new GNSS report, ready to be rendered
-    pub fn new(context: &QcContext, cfg: QcConfig) -> Self {
-        let summary = QcSummary::new(&context, &cfg);
-        let summary_only = cfg.report == QcReportType::Summary;
-        Self {
+impl QcContext {
+    /// Synthesize a [QcSummary] report from [QcContext].
+    pub fn summary_report(&self) -> QcSummary {
+        QcSummary::new(self)
+    }
+
+    /// Synthesize a [QcReport] from [QcContext].
+    pub fn report(&self) -> QcReport {
+        let summary = self.summary_report();
+
+        let summary_only = self.configuration.report == QcReportType::Summary;
+
+        QcReport {
             custom_chapters: Vec::new(),
             // navi: {
             //    if summary.navi.nav_compatible && !summary_only {
@@ -175,7 +182,7 @@ impl QcReport {
             products: {
                 let mut items = HashMap::<ProductType, ProductReport>::new();
                 if !summary_only {
-                    // one tab per RINEX product
+                    // one report per RINEX product
                     for product in [
                         ProductType::Observation,
                         ProductType::DORIS,
@@ -185,15 +192,16 @@ impl QcReport {
                         ProductType::IONEX,
                         ProductType::ANTEX,
                     ] {
-                        if let Some(rinex) = context.rinex(product) {
+                        if let Some(rinex) = self.rinex(product) {
                             if let Ok(report) = RINEXReport::new(rinex) {
                                 items.insert(product, ProductReport::RINEX(report));
                             }
                         }
                     }
-                    // one tab for SP3 when supported
+
+                    // one dedicated report when SP3 is supported
                     #[cfg(feature = "sp3")]
-                    if let Some(sp3) = context.sp3() {
+                    if let Some(sp3) = self.sp3() {
                         items.insert(
                             ProductType::HighPrecisionOrbit,
                             ProductReport::SP3(SP3Report::new(sp3)),
@@ -205,10 +213,14 @@ impl QcReport {
             summary,
         }
     }
-    /// Add a custom chapter to the report
+}
+
+impl QcReport {
+    /// Add a custom chapter, in form of a [QcExtraPage] to this report.
     pub fn add_chapter(&mut self, chapter: QcExtraPage) {
         self.custom_chapters.push(chapter);
     }
+
     /// Generates a menu bar to nagivate [Self]
     #[cfg(not(feature = "sp3"))]
     fn menu_bar(&self) -> Markup {
@@ -260,6 +272,7 @@ impl QcReport {
             }//menu
         }
     }
+
     /// Generates a menu bar to nagivate [Self]
     #[cfg(feature = "sp3")]
     fn menu_bar(&self) -> Markup {

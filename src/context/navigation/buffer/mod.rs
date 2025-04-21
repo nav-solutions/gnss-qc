@@ -35,7 +35,7 @@ impl QcContext {
     /// ```
     pub fn navigation_buffer<'a>(&'a self) -> Option<QcNavigationBuffer<'a>> {
         let signals_iter = self.signals_buffer()?;
-        let ephemeris_iter = self.ephemeris_buffer()?;
+        let ephemeris_iter = self.ephemeris_buffer(self.earth_cef)?;
 
         Some(QcNavigationBuffer {
             ephemeris: ephemeris_iter,
@@ -46,10 +46,7 @@ impl QcContext {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        context::navigation::buffer::signals::QcMeasuredData,
-        prelude::{Epoch, QcContext, SV},
-    };
+    use crate::prelude::QcContext;
 
     #[test]
     fn nav_buffering() {

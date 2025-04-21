@@ -2,6 +2,7 @@ use crate::prelude::QcContext;
 use maud::{html, Markup, Render};
 //use rinex::prelude::{GroundPosition, TimeScale};
 
+#[derive(Clone)]
 pub struct QcNavPostSummary {
     /// Navigation compatible
     pub nav_compatible: bool,

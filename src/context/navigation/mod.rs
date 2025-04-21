@@ -1,4 +1,4 @@
-/*
+/**
  * All Post Proecessed Navigation support & feature dependent stuff.
  *
  * Authors: Guillaume W. Bres <guillaume.bressaix@gmail.com> et al.
@@ -10,7 +10,6 @@
  * - https://github.com/rtk-rs/rinex
  * - https://github.com/rtk-rs/sp3
  */
-
 use thiserror::Error;
 
 use log::error;
@@ -26,6 +25,7 @@ use anise::{
 };
 
 use crate::{
+    config::QcConfig,
     navigation::{NavFilter, NavFilterType},
     prelude::{Constellation, QcContext},
 };
@@ -95,10 +95,11 @@ impl QcContext {
     /// This is typically used by advanced users targetting high precision naviation.
     pub fn new_alamac_frame(almanac: Almanac, frame: Frame) -> Self {
         Self {
-            files: Default::default(),
-            blob: Default::default(),
             almanac,
             earth_cef: frame,
+            blob: Default::default(),
+            files: Default::default(),
+            configuration: QcConfig::default(),
         }
     }
 

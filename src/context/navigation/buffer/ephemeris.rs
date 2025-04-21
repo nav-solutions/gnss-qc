@@ -5,6 +5,8 @@ use rinex::{
     prelude::{Epoch, SV},
 };
 
+use gnss_rtk::prelude::{Frame, Orbit, OrbitSource};
+
 pub struct QcEphemerisData {
     pub sv: SV,
     pub toe: Epoch,
@@ -12,16 +14,44 @@ pub struct QcEphemerisData {
     pub ephemeris: Ephemeris,
 }
 
+/// [QcEphemerisBuffer] is constructed from a [QcContext] and used to
+/// Iterator the data set in any post navigation process.
 pub struct QcEphemerisBuffer<'a> {
+    /// Reference [Frame] used in navigation process.
+    /// Should be an Earth Centered [Frame] for 100% correctness.
+    frame: Frame,
+
+    /// True if we do have precise products
+    has_precise_products: bool,
+
+    /// [QcEphemerisData] Iterator
     pub iter: Box<dyn Iterator<Item = QcEphemerisData> + 'a>,
 }
 
+impl<'a> OrbitSource for QcEphemerisBuffer<'a> {
+    fn next_at(&mut self, t: Epoch, sv: SV, fr: Frame) -> Option<Orbit> {
+        None
+    }
+}
+
 impl QcContext {
-    /// Obtain [QcEphemerisBuffer] from this [QcContext].
-    pub fn ephemeris_buffer<'a>(&'a self) -> Option<QcEphemerisBuffer<'a>> {
+    /// Obtain [QcEphemerisBuffer] from this [QcContext] and navigation using
+    /// provided [Frame].
+    pub fn ephemeris_buffer<'a>(&'a self, frame: Frame) -> Option<QcEphemerisBuffer<'a>> {
         let brdc = self.brdc_navigation()?;
 
+        #[cfg(feature = "sp3")]
+        let sp3 = self.sp3();
+
+        #[cfg(feature = "sp3")]
+        let has_precise_products = sp3.is_some();
+
+        #[cfg(not(feature = "sp3"))]
+        let has_precise_products = false;
+
         Some(QcEphemerisBuffer {
+            frame,
+            has_precise_products,
             iter: Box::new(brdc.nav_ephemeris_frames_iter().filter_map(|(k, v)| {
                 let sv_ts = k.sv.constellation.timescale()?;
                 let toe = v.toe(sv_ts)?;
@@ -40,12 +70,7 @@ impl QcContext {
 mod test {
     use std::str::FromStr;
 
-    use crate::{
-        context::navigation::buffer::signals::QcMeasuredData,
-        prelude::{Epoch, QcContext, SV},
-    };
-
-    use rinex::carrier::Carrier;
+    use crate::prelude::{Epoch, QcContext, SV};
 
     #[test]
     fn ephemeris_buffering() {
@@ -54,14 +79,17 @@ mod test {
         // load other type of data
         ctx.load_rinex_file("data/MET/V2/abvi0010.15m").unwrap();
 
-        assert!(ctx.ephemeris_buffer().is_none(), "non existing ephemeris!");
+        assert!(
+            ctx.ephemeris_buffer(ctx.earth_cef).is_none(),
+            "non existing ephemeris!"
+        );
 
         // load NAV
         ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
             .unwrap();
 
         let mut ephemeris = ctx
-            .ephemeris_buffer()
+            .ephemeris_buffer(ctx.earth_cef)
             .expect("ephemeris buffer should exist!");
 
         let g01 = SV::from_str("G01").unwrap();

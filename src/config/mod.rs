@@ -3,17 +3,15 @@ use thiserror::Error;
 
 use maud::{html, Markup, Render};
 
-mod report;
-pub use report::*;
+pub mod report;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-mod orbit;
-pub use orbit::*;
+pub mod orbit;
 
-use crate::config::{QcOrbitPreference, QcReportType};
+use crate::config::{orbit::QcOrbitPreference, report::QcReportType};
 
-/// Error during configuration process.
+/// [Error]s during configuration process.
 #[derive(Debug, Clone, Error)]
 pub enum Error {
     #[error("invalid report type")]

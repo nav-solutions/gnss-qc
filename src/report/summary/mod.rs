@@ -9,9 +9,18 @@ use nav_post::QcNavPostSummary;
 mod bias;
 use bias::QcBiasSummary;
 
-/// [QcSummary] is the lightest report form,
-/// sort of a report introduction that will always be generated.
-/// It only gives high level and quick description.
+/// Although simplistic, [QcSummary] is very powerful and gives
+/// meaningful information. In particular:
+///
+/// - A unique identification for this session.
+/// This allows differentiating sessions.
+/// - The [TimeScale] that applies. When signals were loaded,
+/// this is the [TimeScale] in which they were expressed in.
+/// - The [QcNavPostSummary] describes post processed navigation capabilities.
+/// In short, what you can achieve using the provided setup.
+/// - Other meaningful information, like bias cancelling capabilities,
+/// once again useful in post processed navigation.
+#[derive(Clone)]
 pub struct QcSummary {
     name: String,
     /// Configuration used
@@ -25,13 +34,13 @@ pub struct QcSummary {
 }
 
 impl QcSummary {
-    pub fn new(context: &QcContext, cfg: &QcConfig) -> Self {
+    pub fn new(context: &QcContext) -> Self {
         Self {
-            cfg: cfg.clone(),
             name: context.name(),
             timescale: context.timescale(),
             bias_sum: QcBiasSummary::new(context),
             navi: QcNavPostSummary::new(context),
+            cfg: context.configuration.clone(),
         }
     }
 }

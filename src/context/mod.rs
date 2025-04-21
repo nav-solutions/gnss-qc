@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::prelude::{Rinex, TimeScale};
+use crate::prelude::{QcConfig, Rinex, TimeScale};
 
 use qc_traits::Merge;
 
@@ -46,11 +46,52 @@ impl<'a> QcContextRef<'a> {
     }
 }
 
-/// [QcContext] is a general structure capable to store most common
-/// GNSS data. It is dedicated to post processing workflows,
-/// precise timing or atmosphere analysis.
+/// [QcContext] is a general structure capable to store most common GNSS data.   
+/// It is dedicated to post processing workflows, precise timing or atmosphere analysis.
+///
+/// One typical application is the synthesis of a complete analysis report.  
+/// For the reason GNSS data covers a large spectrum and also, because precise applications
+/// usually requires confidance on the input data quality.   
+///
+/// To answer this need, you can synthesize a report from [QcContext] at any point.  
+/// The reported content and complexity of the task depends on:
+///
+/// - the available data. That is, the data you just loaded.
+/// - the [QcConfig] preset
+///
+/// Basic example:
+/// ```
+/// let mut ctx = QcContext::new();
+///
+/// // The most basic would be to load some signals and verify them
+/// ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+///     .unwrap();
+///
+/// // Synthesize a report
+/// let report = ctx.report();
+///
+/// // Format the report as desired. Currently HTML is the only supported format,
+/// // and is supported by default.
+///
+/// // Navigation compatible contexts greatly enhance the reporting capability.
+/// // We can report
+/// // - the type of navigation process the data set would allow.
+/// ```
+///
+///
+/// For people interested in Post Processed navigation:
+/// - if the library was compiled with "embed_ephem" option, you are good
+/// to go for high precision navigation. Otherwise, this method will require
+/// that a navigation cache is created and requires internet access on first deployment.
+/// - for people targeting ultra high navigation precision, you should
+/// use the JPL BPC cache and keep it up to date, by using [Self::with_jpl_update],
+/// which requires internet access at all times.
+///
 #[derive(Clone)]
 pub struct QcContext {
+    /// [QcConfig] preset.
+    pub configuration: QcConfig,
+
     /// Files merged into this [QcContext]
     pub(crate) files: HashMap<ProductType, Vec<PathBuf>>,
 
@@ -69,16 +110,7 @@ pub struct QcContext {
 }
 
 impl QcContext {
-    /// Creates a new [QcContext] for GNSS post processing.
-    ///
-    /// For people interested in Post Processed navigation:
-    /// - if the library was compiled with "embed_ephem" option, you are good
-    /// to go for high precision navigation. Otherwise, this method will require
-    /// that a navigation cache is created and requires internet access on first deployment.
-    /// - for people targeting ultra high navigation precision, you should
-    /// use the JPL BPC cache and keep it up to date, by using [Self::with_jpl_update],
-    /// which requires internet access at all times.
-    ///
+    /// Creates a new [QcContext] for GNSS post processing with default configuration.
     /// ```
     /// use gnss_qc::prelude::{QcContext, TimeScale};
     ///
@@ -99,11 +131,20 @@ impl QcContext {
         Self {
             files: Default::default(),
             blob: Default::default(),
+            configuration: QcConfig::default(),
             #[cfg(feature = "navigation")]
             almanac,
             #[cfg(feature = "navigation")]
             earth_cef,
         }
+    }
+
+    /// Build an updated [QcContext] with [QcConfig] preferences.
+    /// We recommend doing this prior loading any data!
+    pub fn with_configuration_preferences(&self, cfg: QcConfig) -> Self {
+        let mut s = self.clone();
+        s.configuration = cfg;
+        s
     }
 
     /// Returns "main" [TimeScale] for current [QcContext].

@@ -3,6 +3,7 @@ use maud::{html, Markup, Render};
 // use crate::report::tooltipped;
 // use rinex::prelude::{GroundPosition, TimeScale};
 
+#[derive(Clone)]
 pub struct QcBiasSummary {
     iono_bias_cancelling: bool,
     iono_bias_model_optimization: bool,
