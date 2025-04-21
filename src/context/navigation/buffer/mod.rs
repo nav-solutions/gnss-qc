@@ -1,10 +1,9 @@
 pub use crate::prelude::QcContext;
 
-mod ephemeris;
-mod signals;
+pub mod ephemeris;
+pub mod signals;
 
 use ephemeris::QcEphemerisBuffer;
-use signals::QcSignalBuffer;
 
 use gnss_rtk::prelude::{Epoch, Frame, Orbit, OrbitSource, SV};
 
@@ -16,9 +15,6 @@ pub struct QcNavigationBuffer<'a> {
 
     /// [QcEphemerisBuffer] from data source
     pub ephemeris: QcEphemerisBuffer<'a>,
-
-    /// [QcSignalBuffer] from data source
-    pub signals: QcSignalBuffer<'a>,
 }
 
 impl<'a> OrbitSource for QcNavigationBuffer<'a> {
@@ -50,11 +46,9 @@ impl QcContext {
     /// assert!(ctx.navigation_buffer().is_some(), "navigation compatible!");
     /// ```
     pub fn navigation_buffer<'a>(&'a self) -> Option<QcNavigationBuffer<'a>> {
-        let signals_iter = self.signals_buffer()?;
         let ephemeris_iter = self.ephemeris_buffer(self.earth_cef)?;
 
         Some(QcNavigationBuffer {
-            signals: signals_iter,
             ephemeris: ephemeris_iter,
             use_precise_products: false,
         })

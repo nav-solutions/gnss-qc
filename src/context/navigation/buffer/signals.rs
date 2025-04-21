@@ -1,10 +1,15 @@
-use crate::prelude::QcContext;
+use log::error;
+
+use crate::prelude::{Error, QcContext};
 
 use rinex::{
     carrier::Carrier,
     prelude::{Epoch, SV},
 };
 
+use gnss_rtk::prelude::{Carrier as RTKCarrier, Observation as RTKObservation};
+
+#[derive(Clone)]
 pub enum QcMeasuredData {
     /// Phase range in meters
     PhaseRange(f64),
@@ -14,6 +19,7 @@ pub enum QcMeasuredData {
     DopplerShift(f64),
 }
 
+#[derive(Clone)]
 pub struct QcSignalData {
     /// Sampling [Epoch]
     pub t: Epoch,
@@ -23,6 +29,26 @@ pub struct QcSignalData {
     pub carrier: Carrier,
     /// [QcMeasuredData]
     pub measurement: QcMeasuredData,
+}
+
+impl QcSignalData {
+    /// Convert [QcSignalData] to RTK compatible [Observation]
+    pub fn to_observation(&self) -> Result<RTKObservation, Error> {
+        let carrier = RTKCarrier::from_frequency_mega_hz(self.carrier.frequency_mega_hz())
+            .map_err(|_| Error::NonSupportedSignal)?;
+
+        match self.measurement {
+            QcMeasuredData::PhaseRange(value) => {
+                Ok(RTKObservation::ambiguous_phase_range(carrier, value, None))
+            }
+            QcMeasuredData::PseudoRange(value) => {
+                Ok(RTKObservation::pseudo_range(carrier, value, None))
+            }
+            QcMeasuredData::DopplerShift(value) => {
+                Ok(RTKObservation::doppler(carrier, value, None))
+            }
+        }
+    }
 }
 
 pub struct QcSignalBuffer<'a> {
@@ -68,7 +94,14 @@ impl QcContext {
                                     measurement,
                                 })
                             }
-                            Err(_) => None,
+                            Err(e) => {
+                                error!(
+                                    "{}({}/{}) - non supported signal {:?}",
+                                    t, v.sv.constellation, v.observable, e,
+                                );
+
+                                None
+                            }
                         }
                     }),
             ),

@@ -26,4 +26,6 @@ pub enum Error {
     #[cfg(feature = "sp3")]
     #[error("SP3 parsing error: {0}")]
     SP3Parsing(#[from] SP3Error),
+    #[error("non supported signal")]
+    NonSupportedSignal,
 }

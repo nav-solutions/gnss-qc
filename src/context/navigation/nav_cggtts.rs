@@ -16,11 +16,15 @@ use cggtts::prelude::SkyTracker;
 /// Although, we do not have guarding logic,
 /// and this framework allows solving CGGTTS solutions from roaming rovers.   
 /// You are responsible of correct deployment of the [NavCggttsSolver].
+#[cfg(feature = "navigation")]
+#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
 pub struct NavCggttsSolver<'a> {
     nav_pvt: NavPvtSolver<'a>,
     tracker: SkyTracker,
 }
 
+#[cfg(feature = "navigation")]
+#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
 impl QcContext {
     /// Obtain a [NavCggttsSolver] from any navigation compatible [QcContext], ready to
     /// solve [CGGTTS] solutions.
