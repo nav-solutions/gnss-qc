@@ -53,6 +53,8 @@ impl QcContext {
     /// ```
     /// use gnss_qc::prelude::QcContext;
     ///
+    /// let mut ctx = QcContext::new();
+    ///
     /// // Load some data
     /// ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     ///     .unwrap();
@@ -124,7 +126,7 @@ impl<'a> Iterator for NavPvtSolver<'a> {
             {
             } else {
                 let observation = next_signal.to_observation();
-                self.sv_observations.insert(signal.sv, observation);
+                // self.sv_observations.insert(signal.sv, observation);
             }
 
             self.next_signal = Some(signal.clone());
