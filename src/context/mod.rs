@@ -25,7 +25,7 @@ mod sp3;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-mod navigation;
+pub(crate) mod navigation;
 
 use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
 

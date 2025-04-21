@@ -68,8 +68,14 @@ pub mod prelude {
     pub use sp3::prelude::{Error as SP3Error, SP3};
 
     #[cfg(feature = "navigation")]
-    pub use crate::navigation::{NavFilter, NavFilterType, ReferenceEcefPosition};
+    pub use crate::{
+        context::navigation::NavPvtSolver,
+        navigation::{NavFilter, NavFilterType, ReferenceEcefPosition},
+    };
 
     #[cfg(feature = "navigation")]
     pub use anise::prelude::{Almanac, Frame, Orbit};
+
+    #[cfg(feature = "cggtts")]
+    pub use crate::context::navigation::NavCggttsSolver;
 }

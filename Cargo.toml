@@ -20,7 +20,7 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [features]
 # Supports SP3 files by default
 # Support Gzip compressed files by default
-default = ["sp3", "flate2", "navigation"]
+default = ["sp3", "flate2", "navigation", "cggtts"]
 
 # Support Gzip compressed files natively
 flate2 = [
@@ -51,6 +51,16 @@ navigation = [
 embed_ephem = [
     "dep:anise",
     "anise/embed_ephem",
+]
+
+# Unlock NAV CGGTTS solution solver
+cggtts = [
+    "dep:anise",
+    "rinex/nav",
+    "sp3?/anise",
+    "dep:log",
+    "dep:gnss-rtk",
+    "dep:cggtts",
 ]
 
 # Unlock graphical analysis (plots rendering), otherwise reports are solely text based
@@ -90,6 +100,16 @@ branch = "main"
 features = [
     "serde", 
     "embed_ephem"
+]
+optional = true
+
+[dependencies.cggtts]
+git = "https://github.com/rtk-rs/cggtts"
+branch = "main"
+features = [
+    "serde", 
+    "scheduler",
+    "tracker"
 ]
 optional = true
 
