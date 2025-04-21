@@ -35,3 +35,151 @@ impl QcContext {
         })
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::str::FromStr;
+
+    use crate::{
+        context::navigation::buffer::signals::QcMeasuredData,
+        prelude::{Epoch, QcContext, SV},
+    };
+
+    use rinex::carrier::Carrier;
+
+    #[test]
+    fn ephemeris_buffering() {
+        let mut ctx = QcContext::new();
+
+        // load other type of data
+        ctx.load_rinex_file("data/MET/V2/abvi0010.15m").unwrap();
+
+        assert!(ctx.ephemeris_buffer().is_none(), "non existing ephemeris!");
+
+        // load NAV
+        ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+            .unwrap();
+
+        let mut ephemeris = ctx
+            .ephemeris_buffer()
+            .expect("ephemeris buffer should exist!");
+
+        let g01 = SV::from_str("G01").unwrap();
+        let r24 = SV::from_str("R24").unwrap();
+
+        let t0 = Epoch::from_str("2022-01-01T00:00:00 GPST").unwrap();
+        let t1 = Epoch::from_str("2022-01-01T00:00:30 GPST").unwrap();
+        let t2 = Epoch::from_str("2022-01-01T00:01:00 GPST").unwrap();
+        let t3 = Epoch::from_str("2022-01-01T00:01:30 GPST").unwrap();
+
+        let (mut t0_g01_found, mut t1_g01_found, mut t2_g01_found, mut t3_g01_found) =
+            (false, false, false, false);
+
+        let (mut t0_r24_found, mut t1_r24_found, mut t2_r24_found, mut t3_r24_found) =
+            (false, false, false, false);
+
+        // while let Some(signal) = signals.next() {
+        //     if signal.t == t0 {
+        //         if signal.sv == g01 {
+        //             match (signal.carrier, signal.measurement) {
+        //                 (Carrier::L1, QcMeasuredData::PseudoRange(_)) => {
+        //                     if t0_g01_found {
+        //                         panic!("Iterator proposed duplicated sample: {}/{}", t0, g01);
+        //                     }
+        //                     t0_g01_found = true;
+        //                 }
+        //                 _ => {} // not tested
+        //             }
+        //         } else if signal.sv == r24 {
+        //             match (signal.carrier, signal.measurement) {
+        //                 (Carrier::G1(_), QcMeasuredData::PseudoRange(_)) => {
+        //                     if t0_r24_found {
+        //                         panic!("Iterator proposed duplicated sample: {}/{}", t0, r24);
+        //                     }
+        //                     t0_r24_found = true;
+        //                 }
+        //                 _ => {} // not tested
+        //             }
+        //         } else {
+        //             // not tested
+        //         }
+        //     } else if signal.t == t1 {
+        //         if signal.sv == g01 {
+        //             match (signal.carrier, signal.measurement) {
+        //                 (Carrier::L1, QcMeasuredData::PseudoRange(_)) => {
+        //                     if t1_g01_found {
+        //                         panic!("Iterator proposed duplicated sample: {}/{}", t1, g01);
+        //                     }
+        //                     t1_g01_found = true;
+        //                 }
+        //                 _ => {} // not tested
+        //             }
+        //         } else if signal.sv == r24 {
+        //             match (signal.carrier, signal.measurement) {
+        //                 (Carrier::G1(_), QcMeasuredData::PseudoRange(_)) => {
+        //                     if t1_r24_found {
+        //                         panic!("Iterator proposed duplicated sample: {}/{}", t1, r24);
+        //                     }
+        //                     t1_r24_found = true;
+        //                 }
+        //                 _ => {} // not tested
+        //             }
+        //         } else {
+        //             // not tested
+        //         }
+        //     } else if signal.t == t2 {
+        //         if signal.sv == g01 {
+        //             match (signal.carrier, signal.measurement) {
+        //                 (Carrier::L1, QcMeasuredData::PseudoRange(_)) => {
+        //                     if t2_g01_found {
+        //                         panic!("Iterator proposed duplicated sample: {}/{}", t2, g01);
+        //                     }
+        //                     t2_g01_found = true;
+        //                 }
+        //                 _ => {} // not tested
+        //             }
+        //         } else if signal.sv == r24 {
+        //             match (signal.carrier, signal.measurement) {
+        //                 (Carrier::G1(_), QcMeasuredData::PseudoRange(_)) => {
+        //                     if t2_r24_found {
+        //                         panic!("Iterator proposed duplicated sample: {}/{}", t2, r24);
+        //                     }
+        //                     t2_r24_found = true;
+        //                 }
+        //                 _ => {} // not tested
+        //             }
+        //         } else {
+        //             // not tested
+        //         }
+        //     } else if signal.t == t3 {
+        //         if signal.sv == g01 {
+        //             match (signal.carrier, signal.measurement) {
+        //                 (Carrier::L1, QcMeasuredData::PseudoRange(_)) => {
+        //                     if t3_g01_found {
+        //                         panic!("Iterator proposed duplicated sample: {}/{}", t3, g01);
+        //                     }
+        //                     t3_g01_found = true;
+        //                 }
+        //                 _ => {} // not tested
+        //             }
+        //         } else if signal.sv == r24 {
+        //             match (signal.carrier, signal.measurement) {
+        //                 (Carrier::G1(_), QcMeasuredData::PseudoRange(_)) => {
+        //                     if t3_r24_found {
+        //                         panic!("Iterator proposed duplicated sample: {}/{}", t3, r24);
+        //                     }
+        //                     t3_r24_found = true;
+        //                 }
+        //                 _ => {} // not tested
+        //             }
+        //         } else {
+        //             // not tested
+        //         }
+        //     } else {
+        //         panic!("Iterator proposed incorrect {} epoch!", signal.t);
+        //     }
+        // }
+
+        // assert!(t0_g01_found, "T0/G01 data is missing!");
+    }
+}
