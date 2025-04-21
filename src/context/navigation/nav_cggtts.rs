@@ -4,11 +4,6 @@ use gnss_rtk::prelude::Config as PVTConfig;
 
 use cggtts::prelude::SkyTracker;
 
-/// [NavCggttsConfig]
-pub struct NavCggttsConfig {
-    pub rtk: PVTConfig,
-}
-
 /// [NavCggttsSolver] is very similar to [NavPvtSolver] and operates identically.
 ///
 /// The key differences are:
@@ -29,8 +24,8 @@ pub struct NavCggttsSolver<'a> {
 impl QcContext {
     /// Obtain a [NavCggttsSolver] from any navigation compatible [QcContext], ready to
     /// solve [CGGTTS] solutions.
-    pub fn nav_cggtts_solver<'a>(&'a self, cfg: NavCggttsConfig) -> Option<NavCggttsSolver<'a>> {
-        let nav_pvt = self.nav_pvt_solver(cfg.rtk)?;
+    pub fn nav_cggtts_solver<'a>(&'a self, cfg: PVTConfig) -> Option<NavCggttsSolver<'a>> {
+        let nav_pvt = self.nav_pvt_solver(cfg)?;
 
         Some(NavCggttsSolver {
             nav_pvt,
