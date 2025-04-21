@@ -61,32 +61,82 @@ impl<'a> QcContextRef<'a> {
 ///
 /// Basic example:
 /// ```
+/// use gnss_qc::prelude::QcContext;
+///
 /// let mut ctx = QcContext::new();
 ///
 /// // The most basic would be to load some signals and verify them
 /// ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
 ///     .unwrap();
 ///
-/// // Synthesize a report
-/// let report = ctx.report();
-///
-/// // Format the report as desired. Currently HTML is the only supported format,
-/// // and is supported by default.
-///
 /// // Navigation compatible contexts greatly enhance the reporting capability.
 /// // We can report
 /// // - the type of navigation process the data set would allow.
+/// ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+///     .unwrap();
+///
+/// let report = ctx.report();
+///
+/// // format your report using one of the proposed methods.
 /// ```
 ///
+/// When built with SP3 option, the library allows to consider precise orbital products.
+/// Reported information is naturally "enhanced":
+/// ```
+/// use gnss_qc::prelude::{QcContext, QcOrbitPreference};
 ///
-/// For people interested in Post Processed navigation:
-/// - if the library was compiled with "embed_ephem" option, you are good
-/// to go for high precision navigation. Otherwise, this method will require
-/// that a navigation cache is created and requires internet access on first deployment.
-/// - for people targeting ultra high navigation precision, you should
-/// use the JPL BPC cache and keep it up to date, by using [Self::with_jpl_update],
-/// which requires internet access at all times.
+/// let mut ctx = QcContext::new();
 ///
+/// ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+///     .unwrap();
+///
+/// ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+///     .unwrap();
+///
+/// ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
+///     .unwrap();
+///
+/// // When both RINEX and SP3 are present and you are interested in navigation,
+/// // the Orbit source preference becomes vital and we only allow selection of either one of them.
+/// ctx.configuration.set_orbit_preference(QcOrbitPreference::PreciseProducts);
+///
+/// // Reporting over the entire PPP compatible setup
+/// let report = ctx.report();
+///
+/// // format your report using one of the proposed methods.
+/// ```
+///
+/// This library allows post processed navigation as long as the "navigation" feature
+/// is enabled. We integrate a NAV PVT solver that will enable solving PVT solutions
+/// from the provided setup, that needs to be Navigation compatible (use the summary report to
+/// verify capabilities):
+///
+/// ```
+/// use gnss_qc::prelude::{QcContext, QcOrbitPreference};
+///
+/// // When built with "navigation" + "embed_ephem",
+/// // It is possible to perform high precision navigation without any internet access.
+/// let mut ctx = QcContext::new();
+///
+/// // For people that can access the internet and target ultra high precision,
+/// // we recommend adding the JPL BPC database, and keep it up to date.
+/// // Uncomment this line to do so.
+/// // ctx.update_jpl_bpc();
+///
+/// // Load basic setup
+///
+/// // Obtain the NAV PVT solver
+/// ```
+///
+/// PPP navigation is then achieved by running the previous example, on a PPP compatible setup:
+/// ```
+/// use gnss_qc::prelude::{QcContext, QcOrbitPreference};
+///
+/// let mut ctx = QcContext::new();
+///
+/// // Load PPP setup
+/// // Obtain the NAV PVT solver
+/// ```
 #[derive(Clone)]
 pub struct QcContext {
     /// [QcConfig] preset.

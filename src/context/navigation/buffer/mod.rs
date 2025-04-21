@@ -6,13 +6,29 @@ mod signals;
 use ephemeris::QcEphemerisBuffer;
 use signals::QcSignalBuffer;
 
+use gnss_rtk::prelude::{Epoch, Frame, Orbit, OrbitSource, SV};
+
 /// [QcNavigationBuffer] is obtained from [QcContext] reference and
 /// and is used in all post navigation processes.
 pub struct QcNavigationBuffer<'a> {
+    /// True if this [QcNavigationBuffer] offers high precision products
+    use_precise_products: bool,
+
     /// [QcEphemerisBuffer] from data source
     pub ephemeris: QcEphemerisBuffer<'a>,
+
     /// [QcSignalBuffer] from data source
     pub signals: QcSignalBuffer<'a>,
+}
+
+impl<'a> OrbitSource for QcNavigationBuffer<'a> {
+    fn next_at(&mut self, t: Epoch, sv: SV, fr: Frame) -> Option<Orbit> {
+        if self.use_precise_products {
+            None
+        } else {
+            self.ephemeris.next_at(t, sv, fr)
+        }
+    }
 }
 
 impl QcContext {
@@ -38,8 +54,9 @@ impl QcContext {
         let ephemeris_iter = self.ephemeris_buffer(self.earth_cef)?;
 
         Some(QcNavigationBuffer {
-            ephemeris: ephemeris_iter,
             signals: signals_iter,
+            ephemeris: ephemeris_iter,
+            use_precise_products: false,
         })
     }
 }

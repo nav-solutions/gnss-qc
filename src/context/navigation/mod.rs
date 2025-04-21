@@ -33,6 +33,7 @@ use crate::{
 use crate::prelude::{Orbit, ReferenceEcefPosition};
 
 pub(crate) mod buffer;
+pub(crate) mod nav_pvt;
 
 #[derive(Debug, Error)]
 pub enum NavigationError {

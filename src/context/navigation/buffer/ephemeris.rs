@@ -21,9 +21,6 @@ pub struct QcEphemerisBuffer<'a> {
     /// Should be an Earth Centered [Frame] for 100% correctness.
     frame: Frame,
 
-    /// True if we do have precise products
-    has_precise_products: bool,
-
     /// [QcEphemerisData] Iterator
     pub iter: Box<dyn Iterator<Item = QcEphemerisData> + 'a>,
 }
@@ -40,18 +37,8 @@ impl QcContext {
     pub fn ephemeris_buffer<'a>(&'a self, frame: Frame) -> Option<QcEphemerisBuffer<'a>> {
         let brdc = self.brdc_navigation()?;
 
-        #[cfg(feature = "sp3")]
-        let sp3 = self.sp3();
-
-        #[cfg(feature = "sp3")]
-        let has_precise_products = sp3.is_some();
-
-        #[cfg(not(feature = "sp3"))]
-        let has_precise_products = false;
-
         Some(QcEphemerisBuffer {
             frame,
-            has_precise_products,
             iter: Box::new(brdc.nav_ephemeris_frames_iter().filter_map(|(k, v)| {
                 let sv_ts = k.sv.constellation.timescale()?;
                 let toe = v.toe(sv_ts)?;
