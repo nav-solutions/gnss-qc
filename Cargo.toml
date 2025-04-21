@@ -20,7 +20,7 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [features]
 # Supports SP3 files by default
 # Support Gzip compressed files by default
-default = ["sp3", "flate2"]
+default = ["sp3", "flate2", "navigation"]
 
 # Support Gzip compressed files natively
 flate2 = [
@@ -41,11 +41,13 @@ navigation = [
     "rinex/nav",
     "sp3?/anise",
     "dep:log",
+    "dep:gnss-rtk",
 ]
 
-# Unlock "embedded ephemeris" option,
-# which removes the need of Internet access on very first (ever) deployment
-# in order to obtain the ANISE database
+# Unlocks "embedded ephemeris" option. You should always activate
+# this feature along "navigation". Most navigation database is downloaded
+# at build time, otherwise it will have to be downloaded at deployment time.
+# This option removes the need to access the Internet for most applications.
 embed_ephem = [
     "dep:anise",
     "anise/embed_ephem",
@@ -79,6 +81,15 @@ features = [
     "qc", 
     "processing", 
     "serde"
+]
+optional = true
+
+[dependencies.gnss-rtk]
+git = "https://github.com/rtk-rs/gnss-rtk"
+branch = "main"
+features = [
+    "serde", 
+    "embed_ephem"
 ]
 optional = true
 

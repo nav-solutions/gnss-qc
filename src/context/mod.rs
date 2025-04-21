@@ -1,5 +1,6 @@
 //! GNSS processing context definition.
 use std::{
+    cell::RefCell,
     collections::HashMap,
     ffi::OsStr,
     path::{Path, PathBuf},
@@ -32,6 +33,18 @@ use crate::{error::Error, prelude::ProductType};
 
 #[cfg(feature = "navigation")]
 use crate::prelude::{Almanac, Frame};
+
+pub(crate) struct QcContextRef<'a> {
+    ctx: RefCell<&'a QcContext>,
+}
+
+impl<'a> QcContextRef<'a> {
+    /// Obtain reference to Broadcast navigation data
+    pub fn brdc_navigation(&self) -> Option<&'a Rinex> {
+        let brdc = self.ctx.borrow().brdc_navigation()?;
+        Some(brdc)
+    }
+}
 
 /// [QcContext] is a general structure capable to store most common
 /// GNSS data. It is dedicated to post processing workflows,

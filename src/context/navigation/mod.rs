@@ -30,8 +30,9 @@ use crate::{
     prelude::{Constellation, QcContext},
 };
 
-#[cfg(feature = "navigation")]
 use crate::prelude::{Orbit, ReferenceEcefPosition};
+
+pub(crate) mod buffer;
 
 #[derive(Debug, Error)]
 pub enum NavigationError {
@@ -44,6 +45,7 @@ pub enum NavigationError {
 }
 
 impl QcContext {
+    /// ANISE BE440 [MetaFile]
     fn anise_de440s_bsp() -> MetaFile {
         MetaFile {
             crc32: Some(0x7286750a),
@@ -51,6 +53,7 @@ impl QcContext {
         }
     }
 
+    /// ANISE PCK11 [MetaFile]
     fn anise_pck11_pca() -> MetaFile {
         MetaFile {
             crc32: Some(0x8213b6e9),
@@ -58,6 +61,7 @@ impl QcContext {
         }
     }
 
+    /// ANISE JPL BPC [MetaFile]
     fn anise_jpl_bpc() -> MetaFile {
         MetaFile {
             crc32: None,
@@ -205,8 +209,9 @@ impl QcContext {
         }
     }
 
-    /// Upgrade this [QcContext] for ultra high precision navigation.
-    pub fn with_jpl_bpc(&self) -> Result<(), NavigationError> {
+    /// Update (and possibly upgrade if never used) this [QcContext] for ultra high precision navigation,
+    /// using Internet access. The BPC database remains valid for a few weeks. But this should be regularly updated.
+    pub fn update_jpl_bpc(&self) -> Result<(), NavigationError> {
         let mut s = self.clone();
 
         let mut meta = Self::high_precision_meta_almanac();
