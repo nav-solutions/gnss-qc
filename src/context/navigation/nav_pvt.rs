@@ -1,9 +1,11 @@
-use gnss_rtk::prelude::{Bias, Config as PVTConfig, OrbitSource, Solver, Time};
+use gnss_rtk::prelude::{Bias, Config as PVTConfig, Solver};
 
-use crate::context::{navigation::buffer::QcNavigationBuffer, QcContext};
+use crate::context::{
+    navigation::{buffer::QcNavigationBuffer, NavTimeSolver},
+    QcContext,
+};
 
 pub struct NullBias {}
-pub struct NullTime {}
 
 impl Bias for NullBias {
     fn ionosphere_bias_m(&self, rtm: &gnss_rtk::prelude::BiasRuntime) -> f64 {
@@ -15,62 +17,35 @@ impl Bias for NullBias {
     }
 }
 
-impl Time for NullTime {
-    fn bdt_gpst_time_offset(
-        &mut self,
-        now: hifitime::Epoch,
-    ) -> Option<gnss_rtk::prelude::TimeOffset> {
-        None
-    }
-
-    fn bdt_gst_time_offset(
-        &mut self,
-        now: hifitime::Epoch,
-    ) -> Option<gnss_rtk::prelude::TimeOffset> {
-        None
-    }
-
-    fn bdt_utc_time_offset(
-        &mut self,
-        now: hifitime::Epoch,
-    ) -> Option<gnss_rtk::prelude::TimeOffset> {
-        None
-    }
-
-    fn gpst_utc_time_offset(
-        &mut self,
-        now: hifitime::Epoch,
-    ) -> Option<gnss_rtk::prelude::TimeOffset> {
-        None
-    }
-
-    fn gst_gpst_time_offset(
-        &mut self,
-        now: hifitime::Epoch,
-    ) -> Option<gnss_rtk::prelude::TimeOffset> {
-        None
-    }
-
-    fn gst_utc_time_offset(
-        &mut self,
-        now: hifitime::Epoch,
-    ) -> Option<gnss_rtk::prelude::TimeOffset> {
-        None
-    }
-}
-
 /// [NavPvtSolver] is used to resolve PVT solutions from a [QcContext].
 pub struct NavPvtSolver<'a> {
-    solver: Solver<QcNavigationBuffer<'a>, NullBias, NullTime>,
+    solver: Solver<QcNavigationBuffer<'a>, NullBias, NavTimeSolver>,
 }
 
 impl QcContext {
     /// Obtain [NavPvtSolver] from this [QcContext], ready to solve PVT solutions.
     /// Current [QcContext] needs to be navigation compatible.
+    /// ```
+    /// use gnss_qc::prelude::QcContext;
+    ///
+    /// // Load some data
+    /// ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+    ///     .unwrap();
+    ///
+    /// // Navigation compatible contexts greatly enhance the reporting capability.
+    /// // We can report
+    /// // - the type of navigation process the data set would allow.
+    /// ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///     .unwrap();
+    ///
+    /// let mut nav_pvt = ctx.nav_pvt_solver()
+    ///     .expect("This context is navigation compatible!");
+    ///
+    /// ```
     pub fn nav_pvt_solver<'a>(&'a self, cfg: PVTConfig) -> Option<NavPvtSolver<'a>> {
         let nav_buffer = self.navigation_buffer()?;
+        let nav_time = self.nav_time_solver()?;
 
-        let null_time = NullTime {};
         let null_bias = NullBias {};
 
         let solver = Solver::new_almanac_frame(
@@ -78,7 +53,7 @@ impl QcContext {
             self.almanac.clone(),
             self.earth_cef,
             nav_buffer,
-            null_time,
+            nav_time,
             null_bias,
             None,
         );

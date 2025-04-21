@@ -4,8 +4,8 @@ use qc_traits::{GnssAbsoluteTime, TimePolynomial, Timeshift};
 
 impl QcContext {
     /// Form a [GnssAbsoluteTime] solver from this [QcContext],
-    /// used to allow transposition into other [TimeScale]s.
-    /// This requires navigation both feature and compatibility to truly be effective.
+    /// used to allow transposition into other [TimeScale]s.   
+    /// This requires navigation feature  to be enabled and compliance to be effective.
     pub fn gnss_absolute_time_solver(&self) -> GnssAbsoluteTime {
         let mut polynomials = Vec::<TimePolynomial>::new();
 
@@ -76,7 +76,7 @@ impl QcContext {
     /// let transposed = context.timescale_transposition(TimeScale::GST);
     /// let transposed_obs = transposed.observation().unwrap();
     ///
-    /// // For this to work, Observations are not enough.
+    /// // Verify transposition is now effective
     /// for t in transposed_obs.epoch_iter() {
     ///     assert_eq!(t.time_scale, TimeScale::GST);
     /// }

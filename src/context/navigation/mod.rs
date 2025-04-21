@@ -33,8 +33,9 @@ use crate::{
 use crate::prelude::{Orbit, ReferenceEcefPosition};
 
 pub(crate) mod buffer;
-
 pub(crate) mod nav_pvt;
+pub(crate) mod time;
+
 pub use nav_pvt::NavPvtSolver;
 
 #[cfg(feature = "cggtts")]
@@ -44,6 +45,8 @@ pub(crate) mod nav_cggtts;
 #[cfg(feature = "cggtts")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cggtts")))]
 pub use nav_cggtts::NavCggttsSolver;
+
+pub use time::NavTimeSolver;
 
 #[derive(Debug, Error)]
 pub enum NavigationError {
