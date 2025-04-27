@@ -13,9 +13,9 @@ impl QcContext {
             if let Some(brdc) = &brdc.header.nav {
                 for time_offset in brdc.time_offsets.iter() {
                     polynomials.push(TimePolynomial::from_reference_time_of_week_nanos(
-                        time_offset.lhs,
                         time_offset.t_ref.0,
                         time_offset.t_ref.1,
+                        time_offset.lhs,
                         time_offset.rhs,
                         Polynomial {
                             constant: Duration::from_seconds(time_offset.polynomial.0),
@@ -28,9 +28,9 @@ impl QcContext {
 
             for (_, time_offset) in brdc.nav_system_time_frames_iter() {
                 polynomials.push(TimePolynomial::from_reference_time_of_week_nanos(
-                    time_offset.lhs,
                     time_offset.t_ref.0,
                     time_offset.t_ref.1,
+                    time_offset.lhs,
                     time_offset.rhs,
                     Polynomial {
                         constant: Duration::from_seconds(time_offset.polynomial.0),
