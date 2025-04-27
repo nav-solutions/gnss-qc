@@ -18,9 +18,9 @@ impl QcContext {
                         time_offset.t_ref.1,
                         time_offset.rhs,
                         Polynomial {
-                            constant: Duration::from_seconds(time_offset.polynomials.0),
-                            rate: Duration::from_seconds(time_offset.polynomials.1),
-                            accel: Duration::from_seconds(time_offset.polynomials.2),
+                            constant: Duration::from_seconds(time_offset.polynomial.0),
+                            rate: Duration::from_seconds(time_offset.polynomial.1),
+                            accel: Duration::from_seconds(time_offset.polynomial.2),
                         },
                     ));
                 }
@@ -33,9 +33,9 @@ impl QcContext {
                     time_offset.t_ref.1,
                     time_offset.rhs,
                     Polynomial {
-                        constant: Duration::from_seconds(time_offset.polynomials.0),
-                        rate: Duration::from_seconds(time_offset.polynomials.1),
-                        accel: Duration::from_seconds(time_offset.polynomials.2),
+                        constant: Duration::from_seconds(time_offset.polynomial.0),
+                        rate: Duration::from_seconds(time_offset.polynomial.1),
+                        accel: Duration::from_seconds(time_offset.polynomial.2),
                     },
                 ));
             }
