@@ -1,47 +1,20 @@
 use crate::prelude::{QcContext, TimeScale};
-use hifitime::{Duration, Polynomial};
-use qc_traits::{GnssAbsoluteTime, TimePolynomial, Timeshift};
+
+use qc_traits::{GnssAbsoluteTime, Merge, Timeshift};
 
 impl QcContext {
     /// Form a [GnssAbsoluteTime] solver from this [QcContext],
     /// used to allow transposition into other [TimeScale]s.   
     /// This requires navigation feature  to be enabled and compliance to be effective.
     pub fn gnss_absolute_time_solver(&self) -> GnssAbsoluteTime {
-        let mut polynomials = Vec::<TimePolynomial>::new();
+        let mut solver = GnssAbsoluteTime::new(&[]);
 
         if let Some(brdc) = self.brdc_navigation() {
-            if let Some(brdc) = &brdc.header.nav {
-                for time_offset in brdc.time_offsets.iter() {
-                    polynomials.push(TimePolynomial::from_reference_time_of_week_nanos(
-                        time_offset.lhs,
-                        time_offset.t_ref.0,
-                        time_offset.t_ref.1,
-                        time_offset.rhs,
-                        Polynomial {
-                            constant: Duration::from_seconds(time_offset.polynomials.0),
-                            rate: Duration::from_seconds(time_offset.polynomials.1),
-                            accel: Duration::from_seconds(time_offset.polynomials.2),
-                        },
-                    ));
-                }
-            }
-
-            for (_, time_offset) in brdc.nav_system_time_frames_iter() {
-                polynomials.push(TimePolynomial::from_reference_time_of_week_nanos(
-                    time_offset.lhs,
-                    time_offset.t_ref.0,
-                    time_offset.t_ref.1,
-                    time_offset.rhs,
-                    Polynomial {
-                        constant: Duration::from_seconds(time_offset.polynomials.0),
-                        rate: Duration::from_seconds(time_offset.polynomials.1),
-                        accel: Duration::from_seconds(time_offset.polynomials.2),
-                    },
-                ));
-            }
+            let brdc = brdc.gnss_absolute_time_solver().unwrap(); // infaillible
+            solver.merge_mut(&brdc).unwrap(); // infaillble
         }
 
-        GnssAbsoluteTime::new(&polynomials)
+        solver
     }
 
     /// Precise temporal transposition of each individual products contained in current [QcContext].
