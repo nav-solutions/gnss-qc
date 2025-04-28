@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
-    Bias, Candidate, Config as PPPConfig, Error as SolverError, Observation, PPPSolver,
-    PVTSolution, SV, Epoch, BiasRuntime,
+    Bias, BiasRuntime, Candidate, Config as PPPConfig, Duration, Epoch, Error as SolverError,
+    Observation, PPPSolver, PVTSolution, SV,
 };
 
 use crate::context::{
@@ -16,7 +16,7 @@ use crate::context::{
     QcContext,
 };
 
-use super::buffer::signals::QcMeasuredData;
+use super::buffer::{ephemeris::QcEphemerisData, signals::QcMeasuredData};
 
 pub struct NullBias {}
 
@@ -35,11 +35,11 @@ pub struct NavPPPSolver<'a> {
     /// [QcSignalBuffer]
     signals: QcSignalBuffer<'a>,
 
-    /// [QcNavigationBuffer]
-    nav_buffer: QcNavigationBuffer<'a>,
-
     /// Possibly stored "next" data
     next_signal: Option<QcSignalData>,
+
+    /// Buffered [QcEphemerisData]
+    buffered_ephemeris: Vec<QcEphemerisData>,
 
     /// [Observation]s
     sv_observations: HashMap<SV, Vec<Observation>>,
@@ -76,9 +76,13 @@ impl QcContext {
     ///
     /// ```
     pub fn nav_ppp_solver<'a>(&'a self, cfg: PPPConfig) -> Option<NavPPPSolver<'a>> {
-        let mut signals = self.signals_buffer()?;
+        // gather all ephemeris
+        let buffered_ephemeris = self.buffered_ephemeris_data();
+
+        let nav_time = self.nav_time_solver();
         let nav_buffer = self.navigation_buffer()?;
-        let nav_time = self.nav_time_solver()?;
+
+        let mut signals = self.signals_buffer()?;
 
         let null_bias = NullBias {};
 
@@ -105,7 +109,7 @@ impl QcContext {
             signals,
             solver,
             sv_observations,
-            nav_buffer,
+            buffered_ephemeris,
             next_signal: Some(next_signal),
             candidates: Vec::with_capacity(8),
         })
@@ -113,11 +117,10 @@ impl QcContext {
 }
 
 impl<'a> Iterator for NavPPPSolver<'a> {
-    type Item = Option<Result<PVTSolution, SolverError>>;
+    type Item = Result<PVTSolution, SolverError>;
 
     /// Iterate [NavPPPSolver] and try to obtain a new [PVTSolution].
     fn next(&mut self) -> Option<Self::Item> {
-
         let mut pending_t = Epoch::default();
 
         if self.next_signal.is_none() {
@@ -125,10 +128,11 @@ impl<'a> Iterator for NavPPPSolver<'a> {
             return None;
         }
 
+        let next_signal = self.next_signal.as_ref().unwrap();
+
         // try to gather a complete epoch
         loop {
             let signal = self.signals.next()?;
-            let next_signal = self.next_signal.as_ref().unwrap();
 
             if signal.t > next_signal.t {
                 // new Epoch
@@ -177,8 +181,6 @@ impl<'a> Iterator for NavPPPSolver<'a> {
                     self.sv_observations.insert(signal.sv, vec![observation]);
                 }
             }
-
-            self.next_signal = Some(signal.clone());
         }
 
         self.candidates.clear();
@@ -186,14 +188,43 @@ impl<'a> Iterator for NavPPPSolver<'a> {
         for (sv, observations) in self.sv_observations.iter() {
             let mut cd = Candidate::new(*sv, pending_t, observations.clone());
 
-            if let Some(tgd) = self.nav_buffer.
+            if let Some(tgd) = self.group_delay(pending_t, *sv) {
+                cd.set_group_delay(tgd);
+            }
 
             self.candidates.push(cd);
         }
 
-        //TODO: clear sv_observations
-        // and latch pending observation described by "next_signal"
+        // resolution attempt
+        let ret = self.solver.resolve(pending_t, &self.candidates);
 
-        None
+        // discard outdated to gain future time
+        self.buffered_ephemeris
+            .retain(|k| k.ephemeris.is_valid(k.sv, pending_t, k.toe));
+
+        // clear consumed observations
+        self.sv_observations.clear();
+
+        // latch pending observation
+        if let Some(next_signal) = &self.next_signal {
+            if let Ok(observation) = next_signal.to_observation() {
+                self.sv_observations
+                    .insert(next_signal.sv, vec![observation]);
+            }
+        }
+
+        Some(ret)
+    }
+}
+
+impl<'a> NavPPPSolver<'a> {
+    fn group_delay(&self, t: Epoch, sv: SV) -> Option<Duration> {
+        let buffered = self
+            .buffered_ephemeris
+            .iter()
+            .filter(|k| k.ephemeris.is_valid(sv, t, k.toe))
+            .min_by_key(|k| k.toe - t)?;
+
+        buffered.ephemeris.tgd()
     }
 }

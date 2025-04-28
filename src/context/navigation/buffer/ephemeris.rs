@@ -15,6 +15,18 @@ pub struct QcEphemerisData {
 }
 
 impl QcEphemerisData {
+    /// Tries to form [QcEphemerisData] from RINEX [Ephemeris]
+    pub fn from_ephemeris(sv: SV, toc: Epoch, ephemeris: &Ephemeris) -> Option<Self> {
+        let ts = sv.constellation.timescale()?;
+        let toe = ephemeris.toe(ts)?;
+        Some(QcEphemerisData {
+            sv,
+            toe,
+            toc,
+            ephemeris: ephemeris.clone(),
+        })
+    }
+
     /// Converts [QcEphemerisData] to ANISE [Orbit]
     fn to_orbit(&self, t: Epoch) -> Option<Orbit> {
         let orbit = self.ephemeris.kepler2position(self.sv, self.toc, t)?;
@@ -35,36 +47,6 @@ pub struct QcEphemerisBuffer<'a> {
 
     /// Buffered [QcEphemerisData]
     buffered: Vec<QcEphemerisData>,
-}
-
-impl<'a> QcEphemerisBuffer<'a> {
-    pub fn group_delay(&mut self, sv: SV, t: Epoch) -> Option<Duration> {
-        // discard outdated
-        self.buffered
-            .retain(|k| k.ephemeris.is_valid(k.sv, t, k.toe));
-
-        // gather new data
-        loop {
-            if let Some(next) = self.iter.next() {
-                if next.sv == sv && !next.ephemeris.is_valid(sv, t, next.toe) {
-                    self.buffered.push(next);
-                    break;
-                } else {
-                    self.buffered.push(next);
-                }
-            } else {
-                break;
-            }
-        }
-
-        let buffered = self
-            .buffered
-            .iter()
-            .filter(|k| k.ephemeris.is_valid(sv, t, k.toe))
-            .min_by_key(|k| k.toe - t)?;
-
-        buffered.ephemeris.tgd()
-    }
 }
 
 impl<'a> OrbitSource for QcEphemerisBuffer<'a> {

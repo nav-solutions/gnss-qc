@@ -38,6 +38,8 @@ pub(crate) mod time;
 
 pub use nav_ppp::NavPPPSolver;
 
+use buffer::ephemeris::QcEphemerisData;
+
 #[cfg(feature = "cggtts")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cggtts")))]
 pub(crate) mod nav_cggtts;
@@ -156,6 +158,21 @@ impl QcContext {
         let obs_rinex = self.observation()?;
         let t = obs_rinex.first_epoch()?;
         obs_rinex.header.rx_orbit(t, self.earth_cef)
+    }
+
+    // Gather all [QcEphemerisData] available
+    pub fn buffered_ephemeris_data(&self) -> Vec<QcEphemerisData> {
+        let mut ret = Vec::<QcEphemerisData>::with_capacity(8);
+
+        if let Some(brdc) = self.brdc_navigation() {
+            for (k, v) in brdc.nav_ephemeris_frames_iter() {
+                if let Some(stored) = QcEphemerisData::from_ephemeris(k.sv, k.epoch, &v) {
+                    ret.push(stored);
+                }
+            }
+        }
+
+        ret
     }
 
     /// Applies complex [NavFilter] to mutable [QcContext].

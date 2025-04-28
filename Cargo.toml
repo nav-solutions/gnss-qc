@@ -97,11 +97,11 @@ optional = true
 [dependencies.gnss-rtk]
 git = "https://github.com/rtk-rs/gnss-rtk"
 branch = "main"
+optional = true
 features = [
     "serde", 
     "embed_ephem"
 ]
-optional = true
 
 [dependencies.cggtts]
 git = "https://github.com/rtk-rs/cggtts"
