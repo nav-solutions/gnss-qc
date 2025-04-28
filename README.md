@@ -86,6 +86,8 @@ The solutions you may resolve only depends on the input products. You control th
 ```rust
 use gnss_qc::prelude::QcContext;
 
+let mut ctx = QcContext::new();
+
 // Load some data
 ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -111,6 +113,8 @@ This option relies on [CGGTTS by RTK-rs](https://github.com/rtk-rs/cggtts):
 
 ```rust
 use gnss_qc::prelude::QcContext;
+
+let mut ctx = QcContext::new();
 
 // Load some data
 ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
