@@ -33,10 +33,10 @@ use crate::{
 use crate::prelude::{Orbit, ReferenceEcefPosition};
 
 pub(crate) mod buffer;
-pub(crate) mod nav_pvt;
+pub(crate) mod nav_ppp;
 pub(crate) mod time;
 
-pub use nav_pvt::NavPvtSolver;
+pub use nav_ppp::NavPPPSolver;
 
 #[cfg(feature = "cggtts")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cggtts")))]

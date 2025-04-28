@@ -69,7 +69,7 @@ pub mod prelude {
 
     #[cfg(feature = "navigation")]
     pub use crate::{
-        context::navigation::NavPvtSolver,
+        context::navigation::NavPPPSolver,
         navigation::{NavFilter, NavFilterType, ReferenceEcefPosition},
     };
 

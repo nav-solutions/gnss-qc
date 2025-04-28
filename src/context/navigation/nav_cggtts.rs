@@ -1,10 +1,10 @@
-use crate::{context::navigation::NavPvtSolver, prelude::QcContext};
+use crate::{context::navigation::NavPPPSolver, prelude::QcContext};
 
 use gnss_rtk::prelude::Config as PVTConfig;
 
 use cggtts::prelude::SkyTracker;
 
-/// [NavCggttsSolver] is very similar to [NavPvtSolver] and operates identically.
+/// [NavCggttsSolver] is very similar to [NavPPPSolver] and operates identically.
 ///
 /// The key differences are:
 /// - each solution is reworked as [CGGTTS] solution (also referred to as "Tracks").   
@@ -19,7 +19,7 @@ use cggtts::prelude::SkyTracker;
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
 pub struct NavCggttsSolver<'a> {
-    nav_pvt: NavPvtSolver<'a>,
+    nav_ppp: NavPPPSolver<'a>,
     tracker: SkyTracker,
 }
 
@@ -29,10 +29,10 @@ impl QcContext {
     /// Obtain a [NavCggttsSolver] from any navigation compatible [QcContext], ready to
     /// solve [CGGTTS] solutions.
     pub fn nav_cggtts_solver<'a>(&'a self, cfg: PVTConfig) -> Option<NavCggttsSolver<'a>> {
-        let nav_pvt = self.nav_pvt_solver(cfg)?;
+        let nav_ppp = self.nav_ppp_solver(cfg)?;
 
         Some(NavCggttsSolver {
-            nav_pvt,
+            nav_ppp,
             tracker: SkyTracker::new(),
         })
     }

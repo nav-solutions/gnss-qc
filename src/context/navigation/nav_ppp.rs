@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
-    Bias, Candidate, Config as PVTConfig, Observation, PVTSolution, Solver, SV,
+    Bias, Candidate, Config as PPPConfig, Observation, PPPSolver, PVTSolution, SV,
 };
 
 use crate::context::{
@@ -27,8 +27,8 @@ impl Bias for NullBias {
     }
 }
 
-/// [NavPvtSolver] is used to resolve [PVTSolution]s from a [QcContext].
-pub struct NavPvtSolver<'a> {
+/// [NavPPPSolver] is used to resolve [PVTSolution]s from a [QcContext].
+pub struct NavPPPSolver<'a> {
     /// [QcSignalBuffer]
     signals: QcSignalBuffer<'a>,
 
@@ -41,8 +41,8 @@ pub struct NavPvtSolver<'a> {
     /// [Candidate]s buffer
     candidates: Vec<Candidate>,
 
-    /// Internal [Solver]
-    solver: Solver<QcNavigationBuffer<'a>, NullBias, NavTimeSolver>,
+    /// Internal [PPPSolver]
+    solver: PPPSolver<QcNavigationBuffer<'a>, NullBias, NavTimeSolver>,
 }
 
 #[cfg(feature = "navigation")]
@@ -65,21 +65,21 @@ impl QcContext {
     /// ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///     .unwrap();
     ///
-    /// let mut nav_pvt = ctx.nav_pvt_solver()
+    /// let mut nav_ppp = ctx.nav_ppp_solver()
     ///     .expect("This context is navigation compatible!");
     ///
     /// ```
-    pub fn nav_pvt_solver<'a>(&'a self, cfg: PVTConfig) -> Option<NavPvtSolver<'a>> {
+    pub fn nav_ppp_solver<'a>(&'a self, cfg: PPPConfig) -> Option<NavPPPSolver<'a>> {
         let mut signals = self.signals_buffer()?;
         let nav_buffer = self.navigation_buffer()?;
         let nav_time = self.nav_time_solver()?;
 
         let null_bias = NullBias {};
 
-        let solver = Solver::new_almanac_frame(
-            cfg,
+        let solver = PPPSolver::new(
             self.almanac.clone(),
             self.earth_cef,
+            cfg,
             nav_buffer,
             nav_time,
             null_bias,
@@ -88,7 +88,7 @@ impl QcContext {
 
         let next_signal = signals.next()?;
 
-        Some(NavPvtSolver {
+        Some(NavPPPSolver {
             signals,
             solver,
             next_signal: Some(next_signal),
@@ -98,7 +98,7 @@ impl QcContext {
     }
 }
 
-impl<'a> Iterator for NavPvtSolver<'a> {
+impl<'a> Iterator for NavPPPSolver<'a> {
     type Item = Option<PVTSolution>;
 
     fn next(&mut self) -> Option<Self::Item> {
