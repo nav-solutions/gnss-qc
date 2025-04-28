@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
-    Bias, Candidate, Config as PPPConfig, Observation, PPPSolver, PVTSolution, SV,
+    Bias, Candidate, Config as PPPConfig, Error as SolverError, Observation, PPPSolver,
+    PVTSolution, SV, Epoch, BiasRuntime,
 };
 
 use crate::context::{
@@ -15,14 +16,16 @@ use crate::context::{
     QcContext,
 };
 
+use super::buffer::signals::QcMeasuredData;
+
 pub struct NullBias {}
 
 impl Bias for NullBias {
-    fn ionosphere_bias_m(&self, rtm: &gnss_rtk::prelude::BiasRuntime) -> f64 {
+    fn ionosphere_bias_m(&self, _: &BiasRuntime) -> f64 {
         0.0
     }
 
-    fn troposphere_bias_m(&self, rtm: &gnss_rtk::prelude::BiasRuntime) -> f64 {
+    fn troposphere_bias_m(&self, _: &BiasRuntime) -> f64 {
         0.0
     }
 }
@@ -32,11 +35,14 @@ pub struct NavPPPSolver<'a> {
     /// [QcSignalBuffer]
     signals: QcSignalBuffer<'a>,
 
+    /// [QcNavigationBuffer]
+    nav_buffer: QcNavigationBuffer<'a>,
+
     /// Possibly stored "next" data
     next_signal: Option<QcSignalData>,
 
     /// [Observation]s
-    sv_observations: HashMap<SV, Observation>,
+    sv_observations: HashMap<SV, Vec<Observation>>,
 
     /// [Candidate]s buffer
     candidates: Vec<Candidate>,
@@ -88,25 +94,38 @@ impl QcContext {
 
         let next_signal = signals.next()?;
 
+        let mut sv_observations = HashMap::with_capacity(8);
+
+        // latch first observation
+        if let Ok(observation) = next_signal.to_observation() {
+            sv_observations.insert(next_signal.sv, vec![observation]);
+        }
+
         Some(NavPPPSolver {
             signals,
             solver,
+            sv_observations,
+            nav_buffer,
             next_signal: Some(next_signal),
             candidates: Vec::with_capacity(8),
-            sv_observations: HashMap::with_capacity(8),
         })
     }
 }
 
 impl<'a> Iterator for NavPPPSolver<'a> {
-    type Item = Option<PVTSolution>;
+    type Item = Option<Result<PVTSolution, SolverError>>;
 
+    /// Iterate [NavPPPSolver] and try to obtain a new [PVTSolution].
     fn next(&mut self) -> Option<Self::Item> {
+
+        let mut pending_t = Epoch::default();
+
         if self.next_signal.is_none() {
+            // reached end of stream
             return None;
         }
 
-        // try to complete ongoing epoch
+        // try to gather a complete epoch
         loop {
             let signal = self.signals.next()?;
             let next_signal = self.next_signal.as_ref().unwrap();
@@ -117,20 +136,63 @@ impl<'a> Iterator for NavPPPSolver<'a> {
                 break;
             }
 
+            pending_t = signal.t;
+
+            let observation = signal.to_observation();
+            if observation.is_err() {
+                continue; // can't process
+            }
+
+            let observation = observation.unwrap();
+
             // append to pending list
-            if let Some(sv_observations) = self
+            if let Some((_, observations)) = self
                 .sv_observations
                 .iter_mut()
                 .filter(|(sv, _)| **sv == signal.sv)
                 .reduce(|k, _| k)
             {
+                if let Some(observation) = observations
+                    .iter_mut()
+                    .filter(|obs| obs.carrier == observation.carrier)
+                    .reduce(|k, _| k)
+                {
+                    match signal.measurement {
+                        QcMeasuredData::PseudoRange(pr) => {
+                            *observation = observation.with_pseudo_range_m(pr);
+                        }
+                        QcMeasuredData::DopplerShift(dop) => {
+                            *observation = observation.with_doppler(dop);
+                        }
+                        QcMeasuredData::PhaseRange(cp) => {
+                            *observation = observation.with_ambiguous_phase_range_m(cp);
+                        }
+                    }
+                } else {
+                    // new frequency
+                    observations.push(observation);
+                }
             } else {
-                let observation = next_signal.to_observation();
-                // self.sv_observations.insert(signal.sv, observation);
+                if let Ok(observation) = next_signal.to_observation() {
+                    self.sv_observations.insert(signal.sv, vec![observation]);
+                }
             }
 
             self.next_signal = Some(signal.clone());
         }
+
+        self.candidates.clear();
+
+        for (sv, observations) in self.sv_observations.iter() {
+            let mut cd = Candidate::new(*sv, pending_t, observations.clone());
+
+            if let Some(tgd) = self.nav_buffer.
+
+            self.candidates.push(cd);
+        }
+
+        //TODO: clear sv_observations
+        // and latch pending observation described by "next_signal"
 
         None
     }

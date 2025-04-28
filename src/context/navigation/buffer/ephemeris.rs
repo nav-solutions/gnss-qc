@@ -2,7 +2,7 @@ use crate::prelude::QcContext;
 
 use rinex::{
     navigation::Ephemeris,
-    prelude::{Epoch, SV},
+    prelude::{Duration, Epoch, SV},
 };
 
 use gnss_rtk::prelude::{Frame, Orbit, OrbitSource};
@@ -14,6 +14,15 @@ pub struct QcEphemerisData {
     pub ephemeris: Ephemeris,
 }
 
+impl QcEphemerisData {
+    /// Converts [QcEphemerisData] to ANISE [Orbit]
+    fn to_orbit(&self, t: Epoch) -> Option<Orbit> {
+        let orbit = self.ephemeris.kepler2position(self.sv, self.toc, t)?;
+        debug!("{}({}) - keplerian state: {}", t, self.sv, orbit);
+        Some(orbit)
+    }
+}
+
 /// [QcEphemerisBuffer] is constructed from a [QcContext] and used to
 /// Iterator the data set in any post navigation process.
 pub struct QcEphemerisBuffer<'a> {
@@ -23,11 +32,68 @@ pub struct QcEphemerisBuffer<'a> {
 
     /// [QcEphemerisData] Iterator
     pub iter: Box<dyn Iterator<Item = QcEphemerisData> + 'a>,
+
+    /// Buffered [QcEphemerisData]
+    buffered: Vec<QcEphemerisData>,
+}
+
+impl<'a> QcEphemerisBuffer<'a> {
+    pub fn group_delay(&mut self, sv: SV, t: Epoch) -> Option<Duration> {
+        // discard outdated
+        self.buffered
+            .retain(|k| k.ephemeris.is_valid(k.sv, t, k.toe));
+
+        // gather new data
+        loop {
+            if let Some(next) = self.iter.next() {
+                if next.sv == sv && !next.ephemeris.is_valid(sv, t, next.toe) {
+                    self.buffered.push(next);
+                    break;
+                } else {
+                    self.buffered.push(next);
+                }
+            } else {
+                break;
+            }
+        }
+
+        let buffered = self
+            .buffered
+            .iter()
+            .filter(|k| k.ephemeris.is_valid(sv, t, k.toe))
+            .min_by_key(|k| k.toe - t)?;
+
+        buffered.ephemeris.tgd()
+    }
 }
 
 impl<'a> OrbitSource for QcEphemerisBuffer<'a> {
-    fn next_at(&mut self, t: Epoch, sv: SV, fr: Frame) -> Option<Orbit> {
-        None
+    fn next_at(&mut self, t: Epoch, sv: SV, _: Frame) -> Option<Orbit> {
+        // discard outdated
+        self.buffered
+            .retain(|k| k.ephemeris.is_valid(k.sv, t, k.toe));
+
+        // gather new data
+        loop {
+            if let Some(next) = self.iter.next() {
+                if next.sv == sv && !next.ephemeris.is_valid(sv, t, next.toe) {
+                    self.buffered.push(next);
+                    break;
+                } else {
+                    self.buffered.push(next);
+                }
+            } else {
+                break;
+            }
+        }
+
+        let buffered = self
+            .buffered
+            .iter()
+            .filter(|k| k.ephemeris.is_valid(sv, t, k.toe))
+            .min_by_key(|k| k.toe - t)?;
+
+        buffered.to_orbit(t)
     }
 }
 
@@ -39,6 +105,7 @@ impl QcContext {
 
         Some(QcEphemerisBuffer {
             frame,
+            buffered: Vec::with_capacity(8),
             iter: Box::new(brdc.nav_ephemeris_frames_iter().filter_map(|(k, v)| {
                 let sv_ts = k.sv.constellation.timescale()?;
                 let toe = v.toe(sv_ts)?;
