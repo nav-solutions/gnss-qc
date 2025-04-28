@@ -9,8 +9,6 @@ use crate::prelude::{Rinex, TimeScale};
 
 use qc_traits::Merge;
 
-pub mod time;
-
 pub(crate) mod blob;
 use blob::BlobData;
 
@@ -25,6 +23,10 @@ mod sp3;
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
 mod navigation;
+
+#[cfg(feature = "navigation")]
+#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+pub mod time;
 
 use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
 
