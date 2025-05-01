@@ -36,7 +36,10 @@ pub(crate) mod buffer;
 pub(crate) mod nav_ppp;
 pub(crate) mod time;
 
+mod solutions_iter;
+
 pub use nav_ppp::NavPPPSolver;
+pub use solutions_iter::SolutionsIter;
 
 use buffer::ephemeris::QcEphemerisData;
 

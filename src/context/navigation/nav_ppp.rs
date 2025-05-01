@@ -1,22 +1,21 @@
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
-    Bias, BiasRuntime, Candidate, Config as PPPConfig, Duration, Epoch, Error as SolverError,
-    Observation, PPPSolver, PVTSolution, SV,
+    AbsoluteTime, Bias, BiasRuntime, Candidate, Config as PPPConfig, Duration, Epoch, Error,
+    Observation, OrbitSource, PVTSolution, StaticPPP, User as UserProfile, PPP, SV,
 };
 
 use crate::context::{
     navigation::{
         buffer::{
-            signals::{QcSignalBuffer, QcSignalData},
+            ephemeris::QcEphemerisData,
+            signals::{QcMeasuredData, QcSignalBuffer, QcSignalData},
             QcNavigationBuffer,
         },
-        NavTimeSolver,
+        NavTimeSolver, SolutionsIter,
     },
     QcContext,
 };
-
-use super::buffer::{ephemeris::QcEphemerisData, signals::QcMeasuredData};
 
 pub struct NullBias {}
 
@@ -27,6 +26,28 @@ impl Bias for NullBias {
 
     fn troposphere_bias_m(&self, _: &BiasRuntime) -> f64 {
         0.0
+    }
+}
+
+/// [Solver] wrapps the two kinds of PPP solvers
+enum PPPSolver<O: OrbitSource, B: Bias, T: AbsoluteTime> {
+    /// [StaticPPP] solver
+    Static(StaticPPP<O, B, T>),
+    /// Dynamic [PPP] solver
+    Dynamic(PPP<O, B, T>),
+}
+
+impl<O: OrbitSource, B: Bias, T: AbsoluteTime> PPPSolver<O, B, T> {
+    fn resolve(
+        &mut self,
+        user: UserProfile,
+        epoch: Epoch,
+        candidates: &[Candidate],
+    ) -> Result<PVTSolution, Error> {
+        match self {
+            Self::Static(solver) => solver.resolve(user, epoch, candidates),
+            Self::Dynamic(solver) => solver.resolve(user, epoch, candidates),
+        }
     }
 }
 
@@ -61,21 +82,20 @@ impl QcContext {
     ///
     /// let mut ctx = QcContext::new();
     ///
-    /// // Load some data
+    /// // Data from a Geodetic reference
     /// ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     ///     .unwrap();
     ///
-    /// // Navigation compatible contexts greatly enhance the reporting capability.
-    /// // We can report
-    /// // - the type of navigation process the data set would allow.
+    /// // Data for that day
     /// ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///     .unwrap();
     ///
-    /// let mut nav_ppp = ctx.nav_ppp_solver()
+    /// // Deployment: static application
+    /// let mut ppp = ctx.nav_static_ppp_solver()
     ///     .expect("This context is navigation compatible!");
     ///
     /// ```
-    pub fn nav_ppp_solver<'a>(&'a self, cfg: PPPConfig) -> Option<NavPPPSolver<'a>> {
+    pub fn nav_static_ppp_solver<'a>(&'a self, cfg: PPPConfig) -> Option<NavPPPSolver<'a>> {
         // gather all ephemeris
         let buffered_ephemeris = self.buffered_ephemeris_data();
 
@@ -86,7 +106,7 @@ impl QcContext {
 
         let null_bias = NullBias {};
 
-        let solver = PPPSolver::new(
+        let solver = PPPSolver::Static(StaticPPP::new(
             self.almanac.clone(),
             self.earth_cef,
             cfg,
@@ -94,7 +114,7 @@ impl QcContext {
             nav_time,
             null_bias,
             None,
-        );
+        ));
 
         let next_signal = signals.next()?;
 
@@ -116,11 +136,12 @@ impl QcContext {
     }
 }
 
-impl<'a> Iterator for NavPPPSolver<'a> {
-    type Item = Result<PVTSolution, SolverError>;
+impl<'a> SolutionsIter for NavPPPSolver<'a> {
+    type Error = Error;
+    type Solution = PVTSolution;
 
     /// Iterate [NavPPPSolver] and try to obtain a new [PVTSolution].
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self, user_profile: UserProfile) -> Option<Result<Self::Solution, Self::Error>> {
         let mut pending_t = Epoch::default();
 
         if self.next_signal.is_none() {
@@ -196,7 +217,9 @@ impl<'a> Iterator for NavPPPSolver<'a> {
         }
 
         // resolution attempt
-        let ret = self.solver.resolve(pending_t, &self.candidates);
+        let ret = self
+            .solver
+            .resolve(user_profile, pending_t, &self.candidates);
 
         // discard outdated to gain future time
         self.buffered_ephemeris

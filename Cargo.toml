@@ -95,8 +95,7 @@ features = [
 optional = true
 
 [dependencies.gnss-rtk]
-git = "https://github.com/rtk-rs/gnss-rtk"
-branch = "main"
+path = "../gnss-rtk"
 optional = true
 features = [
     "serde", 

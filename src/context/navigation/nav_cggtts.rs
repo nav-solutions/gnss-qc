@@ -1,11 +1,26 @@
-use crate::{context::navigation::NavPPPSolver, prelude::QcContext};
+use thiserror::Error;
 
-use gnss_rtk::prelude::{Config as PPPConfig, Error as SolverError, SPEED_OF_LIGHT_M_S};
+use crate::{
+    context::navigation::{NavPPPSolver, SolutionsIter},
+    prelude::QcContext,
+};
+
+use gnss_rtk::prelude::{
+    Config as PPPConfig, Error as SolverError, User as UserProfile, SPEED_OF_LIGHT_M_S,
+};
 
 use cggtts::prelude::{
     CommonViewCalendar as CvCalendar, Observation as FitObservation, SkyTracker,
     Track as CggttsTrack,
 };
+
+/// [NavCggttsError] is returned when the CGGTTS solution solving process goes wrong.
+/// It's either a GNSS-RTK internal failure, or a failure during the CGGTTS post-fit of the solution
+#[derive(Error, Debug)]
+pub enum NavCggttsError {
+    #[error("solver error: {0}")]
+    Solver(SolverError),
+}
 
 /// [NavCggttsSolver] is very similar to [NavPPPSolver] and operates identically.
 ///
@@ -30,10 +45,20 @@ pub struct NavCggttsSolver<'a> {
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
 impl QcContext {
-    /// Obtain a [NavCggttsSolver] from any navigation compatible [QcContext], that
-    /// you can then iterate through [CggttsTrack]s (solutions).
-    pub fn nav_cggtts_solver<'a>(&'a self, cfg: PPPConfig) -> Option<NavCggttsSolver<'a>> {
-        let nav_ppp = self.nav_ppp_solver(cfg)?;
+    /// Obtain a [NavCggttsSolver] from any navigation compatible [QcContext] using absolute/direct navigation
+    /// (no external reference).  
+    /// You can then grab the solutions with [SolutionsIter::next].
+    ///
+    /// NB: this deploys a static solver, the measurement system is supposed to be held static
+    /// during CGGTTS sessions. Evolutions (like potential degradations) of the measurement system
+    /// are described in the iteration process, through [User] description, that you should keep up to date.
+    ///
+    /// ## Input
+    /// - cfg: [PPPConfig] preset
+    /// ## Output
+    /// - solver: [NavCggttsSolver]
+    pub fn nav_cggtts_ppp_solver<'a>(&'a self, cfg: PPPConfig) -> Option<NavCggttsSolver<'a>> {
+        let nav_ppp = self.nav_static_ppp_solver(cfg)?;
 
         let cv_calendar = CvCalendar::bipm();
 
@@ -45,12 +70,14 @@ impl QcContext {
     }
 }
 
-impl<'a> Iterator for NavCggttsSolver<'a> {
-    type Item = Result<CggttsTrack, SolverError>;
+impl<'a> SolutionsIter for NavCggttsSolver<'a> {
+    type Error = NavCggttsError;
+    type Solution = CggttsTrack;
 
     /// Iterate [NavPPPSolver] and try to obtain a new [PVTSolution].
-    fn next(&mut self) -> Option<Self::Item> {
-        let pvt = self.nav_ppp.next()?;
+    fn next(&mut self, user_profile: UserProfile) -> Option<Result<Self::Solution, Self::Error>> {
+        // grab next PVT
+        let pvt = self.nav_ppp.next(user_profile)?;
 
         match pvt {
             Ok(pvt) => {
