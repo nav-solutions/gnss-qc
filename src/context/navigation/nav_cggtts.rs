@@ -20,6 +20,8 @@ use cggtts::prelude::{
 pub enum NavCggttsError {
     #[error("solver error: {0}")]
     Solver(SolverError),
+    #[error("Work In Progress")]
+    WorkInProgress,
 }
 
 /// [NavCggttsSolver] is very similar to [NavPPPSolver] and operates identically.
@@ -81,27 +83,33 @@ impl<'a> SolutionsIter for NavCggttsSolver<'a> {
 
         match pvt {
             Ok(pvt) => {
+                let epoch = pvt.epoch;
+
                 for sv in pvt.sv.iter() {
                     let refsys = pvt.clock_offset_s;
                     let refsv = refsys + sv.clock_correction.unwrap_or_default().to_seconds();
                     let mdtr = sv.tropo_bias.unwrap_or_default() / SPEED_OF_LIGHT_M_S;
 
+                    let (azimuth_deg, elevation_deg) = (sv.azimuth_deg, sv.elevation_deg);
+
                     // tracking
                     let track = FitObservation {
-                        epoch: pvt.epoch,
+                        epoch,
                         refsv,
                         refsys,
                         mdtr,
-                        mdio: None,
-                        msio: None,
-                        elevation: sv.elevation,
-                        azimuth: sv.azimuth,
+                        mdio: 0.0,  // TODO
+                        msio: None, // TODO
+                        elevation: elevation_deg,
+                        azimuth: azimuth_deg,
                     };
                 }
+
+                return Some(Err(NavCggttsError::WorkInProgress));
             }
             Err(e) => {
                 error!("pvt solver error: {}", e);
-                return Some(Err(e));
+                return Some(Err(NavCggttsError::Solver(e)));
             }
         }
     }
