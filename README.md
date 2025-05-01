@@ -52,19 +52,52 @@ This will unlock very high level yet very advanced `NavPvtSolver` to resolve and
 any provided Context!
 
 ```rust
-use gnss_qc::prelude::QcContext;
+use gnss_qc::prelude::{
+    QcContext, 
+    NavPreset, 
+    NavMethod, 
+    NavUserProfile,
+    NavSolutionsIter,
+};
 
 let mut ctx = QcContext::new();
 
-// Load some data
+// Load some data (static geodetic marker).
+// We will survey this position. 
+// If a position was not described, this process would be the actual process of obtaining this marker.
 ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
+// Data for that day
 ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     .unwrap();
+ 
+// Select a general preset, that mostly defines the selected navigation method.
+let preset = NavPreset::static_preset(NavMethod::CPP);
 
-let mut nav_pvt = ctx.nav_pvt_solver()
+// Deploy the solver. Selecting static use case here.
+let mut ppp = ctx.nav_static_ppp_solver(config)
     .expect("This context is navigation compatible!");
+
+// In static applications like this example,
+// only evolution of the measurement systems may apply here.
+// In this basic demo, we consider it remained the same for that entire session.
+let user_profile = NavUserProfile::default();
+
+// PVT solutions are collected in chronological order, by iterating the solver.
+while let Some(output) = ppp.next(user_profile) {
+    match output {
+        Ok(pvt) => {
+            // Resolved a solution
+        },
+        Err(e) => {
+            // Something went wront internally.
+            // This is mostoften neglicted, especially when you are
+            // confident about your presets.
+            // You can also study the error to make some decisions.
+        },
+    }
+}
 ```
 
 ## Deploying without navigation support
@@ -88,18 +121,22 @@ use gnss_qc::prelude::QcContext;
 
 let mut ctx = QcContext::new();
 
-// Load some data
+// Load some data (static geodetic marker).
+// We will survey this position. 
+// If a position was not described, this process would be the actual process of obtaining this marker.
 ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
+// Data for that day
 ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     .unwrap();
 
-// Context is now PPP compatible
+// Precise laboratory data for that day
 ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
     .unwrap();
 
-let mut nav_ppp = ctx.nav_pvt_solver()
+// Deploy the solver. Selecting static use case here.
+let mut nav_ppp = ctx.nav_static_pvt_solver()
     .expect("This context is navigation compatible!");
 ```
 

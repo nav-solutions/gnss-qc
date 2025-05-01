@@ -78,7 +78,7 @@ impl QcContext {
     /// Obtain [NavPvtSolver] from this [QcContext], ready to solve PVT solutions.
     /// Current [QcContext] needs to be navigation compatible.
     /// ```
-    /// use gnss_qc::prelude::QcContext;
+    /// use gnss_qc::prelude::{QcContext, NavPreset, NavSolutionsIter, NavUserProfile};
     ///
     /// let mut ctx = QcContext::new();
     ///
@@ -90,10 +90,36 @@ impl QcContext {
     /// ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///     .unwrap();
     ///
-    /// // Deployment: static application
-    /// let mut ppp = ctx.nav_static_ppp_solver()
+    /// // Default preset.
+    /// // This will suffice to most applications
+    /// let preset = NavPreset::default();
+    ///
+    /// // Deployment: static application.
+    /// let mut ppp = ctx.nav_static_ppp_solver(preset)
     ///     .expect("This context is navigation compatible!");
     ///
+    /// // In static use case like this example,
+    /// // we can still reflect the measurement system evolutions.
+    /// // In this basic demo, we consider it remains constant and our
+    /// // model applies for that entire day. For dynamic applications,
+    /// // you then have means to also reflect the evolution of the user profile.
+    /// let user_profile = NavUserProfile::default();
+    ///
+    /// // We gather the PVT solutions, in chronological order,
+    /// // by simply iterating the solver.
+    /// while let Some(output) = ppp.next(user_profile) {
+    ///     match output {
+    ///         Ok(pvt) => {
+    ///             // New solution obtained.
+    ///         },
+    ///         Err(e) => {
+    ///             // Failed to obtain a solution here.
+    ///             // You can study the error to make some decision.
+    ///             // If you presets are OK, it should not really matter.
+    ///             // Especially if you have lots of observations
+    ///         },
+    ///     }
+    /// }
     /// ```
     pub fn nav_static_ppp_solver<'a>(&'a self, cfg: PPPConfig) -> Option<NavPPPSolver<'a>> {
         // gather all ephemeris

@@ -69,12 +69,15 @@ pub mod prelude {
 
     #[cfg(feature = "navigation")]
     pub use crate::{
-        context::navigation::NavPPPSolver,
+        context::navigation::{NavPPPSolver, SolutionsIter as NavSolutionsIter},
         navigation::{NavFilter, NavFilterType, ReferenceEcefPosition},
     };
 
     #[cfg(feature = "navigation")]
     pub use anise::prelude::{Almanac, Frame, Orbit};
+
+    #[cfg(feature = "navigation")]
+    pub use gnss_rtk::prelude::{Config as NavPreset, Method as NavMethod, User as NavUserProfile};
 
     #[cfg(feature = "cggtts")]
     pub use crate::context::navigation::NavCggttsSolver;
