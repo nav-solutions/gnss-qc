@@ -15,8 +15,8 @@ pub enum QcDataWrapper {
 
 #[derive(Clone)]
 pub struct QcData {
-    /// Stored name for this [QcData] set
-    pub name: String,
+    /// First file name loaded for this [QcData] set
+    pub filename: String,
 
     /// Wrapped data as [QcDataWrapper]
     pub inner: QcDataWrapper,

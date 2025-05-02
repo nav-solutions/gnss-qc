@@ -3,16 +3,18 @@ use thiserror::Error;
 
 use maud::{html, Markup, Render};
 
-use crate::{
-    config::{orbit::QcOrbitPreference, report::QcReportType},
-    context::QcIdentifier,
-};
-
-pub mod report;
+mod indexing;
+mod report;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-pub mod orbit;
+mod orbit;
+
+pub use crate::config::{indexing::QcPreferedIndexing, report::QcReportType};
+
+#[cfg(feature = "navigation")]
+#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+pub use orbit::QcOrbitPreference;
 
 /// [Error]s during configuration process.
 #[derive(Debug, Clone, Error)]
@@ -24,33 +26,19 @@ pub enum Error {
     InvalidOrbitPreference,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub enum QcIndexingMethod {
-    /// Let the framework index data by itself.
-    /// Correctly defined products will be correctly indexed.
-    /// Products for which no classification could be determined, will wind up
-    /// as "unclassified".
-    #[default]
-    Auto,
-
-    /// Select a prefered indexing method. The framework will apply it where possible.
-    Manual(QcIdentifier),
-}
-
 /// [QcConfig] allows to define a custom reference point,
 /// or dictate the behavior of the framework in a few specific steps.
 /// For example, which orbit source should be prefered when orbital projection is needed.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct QcConfig {
     /// Select a prefered Indexing method.
-    pub indexing: QcIndexingMethod,
-
     #[serde(default)]
-    pub report: QcReportType,
+    pub indexing: QcPreferedIndexing,
 
     /// [OrbitPreference] applie to the navigation process.
     #[cfg(feature = "navigation")]
     #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+    #[serde(default)]
     pub orbit_preference: QcOrbitPreference,
 
     /// Reference coordinates, defined externally, that should
@@ -63,9 +51,9 @@ pub struct QcConfig {
 }
 
 impl QcConfig {
-    /// Update the [QcReportType] preference.
-    pub fn set_report_type(&mut self, report_type: QcReportType) {
-        self.report = report_type;
+    /// Update your indexing preference
+    pub fn set_prefered_indexing(&mut self, indexing: QcPreferedIndexing) {
+        self.indexing = indexing;
     }
 
     /// Update the user defined Orbit source preference.
@@ -82,10 +70,10 @@ impl QcConfig {
         self.user_rx_ecef = Some(ecef_m);
     }
 
-    /// Build a [QcConfig] with updated [QcReportType] preference.
-    pub fn with_report_type(&self, report_type: QcReportType) -> Self {
+    /// Returns an updated [QcConfig] with prefered indexing method
+    pub fn with_prefered_indexing(&self, indexing: QcPreferedIndexing) -> Self {
         let mut s = self.clone();
-        s.report = report_type;
+        s.indexing = indexing;
         s
     }
 
@@ -111,14 +99,6 @@ impl QcConfig {
 impl Render for QcConfig {
     fn render(&self) -> Markup {
         html! {
-            tr {
-                td {
-                    "Reporting"
-                }
-                td {
-                    (self.report.to_string())
-                }
-            }
             tr {
                 td {
                     "Orbit preference"

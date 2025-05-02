@@ -38,8 +38,8 @@ mod tests;
 
 pub mod prelude {
     pub use crate::{
-        config::{orbit::QcOrbitPreference, report::QcReportType, QcConfig},
-        context::{QcContext, QcIdentifier},
+        config::{QcConfig, QcPreferedIndexing, QcReportType},
+        context::{QcContext, QcIndexing},
         error::QcError,
         product::QcProductType,
         report::{QcExtraPage, QcReport},
@@ -69,6 +69,7 @@ pub mod prelude {
 
     #[cfg(feature = "navigation")]
     pub use crate::{
+        config::QcOrbitPreference,
         context::navigation::{NavPPPSolver, SolutionsIter as NavSolutionsIter},
         navigation::{NavFilter, NavFilterType, ReferenceEcefPosition},
     };

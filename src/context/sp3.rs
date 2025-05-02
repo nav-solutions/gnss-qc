@@ -1,7 +1,7 @@
 use crate::{
-    context::BlobData,
+    context::QcData,
     error::QcError,
-    prelude::{QcContext, QcProductType, SP3},
+    prelude::{QcContext, QcIndexing, QcProductType, SP3},
 };
 
 use qc_traits::Merge;
@@ -16,6 +16,9 @@ impl QcContext {
         let prod_type = QcProductType::HighPrecisionOrbit;
 
         let path_buf = path.as_ref().to_path_buf();
+
+        // SP3 is always correctly indexed and only forced custom index may apply
+        let indexing = self.configuration.indexing;
 
         // extend context blob
         if let Some(paths) = self

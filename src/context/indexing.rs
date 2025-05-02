@@ -2,9 +2,11 @@ use crate::error::QcError;
 
 use serde::{Deserialize, Serialize};
 
-/// [QcIdentifier] is used to index data and be able to differentiate two identical product types between each other.
+pub(crate) enum QcIndexer {}
+
+/// [QcIndexing] is used to index data and be able to differentiate two identical product types between each other.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
-pub enum QcIdentifier {
+pub enum QcIndexing {
     /// No clear identifier found or existing for this type of product
     None,
 
@@ -29,7 +31,7 @@ pub enum QcIdentifier {
     Custom(String),
 }
 
-impl std::str::FromStr for QcIdentifier {
+impl std::str::FromStr for QcIndexing {
     type Err = QcError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -37,26 +39,26 @@ impl std::str::FromStr for QcIdentifier {
 
         if s.starts_with("agency:") {
             let content = s.split_at(7).1.trim().to_string();
-            Ok(QcIdentifier::Agency(content))
+            Ok(QcIndexing::Agency(content))
         } else if s.starts_with("geo:") {
             let content = s.split_at(4).1.trim().to_string();
-            Ok(QcIdentifier::GeodeticMarker(content))
+            Ok(QcIndexing::GeodeticMarker(content))
         } else if s.starts_with("gnss:") {
             let content = s.split_at(6).1.trim().to_string();
-            Ok(QcIdentifier::GnssReceiver(content))
+            Ok(QcIndexing::GnssReceiver(content))
         } else if s.starts_with("operator:") {
             let content = s.split_at(9).1.trim().to_string();
-            Ok(QcIdentifier::Operator(content))
+            Ok(QcIndexing::Operator(content))
         } else {
             // assume custom
-            Ok(QcIdentifier::Custom(s.to_string()))
+            Ok(QcIndexing::Custom(s.to_string()))
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::QcIdentifier;
+    use super::QcIndexing;
     use std::str::FromStr;
 
     #[test]
@@ -64,22 +66,19 @@ mod test {
         for (value, expected) in [
             (
                 "geo:GEOMARKER",
-                QcIdentifier::GeodeticMarker("GEOMARKER".to_string()),
+                QcIndexing::GeodeticMarker("GEOMARKER".to_string()),
             ),
             (
                 "gnss:UBLOX-M8T",
-                QcIdentifier::GnssReceiver("UBLOX-M8T".to_string()),
+                QcIndexing::GnssReceiver("UBLOX-M8T".to_string()),
             ),
             (
                 "agency:SERIOUS-AGENCY",
-                QcIdentifier::Agency("SERIOUS-AGENCY".to_string()),
+                QcIndexing::Agency("SERIOUS-AGENCY".to_string()),
             ),
-            (
-                "operator:MySelf",
-                QcIdentifier::Agency("MySelf".to_string()),
-            ),
+            ("operator:MySelf", QcIndexing::Agency("MySelf".to_string())),
         ] {
-            let id = QcIdentifier::from_str(value).unwrap();
+            let id = QcIndexing::from_str(value).unwrap();
 
             assert_eq!(id, expected);
         }
