@@ -19,7 +19,7 @@ pub enum QcProductType {
     /// Navigation RINEX files.
     BroadcastNavigation,
 
-    /// Precise Clock data wrapped in Clock RINEX files.
+    /// High precision orbital attitudes wrapped in Clock RINEX files.
     PreciseClock,
 
     /// Antenna calibration information wrapped in ANTEX special RINEX files.
@@ -30,7 +30,7 @@ pub enum QcProductType {
 
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    /// High precision orbit data wrapped in SP3 files.
+    /// High precision clock data wrapped in SP3 files.
     PreciseOrbit,
 }
 
@@ -41,7 +41,7 @@ impl std::fmt::Display for QcProductType {
             Self::IONEX => write!(f, "IONEX"),
             Self::DORIS => write!(f, "DORIS RINEX"),
             Self::Observation => write!(f, "Observation"),
-            Self::MeteoObservation => write!(f, "Meteo"),
+            Self::MeteoObservation => write!(f, "Meteo observations"),
             Self::PreciseClock => write!(f, "Clock RINEX"),
             Self::BroadcastNavigation => write!(f, "Broadcast Navigation (BRDC)"),
             #[cfg(feature = "sp3")]

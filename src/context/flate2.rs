@@ -50,6 +50,6 @@ impl QcContext {
     /// ```
     pub fn load_gzip_sp3_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), QcError> {
         let sp3 = SP3::from_gzip_file(&path)?;
-        self.load_sp3(path, sp3)
+        self.load_sp3(sp3)
     }
 }

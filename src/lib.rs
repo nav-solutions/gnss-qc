@@ -71,7 +71,7 @@ pub mod prelude {
     pub use crate::{
         config::QcOrbitPreference,
         context::navigation::{NavPPPSolver, SolutionsIter as NavSolutionsIter},
-        navigation::{NavFilter, NavFilterType, ReferenceEcefPosition},
+        navigation::{QcNavFilter, QcNavFilterType, ReferenceEcefPosition},
     };
 
     #[cfg(feature = "navigation")]

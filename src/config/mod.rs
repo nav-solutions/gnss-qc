@@ -31,23 +31,18 @@ pub enum Error {
 /// For example, which orbit source should be prefered when orbital projection is needed.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct QcConfig {
-    /// Select a prefered Indexing method.
+    /// Select a prefered Indexing method. This only applies to
+    /// Observation RINEX in this early versions. Other products
+    /// are mixed, whatever the publisher name. Which facilitates post-processing,
+    /// but is not perfect.
     #[serde(default)]
     pub indexing: QcPreferedIndexing,
 
-    /// [OrbitPreference] applie to the navigation process.
+    /// [OrbitPreference] applied to the navigation process.
     #[cfg(feature = "navigation")]
     #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
     #[serde(default)]
     pub orbit_preference: QcOrbitPreference,
-
-    /// Reference coordinates, defined externally, that should
-    /// apply to the receiver. Usually, one would use this if they
-    /// have better knowledge of the position.
-    #[cfg(feature = "navigation")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-    #[serde(default)]
-    pub user_rx_ecef: Option<(f64, f64, f64)>,
 }
 
 impl QcConfig {
@@ -63,13 +58,6 @@ impl QcConfig {
         self.orbit_preference = preference;
     }
 
-    /// Update the user defined RX position ECEF coordinates
-    #[cfg(feature = "navigation")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-    pub fn set_reference_rx_ecef_coordinates(&mut self, ecef_m: (f64, f64, f64)) {
-        self.user_rx_ecef = Some(ecef_m);
-    }
-
     /// Returns an updated [QcConfig] with prefered indexing method
     pub fn with_prefered_indexing(&self, indexing: QcPreferedIndexing) -> Self {
         let mut s = self.clone();
@@ -83,15 +71,6 @@ impl QcConfig {
     pub fn with_orbit_preference(&self, preference: QcOrbitPreference) -> Self {
         let mut s = self.clone();
         s.orbit_preference = preference;
-        s
-    }
-
-    /// Build a [QcConfig] with updated user defined RX position as ECEF coordinates.
-    #[cfg(feature = "navigation")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-    pub fn with_user_rx_position_ecef(&self, ecef_m: (f64, f64, f64)) -> Self {
-        let mut s = self.clone();
-        s.user_rx_ecef = Some(ecef_m);
         s
     }
 }

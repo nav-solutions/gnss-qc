@@ -1,25 +1,18 @@
 //! GNSS processing context definition.
-use std::{
-    collections::HashMap,
-    ffi::OsStr,
-    path::{Path, PathBuf},
-};
-
 use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
+use std::collections::HashMap;
 
-use crate::{
-    error::QcError,
-    prelude::{Constellation, QcConfig, QcProductType, Rinex, TimeScale},
-};
+use crate::prelude::{QcConfig, Rinex, TimeScale};
 
-mod data;
+#[cfg(feature = "sp3")]
+use crate::prelude::SP3;
+
+// mod data;
 mod indexing;
 mod key;
 mod rinex;
 
-use data::QcData;
-
-pub(crate) use key::QcDataKey;
+// pub(crate) use key::QcDataKey;
 
 pub use indexing::QcIndexing;
 
@@ -43,7 +36,7 @@ pub mod time;
 use crate::prelude::{Almanac, Frame};
 
 #[cfg(doc)]
-use crate::prelude::QcPreferedIndexing;
+use crate::prelude::{QcPreferedIndexing, QcProductType};
 
 /// [QcContext] is a general structure capable to store most common GNSS data.   
 /// It is dedicated to post processing workflows, precise timing or atmosphere analysis.
@@ -151,8 +144,31 @@ pub struct QcContext {
     /// [QcConfig] preset.
     pub configuration: QcConfig,
 
-    /// Context data created by indexing and sorting each user entry.
-    pub(crate) data: HashMap<QcDataKey, QcData>,
+    /// RINEX observations, stored by [QcIndexing] method.
+    pub(crate) observations: HashMap<QcIndexing, Rinex>,
+
+    /// Broadcast NAV RINEX. We do not differentiate them (data publishers or other possible indexing),
+    /// which facilitates post-processing in this early version.
+    pub(crate) brdc_navigation: Option<Rinex>,
+
+    /// Meteo Observations. We do not differentiate them (data publishers or other possible indexing),
+    /// which facilitates post-processing in this early version.
+    pub(crate) meteo_observations: Option<Rinex>,
+
+    /// Precise Clock states. We do not differentiate data publishers (which is incorrect in very precise applications),
+    /// but facilitates post-processing, in this early version.
+    pub(crate) precise_clocks: Option<Rinex>,
+
+    /// IONEX. We do not differentiate data publishers (which is incorrect in very precise applications),
+    /// but facilitates post-processing, in this early version.
+    pub(crate) ionex: Option<Rinex>,
+
+    /// Possible [SP3] data (when supported).
+    /// We do not differentiate data publishers (which is incorrect in very precise applications),
+    /// but facilitates post-processing, in this early version.
+    #[cfg(feature = "sp3")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
+    pub(crate) sp3: Option<SP3>,
 }
 
 impl QcContext {
@@ -179,8 +195,13 @@ impl QcContext {
             almanac,
             #[cfg(feature = "navigation")]
             earth_cef,
-
-            data: Default::default(),
+            #[cfg(feature = "sp3")]
+            sp3: Default::default(),
+            observations: Default::default(),
+            meteo_observations: Default::default(),
+            ionex: Default::default(),
+            brdc_navigation: Default::default(),
+            precise_clocks: Default::default(),
             configuration: QcConfig::default(),
         }
     }
@@ -193,10 +214,7 @@ impl QcContext {
         s
     }
 
-    /// Returns general [TimeScale] for current [QcContext] and data source
-    /// indexed by [QcIndexing] method.
-    ///
-    /// In case measurements where provided, they will always prevail:
+    /// Returns observations [TimeScale] for this data source.
     /// ```
     /// use gnss_qc::prelude::{QcContext, TimeScale};
     ///
@@ -207,146 +225,27 @@ impl QcContext {
     /// context.load_rinex_file("data/OBS/V2/AJAC3550.21O")
     ///     .unwrap();
     ///
-    /// context.load_rinex_file("data/NAV/V2/amel0010.21g")
-    ///     .unwrap();
-    ///
-    /// assert_eq!(context.timescale(), Some(TimeScale::GPST));
+    /// assert_eq!(context.observations_timescale(), Some(TimeScale::GPST));
     /// ```
-    ///
-    /// SP3 files have unambiguous timescale definition as well.
-    /// So they will prevail as long as RINEX measurements were not provided:
-    ///
-    /// ```
-    /// use gnss_qc::prelude::{QcContext, TimeScale};
-    ///
-    /// // create a new (empty) context
-    /// let mut context = QcContext::new();
-    ///
-    /// // load some data
-    /// context.load_gzip_sp3_file("data/SP3/D/COD0MGXFIN_20230500000_01D_05M_ORB.SP3.gz")
-    ///     .unwrap();
-    ///
-    /// assert_eq!(context.timescale(), Some(TimeScale::GPST));
-    /// ```
-    pub fn product_timescale(
-        &self,
-        product: QcProductType,
-        indexing: QcIndexing,
-    ) -> Option<TimeScale> {
-        let data = self
-            .products_iter(product)
-            .filter_map(|(index, v)| if *index == indexing { Some(v) } else { None })
+    pub fn observations_timescale(&self, indexing: &QcIndexing) -> Option<TimeScale> {
+        let observations = self
+            .observation_sources_iter()
+            .filter_map(|(index, v)| if index == indexing { Some(v) } else { None })
             .reduce(|k, _| k)?;
 
-        if let Some(rinex) = data.inner.as_rinex() {
-            match product {
-                QcProductType::Observation => {
-                    if let Some(header) = rinex.header.obs.as_ref() {
-                        if let Some(epoch) = header.timeof_first_obs {
-                            return Some(epoch.time_scale);
-                        }
-                        if let Some(epoch) = header.timeof_last_obs {
-                            return Some(epoch.time_scale);
-                        }
-                    }
-                }
-                QcProductType::BroadcastNavigation => match rinex.header.constellation {
-                    Some(Constellation::Mixed) | None => {}
-                    Some(constellation) => {
-                        if let Some(timescale) = constellation.timescale() {
-                            return Some(timescale);
-                        }
-                    }
-                },
-                QcProductType::MeteoObservation => {
-                    return Some(TimeScale::UTC);
-                }
-                QcProductType::PreciseClock => {}
-                _ => {}
-            }
+        let header = observations.header.obs.as_ref()?;
+
+        if let Some(epoch) = header.timeof_first_obs {
+            return Some(epoch.time_scale);
         }
 
-        #[cfg(feature = "sp3")]
-        if let Some(sp3) = data.inner.as_sp3() {
-            return Some(sp3.header.timescale);
+        if let Some(epoch) = header.timeof_last_obs {
+            return Some(epoch.time_scale);
         }
 
         None
     }
 
-    /// Returns reference to all inner data matching this [QcProductType].
-    pub(crate) fn products_iter(
-        &self,
-        product: QcProductType,
-    ) -> Box<dyn Iterator<Item = (&QcIndexing, &QcData)> + '_> {
-        Box::new(self.data.iter().filter_map(move |(key, data)| {
-            if key.prod_type == product {
-                Some((&key.index, data))
-            } else {
-                None
-            }
-        }))
-    }
-
-    /// Returns mutable reference to all inner data matching this [QcProductType].
-    pub(crate) fn products_iter_mut(
-        &mut self,
-        product: QcProductType,
-    ) -> Box<dyn Iterator<Item = (&QcIndexing, &mut QcData)> + '_> {
-        Box::new(self.data.iter_mut().filter_map(move |(key, data)| {
-            if key.prod_type == product {
-                Some((&key.index, data))
-            } else {
-                None
-            }
-        }))
-    }
-
-    /// Returns reference to same [QcProductType] and same [QcIndexing] entry
-    pub(crate) fn get_product(
-        &self,
-        product: QcProductType,
-        indexing: QcIndexing,
-    ) -> Option<&QcData> {
-        let matched = self
-            .products_iter(product)
-            .filter_map(
-                |(index, data)| {
-                    if *index == indexing {
-                        Some(data)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .reduce(|k, _| k)?;
-
-        Some(matched)
-    }
-
-    /// Returns mutable reference to same [QcProductType] and same [QcIndexing] entry
-    pub(crate) fn get_product_mut(
-        &mut self,
-        product: QcProductType,
-        indexing: QcIndexing,
-    ) -> Option<&mut QcData> {
-        let matched = self
-            .products_iter_mut(product)
-            .filter_map(
-                |(index, data)| {
-                    if *index == indexing {
-                        Some(data)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .reduce(|k, _| k)?;
-
-        Some(matched)
-    }
-
-    /// True if current [QcContext] is compatible with basic post processed navigation.
     /// It does not mean you can actually perform post processed navigation, you need the "navigation"
     /// feature for that.
     pub fn is_navigation_compatible(&self) -> bool {
@@ -362,24 +261,28 @@ impl QcContext {
     /// Apply preprocessing filter algorithm to mutable [QcContext].
     /// Filter will apply to all internal products when applicable.
     pub fn filter_mut(&mut self, filter: &Filter) {
-        for (_, rinex) in self.observations_iter_mut() {
+        for (_, rinex) in self.observation_sources_iter_mut() {
             rinex.filter_mut(filter);
         }
 
-        for (_, rinex) in self.brdc_navigations_iter_mut() {
-            rinex.filter_mut(filter);
+        if let Some(brdc) = &mut self.brdc_navigation {
+            brdc.filter_mut(filter);
         }
 
-        for (_, rinex) in self.meteo_observations_iter_mut() {
-            rinex.filter_mut(filter);
+        if let Some(meteo) = &mut self.meteo_observations {
+            meteo.filter_mut(filter);
         }
 
-        for (_, rinex) in self.clocks_rinex_iter_mut() {
-            rinex.filter_mut(filter);
+        if let Some(ionex) = &mut self.ionex {
+            ionex.filter_mut(filter);
+        }
+
+        if let Some(clock) = &mut self.precise_clocks {
+            clock.filter_mut(filter);
         }
 
         #[cfg(feature = "sp3")]
-        for (_, sp3) in self.sp3_agencies_iter_mut() {
+        if let Some(sp3) = &mut self.sp3 {
             sp3.filter_mut(filter);
         }
     }
@@ -387,7 +290,7 @@ impl QcContext {
     /// Apply desired [Repair]ment to mutable [QcContext].
     /// This only applies to [QcProductType::Observation] products.
     pub fn repair_mut(&mut self, repair: Repair) {
-        for (_, rinex) in self.observations_iter_mut() {
+        for (_, rinex) in self.observation_sources_iter_mut() {
             rinex.repair_mut(repair)
         }
     }
@@ -396,9 +299,9 @@ impl QcContext {
     /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>
     /// may apply to selected data source.
     pub fn is_cpp_navigation_compatible(&self, data_source: &QcIndexing) -> bool {
-        if let Some(rinex) = self.get_observation_rinex(data_source) {
+        if let Some(observations) = self.observations(data_source) {
             // TODO wrong: only PR
-            rinex.carrier_iter().count() > 1
+            observations.carrier_iter().count() > 1
         } else {
             false
         }
@@ -408,9 +311,9 @@ impl QcContext {
     /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>
     /// may apply to selected data source.
     pub fn is_ppp_navigation_compatible(&self, data_source: &QcIndexing) -> bool {
-        if let Some(rinex) = self.get_observation_rinex(data_source) {
-            // TODO wrong: only PH+PR
-            rinex.carrier_iter().count() > 1
+        if let Some(observations) = self.observations(data_source) {
+            // TODO wrong: PR+PH
+            observations.carrier_iter().count() > 1
         } else {
             false
         }

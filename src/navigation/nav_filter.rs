@@ -1,11 +1,11 @@
 //! NAV filter
-use crate::error::Error;
+use crate::error::QcError;
 use gnss_rs::prelude::Constellation;
 
-/// [NavFilterType] describes complex Navigation condition
-/// we may apply to filter.
+/// [QcNavFilterType] describes complex Navigation conditions
+/// we may apply.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum NavFilterType {
+pub enum QcNavFilterType {
     /// Healthy SV (suitable for navigation)
     Healthy,
     /// Unhealthy SV (not suitable for navigation)
@@ -14,19 +14,29 @@ pub enum NavFilterType {
     Testing,
 }
 
-/// Complex [NavFilter]
+/// [QcNavFilter] is used to apply complex Navigation status conditions.
 #[derive(Debug, Clone, PartialEq)]
-pub struct NavFilter {
+pub struct QcNavFilter {
     /// [NavFilterType] we support.
-    pub filter: NavFilterType,
+    pub filter: QcNavFilterType,
     /// Possible targetted constellations
     pub constellations: Vec<Constellation>,
 }
 
-impl std::str::FromStr for NavFilter {
-    type Err = Error;
+impl QcNavFilter {
+    /// Build a [QcNavFilter] status condition that applys to any [Constellation] encountered.
+    pub fn any(filter_type: QcNavFilterType) -> Self {
+        Self {
+            filter: filter_type,
+            constellations: Default::default(),
+        }
+    }
+}
 
-    fn from_str(s: &str) -> Result<NavFilter, Error> {
+impl std::str::FromStr for QcNavFilter {
+    type Err = QcError;
+
+    fn from_str(s: &str) -> Result<QcNavFilter, QcError> {
         let mut constellations = Vec::new();
 
         for item in s.split(':') {
@@ -40,33 +50,34 @@ impl std::str::FromStr for NavFilter {
 
             match trimmed {
                 "healthy" => {
-                    return Ok(NavFilter {
+                    return Ok(QcNavFilter {
                         constellations,
-                        filter: NavFilterType::Healthy,
+                        filter: QcNavFilterType::Healthy,
                     });
                 }
                 "unhealthy" => {
-                    return Ok(NavFilter {
+                    return Ok(QcNavFilter {
                         constellations,
-                        filter: NavFilterType::Unhealthy,
+                        filter: QcNavFilterType::Unhealthy,
                     });
                 }
                 "testing" => {
-                    return Ok(NavFilter {
+                    return Ok(QcNavFilter {
                         constellations,
-                        filter: NavFilterType::Testing,
+                        filter: QcNavFilterType::Testing,
                     });
                 }
                 _ => {}
             }
         }
-        Err(Error::InvalidNavFilter)
+
+        Err(QcError::InvalidNavFilter)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::{NavFilter, NavFilterType};
+    use super::{QcNavFilter, QcNavFilterType};
     use gnss_rs::prelude::Constellation;
     use std::str::FromStr;
 
@@ -75,41 +86,41 @@ mod test {
         for (value, expected) in [
             (
                 "healthy",
-                NavFilter {
-                    filter: NavFilterType::Healthy,
+                QcNavFilter {
+                    filter: QcNavFilterType::Healthy,
                     constellations: vec![],
                 },
             ),
             (
                 "unhealthy",
-                NavFilter {
-                    filter: NavFilterType::Unhealthy,
+                QcNavFilter {
+                    filter: QcNavFilterType::Unhealthy,
                     constellations: vec![],
                 },
             ),
             (
                 "testing",
-                NavFilter {
-                    filter: NavFilterType::Testing,
+                QcNavFilter {
+                    filter: QcNavFilterType::Testing,
                     constellations: vec![],
                 },
             ),
             (
                 "gps:testing",
-                NavFilter {
-                    filter: NavFilterType::Testing,
+                QcNavFilter {
+                    filter: QcNavFilterType::Testing,
                     constellations: vec![Constellation::GPS],
                 },
             ),
             (
                 "gps,gal:testing",
-                NavFilter {
-                    filter: NavFilterType::Testing,
+                QcNavFilter {
+                    filter: QcNavFilterType::Testing,
                     constellations: vec![Constellation::GPS, Constellation::Galileo],
                 },
             ),
         ] {
-            let parsed = NavFilter::from_str(value)
+            let parsed = QcNavFilter::from_str(value)
                 .unwrap_or_else(|e| panic!("Failed to parse from \"{}\": {}", value, e));
 
             assert_eq!(parsed, expected);

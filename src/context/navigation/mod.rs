@@ -26,13 +26,14 @@ use anise::{
 
 use crate::{
     config::QcConfig,
+    context::QcIndexing,
     navigation::{NavFilter, NavFilterType},
     prelude::{Constellation, QcContext},
 };
 
 use crate::prelude::{Orbit, ReferenceEcefPosition};
 
-pub(crate) mod buffer;
+//pub(crate) mod buffer;
 pub(crate) mod nav_ppp;
 pub(crate) mod time;
 
@@ -41,7 +42,7 @@ mod solutions_iter;
 pub use nav_ppp::NavPPPSolver;
 pub use solutions_iter::SolutionsIter;
 
-use buffer::ephemeris::QcEphemerisData;
+//use buffer::ephemeris::QcEphemerisData;
 
 #[cfg(feature = "cggtts")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cggtts")))]
@@ -116,8 +117,7 @@ impl QcContext {
         Self {
             almanac,
             earth_cef: frame,
-            blob: Default::default(),
-            files: Default::default(),
+            data: Default::default(),
             configuration: QcConfig::default(),
         }
     }
@@ -141,26 +141,33 @@ impl QcContext {
         (almanac, frame)
     }
 
-    /// Returns a possible [ReferenceEcefPosition] if defined in current [QcContext].
+    /// Returns a possible [ReferenceEcefPosition] if defined in current [QcContext]
+    /// for desired data source.
+    ///
     /// NB: this is only picked from a possible [Rinex] Observations, not any
     /// other possible source. If no Observations were loaded, there is no point
     /// asking for this in this current form.
-    pub fn reference_rx_position(&self) -> Option<ReferenceEcefPosition> {
-        let obs_rinex = self.observation()?;
+    pub fn reference_rx_position(&self, data_source: &QcIndexing) -> Option<ReferenceEcefPosition> {
+        let obs_rinex = self.get_observation_rinex(data_source)?;
         let t = obs_rinex.first_epoch()?;
+
         let rx_orbit = obs_rinex.header.rx_orbit(t, self.earth_cef)?;
         let pos = ReferenceEcefPosition::from_orbit(&rx_orbit);
         Some(pos)
     }
 
-    /// Returns a possible reference position, expressed as [Orbit], if defined in current [QcContext].
+    /// Returns a possible reference position, expressed as [Orbit], if defined in current [QcContext]
+    /// for the selected data source.
+    ///
     /// NB: this is only picked from a possible [Rinex] Observations, not any
     /// other possible source. If no Observations were loaded, there is no point
     /// asking for this in this current form.
-    pub fn reference_rx_orbit(&self) -> Option<Orbit> {
-        let obs_rinex = self.observation()?;
+    pub fn reference_rx_orbit(&self, data_source: &QcIndexing) -> Option<Orbit> {
+        let obs_rinex = self.get_observation_rinex(data_source)?;
         let t = obs_rinex.first_epoch()?;
-        obs_rinex.header.rx_orbit(t, self.earth_cef)
+
+        let rx_orbit = obs_rinex.header.rx_orbit(t, self.earth_cef)?;
+        Some(rx_orbit)
     }
 
     // Gather all [QcEphemerisData] available
