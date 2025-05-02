@@ -1,13 +1,16 @@
 //! Generic analysis report
 use itertools::Itertools;
-use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 use std::collections::HashMap;
-use thiserror::Error;
+
+use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 
 use crate::{
     context::QcIndexing,
-    prelude::{QcContext, QcProductType},
+    prelude::{Epoch, QcContext},
 };
+
+mod css;
+mod javascript;
 
 // shared analysis, that may apply to several products
 mod shared;
@@ -15,124 +18,11 @@ mod shared;
 mod summary;
 use summary::QcSummary;
 
-mod rinex;
-use rinex::RINEXReport;
+mod observations;
+use observations::Report as ObservationsReport;
 
-#[cfg(feature = "navigation")]
-mod orbital;
-
-#[cfg(feature = "sp3")]
-mod sp3;
-
-#[cfg(feature = "sp3")]
-use sp3::SP3Report;
-
-// preprocessed navi
-// mod navi;
-// use navi::QcNavi;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("non supported RINEX format")]
-    NonSupportedRINEX,
-    #[error("missing Clock RINEX header")]
-    MissingClockHeader,
-    #[error("missing Meteo RINEX header")]
-    MissingMeteoHeader,
-    #[error("missing IONEX header")]
-    MissingIonexHeader,
-}
-
-enum ProductReport {
-    /// RINEX products report
-    RINEX(RINEXReport),
-    #[cfg(feature = "sp3")]
-    /// SP3 product report
-    SP3(SP3Report),
-}
-
-impl ProductReport {
-    pub fn html_inline_menu_bar(&self) -> Markup {
-        match self {
-            #[cfg(feature = "sp3")]
-            Self::SP3(report) => report.html_inline_menu_bar(),
-            Self::RINEX(report) => report.html_inline_menu_bar(),
-        }
-    }
-}
-
-fn html_id(product: &QcProductType) -> &str {
-    match product {
-        QcProductType::IONEX => "ionex",
-        QcProductType::DORIS => "doris",
-        QcProductType::ANTEX => "antex",
-        QcProductType::Observation => "obs",
-        QcProductType::BroadcastNavigation => "brdc",
-        QcProductType::PreciseClock => "clk",
-        QcProductType::MeteoObservation => "meteo",
-        #[cfg(feature = "sp3")]
-        QcProductType::PreciseOrbit => "sp3",
-    }
-}
-
-impl Render for ProductReport {
-    fn render(&self) -> Markup {
-        match self {
-            Self::RINEX(report) => match report {
-                RINEXReport::Obs(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                }
-                RINEXReport::Doris(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                }
-                RINEXReport::Ionex(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                }
-                RINEXReport::Nav(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                }
-                RINEXReport::Clk(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                }
-                RINEXReport::Meteo(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                }
-            },
-            #[cfg(feature = "sp3")]
-            Self::SP3(report) => {
-                html! {
-                    div class="section" {
-                        (report.render())
-                    }
-                }
-            }
-        }
-    }
-}
+// #[cfg(feature = "navigation")]
+// mod orbital;
 
 /// [QcExtraPage] you can add to customize [QcReport]
 pub struct QcExtraPage {
@@ -157,8 +47,8 @@ pub struct QcReport {
     // /// only works correctly for a single couple of publisher, as of today
     // #[cfg(all(feature = "navigation", feature = "sp3")]
     // orbital_proj: Option<OrbitalProjections>,
-    /// Observations reporting, per unique data source
-    observations: HashMap<QcIndexing, ObservationAnalysis>,
+    /// Reported observations, for each data source
+    observations: HashMap<QcIndexing, ObservationsReport>,
 
     // /// IONEX TEC page when it exists
     // ionex_page: Option<IonexPage>,
@@ -168,17 +58,37 @@ pub struct QcReport {
 
 impl QcContext {
     /// Synthesize a shortened [QcSummary] from current [QcContext].
-    pub fn summary_report(&self) -> QcSummary {
-        QcSummary::new(self)
+    /// ## Input
+    /// - now: [Epoch] of synthesis
+    pub fn summary_report(&self, now: Epoch) -> QcReport {
+        QcReport {
+            summary: QcSummary::new(now, self),
+            custom_chapters: Vec::new(),
+            observations: Default::default(),
+        }
     }
 
     /// Synthesize a complete [QcReport] from current [QcContext].
-    pub fn report(&self) -> QcReport {
-        let summary = self.summary_report();
-
+    /// ## Input
+    /// - now: [Epoch] of synthesis
+    pub fn report(&self, now: Epoch) -> QcReport {
         QcReport {
-            summary,
+            summary: QcSummary::new(now, self),
             custom_chapters: Vec::new(),
+            observations: {
+                let mut tabbed = HashMap::new();
+
+                for source in self.observations.keys() {
+                    if let Some(observations) = self.observations.get(&source) {
+                        tabbed.insert(
+                            source.clone(),
+                            ObservationsReport::new(self, source, observations),
+                        );
+                    }
+                }
+
+                tabbed
+            },
         }
     }
 }
@@ -188,57 +98,6 @@ impl QcReport {
     pub fn add_custom_chapter(&mut self, chapter: QcExtraPage) {
         self.custom_chapters.push(chapter);
     }
-
-    /// Generates a menu bar to nagivate [Self]
-    fn menu_bar(&self) -> Markup {
-        html! {
-            aside class="menu" {
-                p class="menu-label" {
-                    (format!("RINEX-QC v{}", env!("CARGO_PKG_VERSION")))
-                }
-                ul class="menu-list" {
-                    li {
-                        a id="menu:summary" {
-                            span class="icon" {
-                                i class="fa fa-home" {}
-                            }
-                            "Summary"
-                        }
-                    }
-                    @for product in self.products.keys().sorted() {
-                        @if let Some(report) = self.products.get(&product) {
-                            li {
-                                (report.html_inline_menu_bar())
-                            }
-                        }
-                    }
-                    @for chapter in self.custom_chapters.iter() {
-                        li {
-                            (chapter.tab.render())
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex/wiki" style="margin-left:29px" {
-                            "Documentation"
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex/issues" style="margin-left:29px" {
-                            "Bug Report"
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex" {
-                            span class="icon" {
-                                i class="fa-brands fa-github" {}
-                            }
-                            "Sources"
-                        }
-                    }
-                } // menu-list
-            }//menu
-        }
-    }
 }
 
 impl Render for QcReport {
@@ -247,134 +106,138 @@ impl Render for QcReport {
             (DOCTYPE)
             html {
                 head {
-                    meta charset="utf-8";
+                    meta charset="UTF-8";
                     meta http-equip="X-UA-Compatible" content="IE-edge";
                     meta name="viewport" content="width=device-width, initial-scale=1";
-                    link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/georust/meta/master/logo/logo.png";
+                    link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/rtk-rs/.github/master/logos/logo2.jpg";
                     script src="https://cdn.plot.ly/plotly-2.12.1.min.js" {};
                     script defer="true" src="https://use.fontawesome.com/releases/v5.3.1/js/all.js" {};
                     script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" {};
-                    link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css";
                     link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css";
                     link rel="stylesheet" href="https://unpkg.com/balloon-css/balloon.min.css";
                 }//head
+
+                style {
+                    (PreEscaped(self.page_css()))
+                }
+
                 body {
-                        div id="title" {
-                            title {
-                                "RINEX QC"
+                    nav id="sidebar" {
+                        h1 {
+                            "GNSS-QC Report"
+                        }
+                        a data-target="summary" {
+                            "Summary"
+                        }
+
+                        @ if !self.observations.is_empty() {
+                            // Create a nav menu
+                            a data-target="observations" {
+                                "Observations"
                             }
                         }
-                        div id="body" {
-                            div class="columns is-fullheight" {
-                                div id="menubar" class="column is-3 is-sidebar-menu is-hidden-mobile" {
-                                    (self.menu_bar())
-                                } // id=menubar
-                                div class="hero is-fullheight" {
 
-                                    div id="summary" class="container is-main" style="display:block" {
-                                        div class="section" {
-                                            (self.summary.render())
-                                        }
-                                    }//id=summary
-
-                                    @for product in self.products.keys().sorted() {
-                                        @if let Some(report) = self.products.get(product) {
-                                            div id=(html_id(product)) class="container is-main" style="display:none" {
-                                                (report.render())
-                                            }
-                                        }
-                                    }
-
-                                    div id="extra-chapters" class="container" style="display:block" {
-                                        @for chapter in self.custom_chapters.iter() {
-                                            div id=(chapter.html_id) class="container is-main" style="display:none" {
-                                                (chapter.content.render())
-                                            }
-                                            div id=(&format!("end:{}", chapter.html_id)) style="display:none" {
-                                            }
-                                        }
-                                    }
-
-                                }//class=hero
-                            } // class=columns
+                        a data-target="documentation" {
+                            "Documentation"
                         }
-                        script {
-                          (PreEscaped(
-"
-		var sidebar_menu = document.getElementById('menubar');
-		var main_pages = document.getElementsByClassName('is-main');
-		var sub_pages = document.getElementsByClassName('is-page');
 
-		sidebar_menu.onclick = function (evt) {
-			var clicked_id = evt.originalTarget.id;
-			var category = clicked_id.substring(5).split(':')[0];
-			var tab = clicked_id.substring(5).split(':')[1];
-			var is_tab = clicked_id.split(':').length == 3;
-			var menu_subtabs = document.getElementsByClassName('menu:subtab');
-			console.log('clicked id: ' + clicked_id + ' category: ' + category + ' tab: ' + is_tab);
+                        a data-target="sources" {
+                            "Sources"
+                        }
 
-			if (is_tab == true) {
-				// show tabs for this category
-				var cat_tabs = 'menu:'+category;
-				for (var i = 0; i < menu_subtabs.length; i++) {
-					if (menu_subtabs[i].id.startsWith(cat_tabs)) {
-						menu_subtabs[i].style = 'display:block';
-					} else {
-						menu_subtabs[i].style = 'display:none';
-					}
-				}
-				// hide any other main page
-				for (var i = 0; i < main_pages.length; i++) {
-					if (main_pages[i].id != category) {
-						main_pages[i].style = 'display:none';
-					}
-				}
-				// show specialized content
-				var targetted_content = 'body:' + category + ':' + tab;
-				for (var i = 0; i < sub_pages.length; i++) {
-					if (sub_pages[i].id == targetted_content) {
-						sub_pages[i].style = 'display:block';
-					} else {
-						sub_pages[i].style = 'display:none';
-					}
-				}
-			} else {
-				// show tabs for this category
-				var cat_tabs = 'menu:'+category;
-				for (var i = 0; i < menu_subtabs.length; i++) {
-					if (menu_subtabs[i].id.startsWith(cat_tabs)) {
-						menu_subtabs[i].style = 'display:block';
-					} else {
-						menu_subtabs[i].style = 'display:none';
-					}
-				}
-				// hide any other main page
-				for (var i = 0; i < main_pages.length; i++) {
-					if (main_pages[i].id == category) {
-						main_pages[i].style = 'display:block';
-					} else {
-						main_pages[i].style = 'display:none';
-					}
-				}
-				// click on parent: show first specialized content
-				var done = false;
-				for (var i = 0; i < sub_pages.length; i++) {
-					if (done == false) {
-						if (sub_pages[i].id.includes('body:'+category)) {
-							sub_pages[i].style = 'display:block';
-							done = true;
-						} else {
-							sub_pages[i].style = 'display:none';
-						}
-					} else {
-						sub_pages[i].style = 'display:none';
-					}
-				}
-			}
-		}
-"
-                        ))} //JS
+                        a data-target="credits" {
+                            "Credits"
+                        }
+                    }
+
+                    div class="content" {
+                        section id="summary" class="section active" {
+                            h2 {
+                                "Summary report"
+                            }
+                            p {
+                                (self.summary.render())
+                            }
+                        }
+
+                        // observations section
+                        @ if !self.observations.is_empty() {
+                            section id="observations" class="section" {
+                                // one tab to select observation source
+                                    @ for (num, source) in self.observations.keys().unique().sorted().enumerate() {
+                                        @ if num == 0 {
+                                            div class="tabs" {
+                                                div class="tab" {
+                                                    (source.to_string())
+                                                }
+                                             }
+                                        } else {
+                                            div class="tabs" {
+                                                div class="tab" {
+                                                    (source.to_string())
+                                                }
+                                             }
+                                        }
+                                    }
+
+                            }
+                        }
+
+                        section id="documentation" class="section" {
+                            h2 {
+                                "Test"
+                            }
+                        }
+
+                        section id="sources" class="section" {
+                            h2 {
+                                "GNSS-QC is part of the RTK-rs framework for advanced GNSS and Geodesy applications"
+                            }
+                            p {
+                                "The framework is hosted on github.com"
+                            }
+                            p {
+                                a href="https://github.com/rtk-rs/gnss-qc" {
+                                    "GNSS-QC: Geodesy and GNSS post-processing"
+                                }
+                            }
+                            p {
+                                a href="https://github.com/rtk-rs/gnss-rtk" {
+                                    "GNSS-RTK: P.V.T solution solver"
+                                }
+                            }
+                            p {
+                                a href="https://github.com/rtk-rs/rinex" {
+                                    "RINEX parser"
+                                }
+                            }
+                            p {
+                                a href="https://github.com/rtk-rs/sp3" {
+                                    "SP3 parser"
+                                }
+                            }
+                            p {
+                                a href="https://github.com/rtk-rs" {
+                                    "CGGTTS for remote clock comparison & common-view time transfer"
+                                }
+                            }
+                        }
+
+                        section id="credits" class="section" {
+                            h2 {
+                                "GNSS-QC is part of the RTK-rs framework for advanced GNSS and Geodesy applications"
+                            }
+                            p {
+
+                            }
+                        }
+                    }
                 }//body
+
+                script {
+                    (PreEscaped(self.javascript()))
+                }
+
             }
         }
     }

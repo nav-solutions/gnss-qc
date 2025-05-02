@@ -1,26 +1,25 @@
-use crate::prelude::QcContext;
+use crate::prelude::{QcContext, Rinex};
+
 use maud::{html, Markup, Render};
-// use crate::report::tooltipped;
-// use rinex::prelude::{GroundPosition, TimeScale};
 
 #[derive(Clone)]
-pub struct QcBiasSummary {
+pub struct BiasSummary {
     iono_bias_cancelling: bool,
     iono_bias_model_optimization: bool,
     tropo_bias_model_optimization: bool,
 }
 
-impl QcBiasSummary {
-    pub fn new(context: &QcContext) -> Self {
+impl BiasSummary {
+    pub fn new(context: &QcContext, rinex: &Rinex) -> Self {
         Self {
-            iono_bias_cancelling: { context.is_cpp_navigation_compatible() },
-            iono_bias_model_optimization: context.iono_bias_model_optimization(),
-            tropo_bias_model_optimization: context.tropo_bias_model_optimization(),
+            iono_bias_cancelling: false,
+            iono_bias_model_optimization: false,
+            tropo_bias_model_optimization: false,
         }
     }
 }
 
-impl Render for QcBiasSummary {
+impl Render for BiasSummary {
     fn render(&self) -> Markup {
         html! {
             table class="table" {

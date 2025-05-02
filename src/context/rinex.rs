@@ -15,6 +15,8 @@ use rinex::{
     marker::GeodeticMarker,
 };
 
+use log::{debug, info};
+
 impl QcContext {
     /// Format [Receiver] model
     fn format_gnss_rx(rx: &Receiver) -> String {
@@ -159,9 +161,11 @@ impl QcContext {
             )
             .reduce(|k, _| k)
         {
+            debug!("{} - extension", indexing);
             indexed.merge_mut(&rinex)?;
             Ok(())
         } else {
+            debug!("{} - new entry", indexing);
             self.observations.insert(indexing, rinex);
             Ok(())
         }

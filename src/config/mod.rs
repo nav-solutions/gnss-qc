@@ -77,12 +77,16 @@ impl QcConfig {
 impl Render for QcConfig {
     fn render(&self) -> Markup {
         html! {
-            tr {
-                td {
-                    "Orbit preference"
-                }
-                td {
-                    (self.orbit_preference.to_string())
+            div class="table-container" {
+                table class="table is-bordered" {
+                    tbody {
+                        tr {
+                            "Orbit preference"
+                        }
+                        td {
+                            (self.orbit_preference.to_string())
+                        }
+                    }
                 }
             }
         }

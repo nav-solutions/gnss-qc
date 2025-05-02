@@ -3,7 +3,7 @@ use crate::error::QcError;
 use serde::{Deserialize, Serialize};
 
 /// [QcIndexing] is used to index data and be able to differentiate two identical product types between each other.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum QcIndexing {
     /// No clear identifier found or existing for this type of product
     None,
@@ -86,6 +86,34 @@ impl std::fmt::Display for QcIndexing {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Agency(agency) => {
+                write!(f, "{}", agency)
+            }
+            Self::Operator(operator) => {
+                write!(f, "{}", operator)
+            }
+            Self::GeodeticMarker(marker) => {
+                write!(f, "{}", marker)
+            }
+            Self::GnssReceiver(model) => {
+                write!(f, "{}", model)
+            }
+            Self::RxAntenna(antenna) => {
+                write!(f, "{}", antenna)
+            }
+            Self::Custom(custom) => {
+                write!(f, "{}", custom)
+            }
+            Self::None => {
+                write!(f, "Unknown")
+            }
+        }
+    }
+}
+
+impl std::fmt::LowerHex for QcIndexing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Agency(agency) => {
                 write!(f, "agency name: \"{}\"", agency)
             }
             Self::Operator(operator) => {
@@ -101,10 +129,10 @@ impl std::fmt::Display for QcIndexing {
                 write!(f, "rx-antenna: \"{}\"", antenna)
             }
             Self::Custom(custom) => {
-                write!(f, "custom ID: \"{}\"", custom)
+                write!(f, "custom-id: \"{}\"", custom)
             }
             Self::None => {
-                write!(f, "Not indexed")
+                write!(f, "not indexed")
             }
         }
     }
@@ -126,7 +154,7 @@ impl std::str::FromStr for QcIndexing {
             let content = s.split_at(4).1.trim().to_string();
             Ok(QcIndexing::RxAntenna(content))
         } else if s.starts_with("gnss:") {
-            let content = s.split_at(6).1.trim().to_string();
+            let content = s.split_at(5).1.trim().to_string();
             Ok(QcIndexing::GnssReceiver(content))
         } else if s.starts_with("operator:") {
             let content = s.split_at(9).1.trim().to_string();
@@ -145,24 +173,31 @@ mod test {
 
     #[test]
     fn qc_identifier_parsing() {
-        for (value, expected) in [
+        for (value, expected, formatted) in [
             (
                 "geo:GEOMARKER",
                 QcIndexing::GeodeticMarker("GEOMARKER".to_string()),
+                "GEOMARKER",
             ),
             (
                 "gnss:UBLOX-M8T",
                 QcIndexing::GnssReceiver("UBLOX-M8T".to_string()),
+                "UBLOX-M8T",
             ),
             (
                 "agency:SERIOUS-AGENCY",
                 QcIndexing::Agency("SERIOUS-AGENCY".to_string()),
+                "SERIOUS-AGENCY",
             ),
-            ("operator:MySelf", QcIndexing::Agency("MySelf".to_string())),
+            (
+                "operator:MySelf",
+                QcIndexing::Operator("MySelf".to_string()),
+                "MySelf",
+            ),
         ] {
             let id = QcIndexing::from_str(value).unwrap();
-
             assert_eq!(id, expected);
+            assert_eq!(id.to_string(), formatted);
         }
     }
 }
