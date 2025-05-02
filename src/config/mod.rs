@@ -4,7 +4,6 @@ use thiserror::Error;
 use maud::{html, Markup, Render};
 
 mod indexing;
-mod report;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]

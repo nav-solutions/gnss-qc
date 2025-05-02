@@ -38,7 +38,7 @@ fn test_gps_gpst_timescale_transposition() {
         .load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
         .unwrap();
 
-    let original_obs = context.observation().unwrap();
+    let original_obs = context.observations().unwrap();
     let _ = context.brdc_navigation().unwrap();
 
     let transposed = context.timescale_transposition(TimeScale::GPST);

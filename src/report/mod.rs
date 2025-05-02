@@ -4,7 +4,10 @@ use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::prelude::{QcContext, QcProductType, QcReportType};
+use crate::{
+    context::QcIndexing,
+    prelude::{QcContext, QcProductType},
+};
 
 // shared analysis, that may apply to several products
 mod shared;
@@ -65,10 +68,10 @@ fn html_id(product: &QcProductType) -> &str {
         QcProductType::ANTEX => "antex",
         QcProductType::Observation => "obs",
         QcProductType::BroadcastNavigation => "brdc",
-        QcProductType::HighPrecisionClock => "clk",
+        QcProductType::PreciseClock => "clk",
         QcProductType::MeteoObservation => "meteo",
         #[cfg(feature = "sp3")]
-        QcProductType::HighPrecisionOrbit => "sp3",
+        QcProductType::PreciseOrbit => "sp3",
     }
 }
 
@@ -146,135 +149,47 @@ pub struct QcReport {
     /// Report Summary (always present)
     summary: QcSummary,
 
-    /// In depth analysis per input product.
-    /// In summary mode, these do not exist (empty).
-    products: HashMap<QcProductType, ProductReport>,
+    // /// Orbital projections (when feasible)
+    // #[cfg(feature = "navigation")]
+    // orbital_proj: Option<OrbitalProjections>,
 
+    // /// Orbital residual analysis, only when BRDC+SP3
+    // /// only works correctly for a single couple of publisher, as of today
+    // #[cfg(all(feature = "navigation", feature = "sp3")]
+    // orbital_proj: Option<OrbitalProjections>,
+    /// Observations reporting, per unique data source
+    observations: HashMap<QcIndexing, ObservationAnalysis>,
+
+    // /// IONEX TEC page when it exists
+    // ionex_page: Option<IonexPage>,
     /// Custom chapters
     custom_chapters: Vec<QcExtraPage>,
 }
 
 impl QcContext {
-    /// Synthesize a [QcSummary] report from [QcContext].
+    /// Synthesize a shortened [QcSummary] from current [QcContext].
     pub fn summary_report(&self) -> QcSummary {
         QcSummary::new(self)
     }
 
-    /// Synthesize a [QcReport] from [QcContext].
+    /// Synthesize a complete [QcReport] from current [QcContext].
     pub fn report(&self) -> QcReport {
         let summary = self.summary_report();
 
-        let summary_only = self.configuration.report == QcReportType::Summary;
-
         QcReport {
-            custom_chapters: Vec::new(),
-            // navi: {
-            //    if summary.navi.nav_compatible && !summary_only {
-            //        Some(QcNavi::new(context))
-            //    } else {
-            //        None
-            //    }
-            //},
-            // Build the report, which comprises
-            //   1. one general (high level) context tab
-            //   2. one tab per product type (which can have sub tabs itself)
-            //   3. one complex tab for "shared" analysis
-            products: {
-                let mut items = HashMap::<QcProductType, ProductReport>::new();
-                if !summary_only {
-                    // one report per RINEX product
-                    for product in [
-                        QcProductType::Observation,
-                        QcProductType::DORIS,
-                        QcProductType::MeteoObservation,
-                        QcProductType::BroadcastNavigation,
-                        QcProductType::HighPrecisionClock,
-                        QcProductType::IONEX,
-                        QcProductType::ANTEX,
-                    ] {
-                        if let Some(rinex) = self.rinex(product) {
-                            if let Ok(report) = RINEXReport::new(rinex) {
-                                items.insert(product, ProductReport::RINEX(report));
-                            }
-                        }
-                    }
-
-                    // one dedicated report when SP3 is supported
-                    #[cfg(feature = "sp3")]
-                    if let Some(sp3) = self.sp3() {
-                        items.insert(
-                            QcProductType::HighPrecisionOrbit,
-                            ProductReport::SP3(SP3Report::new(sp3)),
-                        );
-                    }
-                }
-                items
-            },
             summary,
+            custom_chapters: Vec::new(),
         }
     }
 }
 
 impl QcReport {
     /// Add a custom chapter, in form of a [QcExtraPage] to this report.
-    pub fn add_chapter(&mut self, chapter: QcExtraPage) {
+    pub fn add_custom_chapter(&mut self, chapter: QcExtraPage) {
         self.custom_chapters.push(chapter);
     }
 
     /// Generates a menu bar to nagivate [Self]
-    #[cfg(not(feature = "sp3"))]
-    fn menu_bar(&self) -> Markup {
-        html! {
-            aside class="menu" {
-                p class="menu-label" {
-                    (format!("RINEX-QC v{}", env!("CARGO_PKG_VERSION")))
-                }
-                ul class="menu-list" {
-                    li {
-                        a id="menu:summary" {
-                            span class="icon" {
-                                i class="fa fa-home" {}
-                            }
-                            "Summary"
-                        }
-                    }
-                    @for product in self.products.keys().sorted() {
-                        @if let Some(report) = self.products.get(&product) {
-                            li {
-                                (report.html_inline_menu_bar())
-                            }
-                        }
-                    }
-                    @for chapter in self.custom_chapters.iter() {
-                        li {
-                            (chapter.tab.render())
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex/wiki" style="margin-left:29px" {
-                            "Documentation"
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex/issues" style="margin-left:29px" {
-                            "Bug Report"
-                        }
-                    }
-                    p class="menu-label" {
-                        a href="https://github.com/georust/rinex" {
-                            span class="icon" {
-                                i class="fa-brands fa-github" {}
-                            }
-                            "Sources"
-                        }
-                    }
-                } // menu-list
-            }//menu
-        }
-    }
-
-    /// Generates a menu bar to nagivate [Self]
-    #[cfg(feature = "sp3")]
     fn menu_bar(&self) -> Markup {
         html! {
             aside class="menu" {
@@ -355,11 +270,13 @@ impl Render for QcReport {
                                     (self.menu_bar())
                                 } // id=menubar
                                 div class="hero is-fullheight" {
+
                                     div id="summary" class="container is-main" style="display:block" {
                                         div class="section" {
                                             (self.summary.render())
                                         }
                                     }//id=summary
+
                                     @for product in self.products.keys().sorted() {
                                         @if let Some(report) = self.products.get(product) {
                                             div id=(html_id(product)) class="container is-main" style="display:none" {
@@ -367,6 +284,7 @@ impl Render for QcReport {
                                             }
                                         }
                                     }
+
                                     div id="extra-chapters" class="container" style="display:block" {
                                         @for chapter in self.custom_chapters.iter() {
                                             div id=(chapter.html_id) class="container is-main" style="display:none" {
@@ -376,6 +294,7 @@ impl Render for QcReport {
                                             }
                                         }
                                     }
+
                                 }//class=hero
                             } // class=columns
                         }

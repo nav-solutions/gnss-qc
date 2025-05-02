@@ -2,6 +2,10 @@ mod timeshift;
 
 pub mod toolkit;
 
+mod indexing;
+mod rinex;
+mod sp3;
+
 use log::LevelFilter;
 use std::sync::Once;
 
