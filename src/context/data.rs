@@ -4,15 +4,25 @@ use crate::prelude::Rinex;
 use crate::prelude::SP3;
 
 #[derive(Clone)]
-pub enum BlobData {
-    /// [Rinex] content
+pub enum QcDataWrapper {
+    /// [Rinex] data
     RINEX(Rinex),
+
     #[cfg(feature = "sp3")]
-    /// [SP3] content
+    /// [SP3] data
     SP3(SP3),
 }
 
-impl BlobData {
+#[derive(Clone)]
+pub struct QcData {
+    /// Stored name for this [QcData] set
+    pub name: String,
+
+    /// Wrapped data as [QcDataWrapper]
+    pub inner: QcDataWrapper,
+}
+
+impl QcDataWrapper {
     /// Returns reference to underlying [Rinex] data
     pub fn as_rinex(&self) -> Option<&Rinex> {
         match self {
@@ -32,10 +42,9 @@ impl BlobData {
     }
 }
 
-/// Returns reference to inner SP3 data.
 #[cfg(feature = "sp3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-impl BlobData {
+impl QcDataWrapper {
     /// Returns reference to underlying [SP3] data
     pub fn as_sp3(&self) -> Option<&SP3> {
         match self {

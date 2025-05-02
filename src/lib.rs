@@ -39,9 +39,9 @@ mod tests;
 pub mod prelude {
     pub use crate::{
         config::{orbit::QcOrbitPreference, report::QcReportType, QcConfig},
-        context::QcContext,
-        error::Error,
-        product::ProductType,
+        context::{QcContext, QcIdentifier},
+        error::QcError,
+        product::QcProductType,
         report::{QcExtraPage, QcReport},
     };
 

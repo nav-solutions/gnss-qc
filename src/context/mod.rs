@@ -5,12 +5,22 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::prelude::{QcConfig, Rinex, TimeScale};
+use qc_traits::{Filter, Merge, Preprocessing, Repair, RepairTrait};
 
-use qc_traits::Merge;
+use crate::{
+    error::QcError,
+    prelude::{QcConfig, QcProductType, Rinex, TimeScale},
+};
 
-pub(crate) mod blob;
-use blob::BlobData;
+mod data;
+mod identifier;
+mod key;
+
+use data::QcData;
+
+pub(crate) use key::QcDataKey;
+
+pub use identifier::QcIdentifier;
 
 #[cfg(feature = "flate2")]
 #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
@@ -27,10 +37,6 @@ pub(crate) mod navigation;
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
 pub mod time;
-
-use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
-
-use crate::{error::Error, prelude::ProductType};
 
 #[cfg(feature = "navigation")]
 use crate::prelude::{Almanac, Frame};
@@ -128,24 +134,21 @@ use crate::prelude::{Almanac, Frame};
 /// ```
 #[derive(Clone)]
 pub struct QcContext {
-    /// [QcConfig] preset.
-    pub configuration: QcConfig,
-
-    /// Files merged into this [QcContext]
-    pub(crate) files: HashMap<ProductType, Vec<PathBuf>>,
-
-    /// Context blob created by merging each members of each category
-    pub(crate) blob: HashMap<ProductType, BlobData>,
-
     #[cfg(feature = "navigation")]
     #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-    /// Latest [Almanac]
+    /// Current [Almanac] definition.
     pub almanac: Almanac,
 
     #[cfg(feature = "navigation")]
     #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-    /// ECEF [Frame]
+    /// ECEF [Frame] used in possible navigation processes.
     pub earth_cef: Frame,
+
+    /// [QcConfig] preset.
+    pub configuration: QcConfig,
+
+    /// Context data created by indexing and sorting each user entry.
+    pub(crate) data: HashMap<QcDataKey, QcData>,
 }
 
 impl QcContext {
@@ -168,13 +171,12 @@ impl QcContext {
         let (almanac, earth_cef) = Self::default_almanac_frame();
 
         Self {
-            files: Default::default(),
-            blob: Default::default(),
-            configuration: QcConfig::default(),
             #[cfg(feature = "navigation")]
             almanac,
             #[cfg(feature = "navigation")]
             earth_cef,
+            data: Default::default(),
+            configuration: QcConfig::default(),
         }
     }
 
@@ -252,15 +254,15 @@ impl QcContext {
          * in the "primary" determination
          */
         for product in [
-            ProductType::Observation,
-            ProductType::DORIS,
-            ProductType::BroadcastNavigation,
-            ProductType::MeteoObservation,
-            ProductType::IONEX,
-            ProductType::ANTEX,
-            ProductType::HighPrecisionClock,
+            QcProductType::Observation,
+            QcProductType::DORIS,
+            QcProductType::BroadcastNavigation,
+            QcProductType::MeteoObservation,
+            QcProductType::IONEX,
+            QcProductType::ANTEX,
+            QcProductType::HighPrecisionClock,
             #[cfg(feature = "sp3")]
-            ProductType::HighPrecisionOrbit,
+            QcProductType::HighPrecisionOrbit,
         ] {
             if let Some(paths) = self.files(product) {
                 /*
@@ -318,32 +320,32 @@ impl QcContext {
             .reduce(|k, _| k)
     }
 
-    /// Returns reference to inner data of given category
-    pub(crate) fn data(&self, product: ProductType) -> Option<&BlobData> {
-        self.blob
-            .iter()
-            .filter_map(|(prod_type, data)| {
-                if *prod_type == product {
-                    Some(data)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
+    /// Returns reference to all inner data matching this [QcProductType].
+    pub(crate) fn get_data(
+        &self,
+        product: QcProductType,
+    ) -> Box<dyn Iterator<Item = &QcData> + '_> {
+        Box::new(self.data.iter().filter_map(move |(key, data)| {
+            if key.prod_type == product {
+                Some(data)
+            } else {
+                None
+            }
+        }))
     }
 
-    /// Returns mutable reference to inner data of given category
-    pub(crate) fn data_mut(&mut self, product: ProductType) -> Option<&mut BlobData> {
-        self.blob
-            .iter_mut()
-            .filter_map(|(prod_type, data)| {
-                if *prod_type == product {
-                    Some(data)
-                } else {
-                    None
-                }
-            })
-            .reduce(move |k, _| k)
+    /// Returns mutable reference to all inner data matching this [QcProductType].
+    pub(crate) fn get_data_mut(
+        &mut self,
+        product: QcProductType,
+    ) -> Box<dyn Iterator<Item = &mut QcData> + '_> {
+        Box::new(self.data.iter_mut().filter_map(move |(key, data)| {
+            if key.prod_type == product {
+                Some(data)
+            } else {
+                None
+            }
+        }))
     }
 
     /// Returns reference to inner RINEX data of given category
@@ -364,85 +366,87 @@ impl QcContext {
     /// // do something
     /// assert!(rinex.is_observation_rinex());
     /// ```
-    pub fn rinex(&self, product: ProductType) -> Option<&Rinex> {
-        self.data(product)?.as_rinex()
+    pub fn rinex(&self, product: QcProductType) -> Option<&Rinex> {
+        self.get_data(product).reduce(|k, _| k)?.inner.as_rinex()
     }
 
     /// Returns mutable reference to inner RINEX data of given category
-    pub fn rinex_mut(&mut self, product: ProductType) -> Option<&mut Rinex> {
+    pub fn rinex_mut(&mut self, product: QcProductType) -> Option<&mut Rinex> {
         self.data_mut(product)?.as_mut_rinex()
     }
 
     /// Returns reference to inner [ProductType::Observation] data
     pub fn observation(&self) -> Option<&Rinex> {
-        self.data(ProductType::Observation)?.as_rinex()
+        self.get_data(QcProductType::Observation)?.as_rinex()
     }
 
     /// Returns reference to inner [ProductType::DORIS] RINEX data
     pub fn doris(&self) -> Option<&Rinex> {
-        self.data(ProductType::DORIS)?.as_rinex()
+        self.get_data(QcProductType::DORIS)?.as_rinex()
     }
 
     /// Returns reference to inner [ProductType::BroadcastNavigation] data
     pub fn brdc_navigation(&self) -> Option<&Rinex> {
-        self.data(ProductType::BroadcastNavigation)?.as_rinex()
+        self.get_data(QcProductType::BroadcastNavigation)?
+            .as_rinex()
     }
 
     /// Returns reference to inner [ProductType::Meteo] data
     pub fn meteo(&self) -> Option<&Rinex> {
-        self.data(ProductType::MeteoObservation)?.as_rinex()
+        self.get_data(QcProductType::MeteoObservation)?.as_rinex()
     }
 
     /// Returns reference to inner [ProductType::HighPrecisionClock] data
     pub fn clock(&self) -> Option<&Rinex> {
-        self.data(ProductType::HighPrecisionClock)?.as_rinex()
+        self.get_data(QcProductType::HighPrecisionClock)?.as_rinex()
     }
 
     /// Returns reference to inner [ProductType::ANTEX] data
     pub fn antex(&self) -> Option<&Rinex> {
-        self.data(ProductType::ANTEX)?.as_rinex()
+        self.get_data(QcProductType::ANTEX)?.as_rinex()
     }
 
     /// Returns reference to inner [ProductType::IONEX] data
     pub fn ionex(&self) -> Option<&Rinex> {
-        self.data(ProductType::IONEX)?.as_rinex()
+        self.get_data(QcProductType::IONEX)?.as_rinex()
     }
 
     /// Returns mutable reference to inner [ProductType::Observation] data
     pub fn observation_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::Observation)?.as_mut_rinex()
+        self.data_mut(QcProductType::Observation)?.as_mut_rinex()
     }
 
     /// Returns mutable reference to inner [ProductType::DORIS] RINEX data
     pub fn doris_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::DORIS)?.as_mut_rinex()
+        self.data_mut(QcProductType::DORIS)?.as_mut_rinex()
     }
 
     /// Returns mutable reference to inner [ProductType::Observation] data
     pub fn brdc_navigation_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::BroadcastNavigation)?
+        self.data_mut(QcProductType::BroadcastNavigation)?
             .as_mut_rinex()
     }
 
     /// Returns reference to inner [ProductType::Meteo] data
     pub fn meteo_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::MeteoObservation)?.as_mut_rinex()
+        self.data_mut(QcProductType::MeteoObservation)?
+            .as_mut_rinex()
     }
 
     /// Returns mutable reference to inner [ProductType::HighPrecisionClock] data
     pub fn clock_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::HighPrecisionClock)?
+        self.data_mut(QcProductType::HighPrecisionClock)?
             .as_mut_rinex()
     }
 
     /// Returns mutable reference to inner [ProductType::ANTEX] data
     pub fn antex_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::ANTEX)?.as_mut_rinex()
+        self.data_mut(QcProductType::ANTEX)?.as_mut_rinex()
     }
 
     /// Returns mutable reference to inner [ProductType::IONEX] data
     pub fn ionex_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::IONEX)?.as_mut_rinex()
+        self.data_mut(QcProductType::IONEX)?.as_mut_rinex()
     }
 
     /// Returns true if [ProductType::Observation] are present in Self
@@ -475,7 +479,7 @@ impl QcContext {
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
     pub fn load_rinex<P: AsRef<Path>>(&mut self, path: P, rinex: Rinex) -> Result<(), Error> {
-        let prod_type = ProductType::from(rinex.header.rinex_type);
+        let prod_type = QcProductType::from(rinex.header.rinex_type);
 
         let path_buf = path.as_ref().to_path_buf();
 
@@ -592,14 +596,14 @@ impl std::fmt::Debug for QcContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Primary: \"{}\"", self.name())?;
         for product in [
-            ProductType::Observation,
-            ProductType::BroadcastNavigation,
-            ProductType::MeteoObservation,
-            ProductType::HighPrecisionClock,
-            ProductType::IONEX,
-            ProductType::ANTEX,
+            QcProductType::Observation,
+            QcProductType::BroadcastNavigation,
+            QcProductType::MeteoObservation,
+            QcProductType::HighPrecisionClock,
+            QcProductType::IONEX,
+            QcProductType::ANTEX,
             #[cfg(feature = "sp3")]
-            ProductType::HighPrecisionOrbit,
+            QcProductType::HighPrecisionOrbit,
         ] {
             if let Some(files) = self.files(product) {
                 write!(f, "\n{}: ", product)?;

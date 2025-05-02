@@ -10,7 +10,7 @@ use sp3::Error as SP3Error;
 
 /// Context Error
 #[derive(Debug, Error)]
-pub enum Error {
+pub enum QcError {
     #[error("non supported file format")]
     NonSupportedFileFormat,
     #[error("failed to determine filename")]

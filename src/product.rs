@@ -1,9 +1,10 @@
-//! Input / Output Products definition
-use crate::error::Error;
+use crate::error::QcError;
+use serde::Serialize;
+
 use rinex::prelude::RinexType;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ProductType {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+pub enum QcProductType {
     /// GNSS carrier signal observation in the form
     /// of Observation RINEX data.
     Observation,
@@ -33,7 +34,7 @@ pub enum ProductType {
     HighPrecisionOrbit,
 }
 
-impl std::fmt::Display for ProductType {
+impl std::fmt::Display for QcProductType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::ANTEX => write!(f, "ANTEX"),
@@ -49,8 +50,9 @@ impl std::fmt::Display for ProductType {
     }
 }
 
-impl std::str::FromStr for ProductType {
-    type Err = Error;
+impl std::str::FromStr for QcProductType {
+    type Err = QcError;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let trimmed = s.trim();
         let lowered = trimmed.to_lowercase();
@@ -62,14 +64,16 @@ impl std::str::FromStr for ProductType {
             "met" | "meteo" => Ok(Self::MeteoObservation),
             "nav" | "brdc" | "navigation" => Ok(Self::BroadcastNavigation),
             "clk" | "clock" => Ok(Self::HighPrecisionClock),
+
             #[cfg(feature = "sp3")]
             "sp3" => Ok(Self::HighPrecisionOrbit),
-            _ => Err(Error::UnknownProductType),
+
+            _ => Err(QcError::UnknownProductType),
         }
     }
 }
 
-impl From<RinexType> for ProductType {
+impl From<RinexType> for QcProductType {
     fn from(rt: RinexType) -> Self {
         match rt {
             RinexType::ObservationData => Self::Observation,

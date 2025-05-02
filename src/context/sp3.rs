@@ -1,7 +1,7 @@
 use crate::{
     context::BlobData,
-    error::Error,
-    prelude::{ProductType, QcContext, SP3},
+    error::QcError,
+    prelude::{QcContext, QcProductType, SP3},
 };
 
 use qc_traits::Merge;
@@ -12,8 +12,8 @@ impl QcContext {
     /// Add this [SP3] into current [QcContext].
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
-    pub fn load_sp3<P: AsRef<Path>>(&mut self, path: P, sp3: SP3) -> Result<(), Error> {
-        let prod_type = ProductType::HighPrecisionOrbit;
+    pub fn load_sp3<P: AsRef<Path>>(&mut self, path: P, sp3: SP3) -> Result<(), QcError> {
+        let prod_type = QcProductType::HighPrecisionOrbit;
 
         let path_buf = path.as_ref().to_path_buf();
 
@@ -42,7 +42,7 @@ impl QcContext {
     }
 
     /// Load readable [SP3] file into this [QcContext].
-    pub fn load_sp3_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
+    pub fn load_sp3_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), QcError> {
         let sp3 = SP3::from_file(&path)?;
         self.load_sp3(path, sp3)
     }
@@ -63,12 +63,13 @@ impl QcContext {
 
     /// Returns reference to inner SP3 data
     pub fn sp3(&self) -> Option<&SP3> {
-        self.data(ProductType::HighPrecisionOrbit)?.as_sp3()
+        self.data(QcProductType::HighPrecisionOrbit)?.as_sp3()
     }
 
     /// Returns mutable reference to inner [ProductType::HighPrecisionOrbit] data
     pub fn sp3_mut(&mut self) -> Option<&mut SP3> {
-        self.data_mut(ProductType::HighPrecisionOrbit)?.as_mut_sp3()
+        self.data_mut(QcProductType::HighPrecisionOrbit)?
+            .as_mut_sp3()
     }
 
     pub fn is_ppp_ultra_navigation_compatible(&self) -> bool {

@@ -4,7 +4,7 @@ use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::prelude::{ProductType, QcContext, QcReportType};
+use crate::prelude::{QcContext, QcProductType, QcReportType};
 
 // shared analysis, that may apply to several products
 mod shared;
@@ -58,17 +58,17 @@ impl ProductReport {
     }
 }
 
-fn html_id(product: &ProductType) -> &str {
+fn html_id(product: &QcProductType) -> &str {
     match product {
-        ProductType::IONEX => "ionex",
-        ProductType::DORIS => "doris",
-        ProductType::ANTEX => "antex",
-        ProductType::Observation => "obs",
-        ProductType::BroadcastNavigation => "brdc",
-        ProductType::HighPrecisionClock => "clk",
-        ProductType::MeteoObservation => "meteo",
+        QcProductType::IONEX => "ionex",
+        QcProductType::DORIS => "doris",
+        QcProductType::ANTEX => "antex",
+        QcProductType::Observation => "obs",
+        QcProductType::BroadcastNavigation => "brdc",
+        QcProductType::HighPrecisionClock => "clk",
+        QcProductType::MeteoObservation => "meteo",
         #[cfg(feature = "sp3")]
-        ProductType::HighPrecisionOrbit => "sp3",
+        QcProductType::HighPrecisionOrbit => "sp3",
     }
 }
 
@@ -148,7 +148,7 @@ pub struct QcReport {
 
     /// In depth analysis per input product.
     /// In summary mode, these do not exist (empty).
-    products: HashMap<ProductType, ProductReport>,
+    products: HashMap<QcProductType, ProductReport>,
 
     /// Custom chapters
     custom_chapters: Vec<QcExtraPage>,
@@ -180,17 +180,17 @@ impl QcContext {
             //   2. one tab per product type (which can have sub tabs itself)
             //   3. one complex tab for "shared" analysis
             products: {
-                let mut items = HashMap::<ProductType, ProductReport>::new();
+                let mut items = HashMap::<QcProductType, ProductReport>::new();
                 if !summary_only {
                     // one report per RINEX product
                     for product in [
-                        ProductType::Observation,
-                        ProductType::DORIS,
-                        ProductType::MeteoObservation,
-                        ProductType::BroadcastNavigation,
-                        ProductType::HighPrecisionClock,
-                        ProductType::IONEX,
-                        ProductType::ANTEX,
+                        QcProductType::Observation,
+                        QcProductType::DORIS,
+                        QcProductType::MeteoObservation,
+                        QcProductType::BroadcastNavigation,
+                        QcProductType::HighPrecisionClock,
+                        QcProductType::IONEX,
+                        QcProductType::ANTEX,
                     ] {
                         if let Some(rinex) = self.rinex(product) {
                             if let Ok(report) = RINEXReport::new(rinex) {
@@ -203,7 +203,7 @@ impl QcContext {
                     #[cfg(feature = "sp3")]
                     if let Some(sp3) = self.sp3() {
                         items.insert(
-                            ProductType::HighPrecisionOrbit,
+                            QcProductType::HighPrecisionOrbit,
                             ProductReport::SP3(SP3Report::new(sp3)),
                         );
                     }

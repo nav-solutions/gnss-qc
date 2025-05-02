@@ -3,13 +3,16 @@ use thiserror::Error;
 
 use maud::{html, Markup, Render};
 
+use crate::{
+    config::{orbit::QcOrbitPreference, report::QcReportType},
+    context::QcIdentifier,
+};
+
 pub mod report;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
 pub mod orbit;
-
-use crate::config::{orbit::QcOrbitPreference, report::QcReportType};
 
 /// [Error]s during configuration process.
 #[derive(Debug, Clone, Error)]
@@ -21,10 +24,27 @@ pub enum Error {
     InvalidOrbitPreference,
 }
 
-/// [QcConfig] allows tuning of any GNSS Qc process.
-/// That also applies to Post processed navigation.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub enum QcIndexingMethod {
+    /// Let the framework index data by itself.
+    /// Correctly defined products will be correctly indexed.
+    /// Products for which no classification could be determined, will wind up
+    /// as "unclassified".
+    #[default]
+    Auto,
+
+    /// Select a prefered indexing method. The framework will apply it where possible.
+    Manual(QcIdentifier),
+}
+
+/// [QcConfig] allows to define a custom reference point,
+/// or dictate the behavior of the framework in a few specific steps.
+/// For example, which orbit source should be prefered when orbital projection is needed.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct QcConfig {
+    /// Select a prefered Indexing method.
+    pub indexing: QcIndexingMethod,
+
     #[serde(default)]
     pub report: QcReportType,
 
