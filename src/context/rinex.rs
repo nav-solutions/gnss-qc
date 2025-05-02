@@ -140,6 +140,18 @@ impl QcContext {
         self.rinex_products_iter_mut(QcProductType::BroadcastNavigation)
     }
 
+    /// Returns reference to all [QcProductType::PreciseClock] RINEX products.
+    pub fn clocks_rinex_iter(&self) -> Box<dyn Iterator<Item = (&QcIndexing, &Rinex)> + '_> {
+        self.rinex_products_iter(QcProductType::PreciseClock)
+    }
+
+    /// Returns mutable reference to all [QcProductType::PreciseClock] RINEX products.
+    pub fn clocks_rinex_iter_mut(
+        &mut self,
+    ) -> Box<dyn Iterator<Item = (&QcIndexing, &mut Rinex)> + '_> {
+        self.rinex_products_iter_mut(QcProductType::PreciseClock)
+    }
+
     /// Returns reference to indexed [QcProductType::Observation] RINEX product (if it exists).
     pub fn get_observation_rinex(&self, indexing: QcIndexing) -> Option<&Rinex> {
         self.rinex_products_iter(QcProductType::Observation)
@@ -164,6 +176,20 @@ impl QcContext {
     /// Returns mutable reference to indexed [QcProductType::BroadcastNavigation] RINEX product (if it exists).
     pub fn get_brdc_navigation_rinex_mut(&mut self, indexing: QcIndexing) -> Option<&mut Rinex> {
         self.rinex_products_iter_mut(QcProductType::BroadcastNavigation)
+            .filter_map(|(index, v)| if *index == indexing { Some(v) } else { None })
+            .reduce(|k, _| k)
+    }
+
+    /// Returns reference to indexed [QcProductType::PreciseClock] RINEX product (if it exists).
+    pub fn get_clock_rinex(&self, indexing: QcIndexing) -> Option<&Rinex> {
+        self.rinex_products_iter(QcProductType::PreciseClock)
+            .filter_map(|(index, v)| if *index == indexing { Some(v) } else { None })
+            .reduce(|k, _| k)
+    }
+
+    /// Returns mutable reference to indexed [QcProductType::PreciseClock] RINEX product (if it exists).
+    pub fn get_clock_rinex_mut(&mut self, indexing: QcIndexing) -> Option<&mut Rinex> {
+        self.rinex_products_iter_mut(QcProductType::PreciseClock)
             .filter_map(|(index, v)| if *index == indexing { Some(v) } else { None })
             .reduce(|k, _| k)
     }

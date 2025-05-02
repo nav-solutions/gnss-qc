@@ -19,8 +19,8 @@ pub enum QcProductType {
     /// Navigation RINEX files.
     BroadcastNavigation,
 
-    /// High precision orbital attitudes wrapped in Clock RINEX files.
-    HighPrecisionClock,
+    /// Precise Clock data wrapped in Clock RINEX files.
+    PreciseClock,
 
     /// Antenna calibration information wrapped in ANTEX special RINEX files.
     ANTEX,
@@ -30,8 +30,8 @@ pub enum QcProductType {
 
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-    /// High precision clock data wrapped in SP3 files.
-    HighPrecisionOrbit,
+    /// High precision orbit data wrapped in SP3 files.
+    PreciseOrbit,
 }
 
 impl std::fmt::Display for QcProductType {
@@ -42,10 +42,10 @@ impl std::fmt::Display for QcProductType {
             Self::DORIS => write!(f, "DORIS RINEX"),
             Self::Observation => write!(f, "Observation"),
             Self::MeteoObservation => write!(f, "Meteo"),
-            Self::HighPrecisionClock => write!(f, "High Precision Clock"),
+            Self::PreciseClock => write!(f, "Clock RINEX"),
             Self::BroadcastNavigation => write!(f, "Broadcast Navigation (BRDC)"),
             #[cfg(feature = "sp3")]
-            Self::HighPrecisionOrbit => write!(f, "High Precision Orbit (SP3)"),
+            Self::PreciseOrbit => write!(f, "High Precision Orbit (SP3)"),
         }
     }
 }
@@ -63,10 +63,10 @@ impl std::str::FromStr for QcProductType {
             "obs" | "observation" => Ok(Self::Observation),
             "met" | "meteo" => Ok(Self::MeteoObservation),
             "nav" | "brdc" | "navigation" => Ok(Self::BroadcastNavigation),
-            "clk" | "clock" => Ok(Self::HighPrecisionClock),
+            "clk" | "clock" => Ok(Self::PreciseClock),
 
             #[cfg(feature = "sp3")]
-            "sp3" => Ok(Self::HighPrecisionOrbit),
+            "sp3" => Ok(Self::PreciseOrbit),
 
             _ => Err(QcError::UnknownProductType),
         }
@@ -79,7 +79,7 @@ impl From<RinexType> for QcProductType {
             RinexType::ObservationData => Self::Observation,
             RinexType::NavigationData => Self::BroadcastNavigation,
             RinexType::MeteoData => Self::MeteoObservation,
-            RinexType::ClockData => Self::HighPrecisionClock,
+            RinexType::ClockData => Self::PreciseClock,
             RinexType::IonosphereMaps => Self::IONEX,
             RinexType::AntennaData => Self::ANTEX,
             RinexType::DORIS => Self::DORIS,

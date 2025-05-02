@@ -9,8 +9,8 @@ impl QcContext {
     pub fn gnss_absolute_time_solver(&self) -> GnssAbsoluteTime {
         let mut solver = GnssAbsoluteTime::new(&[]);
 
-        if let Some(brdc) = self.brdc_navigation() {
-            let brdc = brdc.gnss_absolute_time_solver().unwrap(); // infaillible
+        for (_, rinex) in self.brdc_navigations_rinex_iter() {
+            let brdc = rinex.gnss_absolute_time_solver().unwrap(); // infaillible
             solver.merge_mut(&brdc).unwrap(); // infaillble
         }
 

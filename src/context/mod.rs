@@ -5,11 +5,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use qc_traits::{Filter, Merge, Preprocessing, Repair, RepairTrait};
+use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
 
 use crate::{
     error::QcError,
-    prelude::{QcConfig, QcProductType, Rinex, TimeScale},
+    prelude::{Constellation, QcConfig, QcProductType, Rinex, TimeScale},
 };
 
 mod data;
@@ -193,7 +193,8 @@ impl QcContext {
         s
     }
 
-    /// Returns "main" [TimeScale] for current [QcContext].
+    /// Returns general [TimeScale] for current [QcContext] and data source
+    /// indexed by [QcIndexing] method.
     ///
     /// In case measurements where provided, they will always prevail:
     /// ```
@@ -227,28 +228,50 @@ impl QcContext {
     ///
     /// assert_eq!(context.timescale(), Some(TimeScale::GPST));
     /// ```
-    pub fn timescale(&self) -> Option<TimeScale> {
-        if let Some(obs) = self.observation() {
-            let first = obs.first_epoch()?;
-            Some(first.time_scale)
-        } else if let Some(dor) = self.doris() {
-            let first = dor.first_epoch()?;
-            Some(first.time_scale)
-        } else if let Some(clk) = self.clock() {
-            let first = clk.first_epoch()?;
-            Some(first.time_scale)
-        } else if self.meteo().is_some() {
-            Some(TimeScale::UTC)
-        } else if self.ionex().is_some() {
-            Some(TimeScale::UTC)
-        } else {
-            #[cfg(feature = "sp3")]
-            if let Some(sp3) = self.sp3() {
-                return Some(sp3.header.timescale);
-            }
+    pub fn product_timescale(
+        &self,
+        product: QcProductType,
+        indexing: QcIndexing,
+    ) -> Option<TimeScale> {
+        let data = self
+            .products_iter(product)
+            .filter_map(|(index, v)| if *index == indexing { Some(v) } else { None })
+            .reduce(|k, _| k)?;
 
-            None
+        if let Some(rinex) = data.inner.as_rinex() {
+            match product {
+                QcProductType::Observation => {
+                    if let Some(header) = rinex.header.obs.as_ref() {
+                        if let Some(epoch) = header.timeof_first_obs {
+                            return Some(epoch.time_scale);
+                        }
+                        if let Some(epoch) = header.timeof_last_obs {
+                            return Some(epoch.time_scale);
+                        }
+                    }
+                }
+                QcProductType::BroadcastNavigation => match rinex.header.constellation {
+                    Some(Constellation::Mixed) | None => {}
+                    Some(constellation) => {
+                        if let Some(timescale) = constellation.timescale() {
+                            return Some(timescale);
+                        }
+                    }
+                },
+                QcProductType::MeteoObservation => {
+                    return Some(TimeScale::UTC);
+                }
+                QcProductType::PreciseClock => {}
+                _ => {}
+            }
         }
+
+        #[cfg(feature = "sp3")]
+        if let Some(sp3) = data.inner.as_sp3() {
+            return Some(sp3.header.timescale);
+        }
+
+        None
     }
 
     /// Returns path to File considered as Primary product in this Context.
@@ -265,9 +288,9 @@ impl QcContext {
             QcProductType::MeteoObservation,
             QcProductType::IONEX,
             QcProductType::ANTEX,
-            QcProductType::HighPrecisionClock,
+            QcProductType::PreciseClock,
             #[cfg(feature = "sp3")]
-            QcProductType::HighPrecisionOrbit,
+            QcProductType::PreciseOrbit,
         ] {
             if let Some(paths) = self.files(product) {
                 return paths.first();
@@ -511,11 +534,11 @@ impl std::fmt::Debug for QcContext {
             QcProductType::Observation,
             QcProductType::BroadcastNavigation,
             QcProductType::MeteoObservation,
-            QcProductType::HighPrecisionClock,
+            QcProductType::PreciseClock,
             QcProductType::IONEX,
             QcProductType::ANTEX,
             #[cfg(feature = "sp3")]
-            QcProductType::HighPrecisionOrbit,
+            QcProductType::PreciseOrbit,
         ] {
             if let Some(files) = self.files(product) {
                 write!(f, "\n{}: ", product)?;
