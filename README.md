@@ -10,10 +10,32 @@ GNSS Quality Control
 [![License](https://img.shields.io/badge/license-MPL_2.0-orange?style=for-the-badge&logo=mozilla)](https://github.com/rtk-rs/qc-traits/blob/main/LICENSE)
 
 The GNSS Quality Control (QC) library is an advanced library that proposes
-from basic to advanced GNSS and Geodesy processing pipelines.
+from basic up to advanced GNSS and Geodesy processing features. Since the spectrum
+of GNSS applications is broad, so is `gnss_qc`. Amongst several, you may use this library for the
+following purpose:
+
+* Process RINEX files
+* Process SP3 files (on `sp3` lib feature)
+* Consider what RINEX + SP3 combination has to offer
+* Obtain Radio based orbital projections (on `navigation` lib feature)
+* Obtain SP3 orbital projection (on `navigation` lib feature)
+* Perform SP3 versus radio based residual analysis
+* Consider precise Clock products
+* Preprocess all supported products, in particular
+  * data filtering
+  * decimation (down sampling)
+  * focus on data of interest
+  * transpose to different TimeScale
+* Resolve precise P.V.T (Position, Velocity, Time) solutions
+by deploying the `NavPPP` solver (on `navigation` lib feature)
+* Resolve precise CGGTTS solutions
+by deploying a `NavCggtts` solver (on `navigation` lib feature)
 
 It is made possible by the complex combination of several frameworks and libraries.
 It is important to understand this library's features & options.
+
+Licensing
+=========
 
 This library is part of the [RTK-rs framework](https://github.com/rtk-rs) which
 is delivered under the [Mozilla V2 Public](https://www.mozilla.org/en-US/MPL/2.0) license.
