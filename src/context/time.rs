@@ -73,7 +73,7 @@ impl QcContext {
         }
 
         #[cfg(feature = "sp3")]
-        for (_, sp3) in self.sp3_products_iter_mut() {
+        for (_, sp3) in self.sp3_agencies_iter_mut() {
             sp3.timeshift_mut(&solver, target);
         }
     }

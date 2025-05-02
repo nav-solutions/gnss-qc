@@ -1,41 +1,142 @@
-use crate::prelude::{QcContext, QcError, QcIndexing, QcProductType, Rinex};
 use std::path::Path;
 
-#[cfg(doc)]
-use crate::prelude::QcPreferedIndexing;
+use qc_traits::Merge;
+
+use crate::{
+    config::QcPreferedIndexing,
+    context::{
+        data::{QcData, QcDataWrapper},
+        QcDataKey,
+    },
+    prelude::{QcContext, QcError, QcIndexing, QcProductType, Rinex},
+};
+
+use rinex::{
+    hardware::{Antenna, Receiver},
+    marker::GeodeticMarker,
+};
 
 impl QcContext {
+    /// Format [Receiver] model
+    fn format_gnss_rx(rx: &Receiver) -> String {
+        format!("{}-{}", rx.model, rx.sn)
+    }
+
+    fn format_geodetic_marker(marker: &GeodeticMarker) -> String {
+        if let Some(number) = marker.number() {
+            format!("{}-{}", marker.name, number)
+        } else {
+            format!("{}", marker.name)
+        }
+    }
+
+    fn format_rx_antenna(antenna: &Antenna) -> String {
+        format!("{}-{}", antenna.model, antenna.sn)
+    }
+
+    fn auto_rinex_indexing(prod_type: &QcProductType, rinex: &Rinex) -> QcIndexing {
+        match prod_type {
+            QcProductType::Observation => Self::auto_observation_indexing(&rinex),
+            _ => Self::auto_other_rinex_indexing(&rinex),
+        }
+    }
+
+    fn auto_observation_indexing(rinex: &Rinex) -> QcIndexing {
+        if let Some(marker) = &rinex.header.geodetic_marker {
+            QcIndexing::GeodeticMarker(Self::format_geodetic_marker(&marker))
+        } else if let Some(receiver) = &rinex.header.rcvr {
+            QcIndexing::GnssReceiver(Self::format_gnss_rx(&receiver))
+        } else if let Some(agency) = &rinex.header.agency {
+            QcIndexing::Agency(agency.clone())
+        } else if let Some(operator) = &rinex.header.observer {
+            QcIndexing::Operator(operator.clone())
+        } else if let Some(antenna) = &rinex.header.rcvr_antenna {
+            QcIndexing::RxAntenna(Self::format_rx_antenna(&antenna))
+        } else {
+            QcIndexing::None
+        }
+    }
+
+    fn auto_other_rinex_indexing(rinex: &Rinex) -> QcIndexing {
+        if let Some(agency) = &rinex.header.agency {
+            QcIndexing::Agency(agency.clone())
+        } else if let Some(operator) = &rinex.header.observer {
+            QcIndexing::Operator(operator.clone())
+        } else {
+            QcIndexing::None
+        }
+    }
+
     /// Load a single [Rinex] file into this [QcContext].
     /// File revision must be supported and must be correctly formatted
     /// for this operation to be effective.
     pub fn load_rinex<P: AsRef<Path>>(&mut self, path: P, rinex: Rinex) -> Result<(), QcError> {
-        let prod_type = QcProductType::from(rinex.header.rinex_type);
+        let product_type = QcProductType::from(rinex.header.rinex_type);
 
-        let path_buf = path.as_ref().to_path_buf();
+        let filename = path
+            .as_ref()
+            .file_stem()
+            .ok_or(QcError::FileNameDetermination)?
+            .to_string_lossy()
+            .to_string();
 
-        // extend context blob
-        if let Some(paths) = self
-            .files
-            .iter_mut()
-            .filter_map(|(prod, files)| {
-                if *prod == prod_type {
-                    Some(files)
+        let indexing = match self.configuration.indexing {
+            QcPreferedIndexing::Agency => {
+                if let Some(agency) = &rinex.header.agency {
+                    Some(QcIndexing::Agency(agency.clone()))
                 } else {
+                    warn!("No agency found for \"{}\"", filename);
                     None
                 }
-            })
-            .reduce(|k, _| k)
-        {
-            if let Some(inner) = self.blob.get_mut(&prod_type).and_then(|k| k.as_mut_rinex()) {
-                inner.merge_mut(&rinex)?;
-                paths.push(path_buf);
             }
-        } else {
-            self.blob.insert(prod_type, BlobData::RINEX(rinex));
-            self.files.insert(prod_type, vec![path_buf]);
-        }
+            QcPreferedIndexing::GnssReceiver => {
+                if let Some(receiver) = &rinex.header.rcvr {
+                    Some(QcIndexing::GnssReceiver(Self::format_gnss_rx(&receiver)))
+                } else {
+                    warn!("No receiver model defined in \"{}\"", filename);
+                    None
+                }
+            }
+            QcPreferedIndexing::Operator => {
+                if let Some(operator) = &rinex.header.observer {
+                    Some(QcIndexing::Operator(operator.clone()))
+                } else {
+                    warn!("No operator name defined in \"{}\"", filename);
+                    None
+                }
+            }
+            QcPreferedIndexing::Auto => None,
+        };
 
-        Ok(())
+        let indexing = if let Some(indexing) = indexing {
+            // manually indexing
+            info!("{} manually indexed by {}", filename, indexing);
+            indexing
+        } else {
+            // auto indexing
+            let indexing = Self::auto_rinex_indexing(&product_type, &rinex);
+            info!("{} auto indexed by {}", filename, indexing);
+            indexing
+        };
+
+        if let Some(indexed) = self.get_rinex_data_mut(product_type, &indexing) {
+            indexed.merge_mut(&rinex)?;
+            Ok(())
+        } else {
+            let key = QcDataKey {
+                index: indexing.clone(),
+                prod_type: product_type,
+            };
+
+            let data = QcData {
+                filename: filename,
+                inner: QcDataWrapper::RINEX(rinex),
+            };
+
+            self.data.insert(key, data);
+
+            Ok(())
+        }
     }
 
     /// Returns reference to all inner RINEX products matching desired [QcProductType]
@@ -152,45 +253,61 @@ impl QcContext {
         self.rinex_products_iter_mut(QcProductType::PreciseClock)
     }
 
-    /// Returns reference to indexed [QcProductType::Observation] RINEX product (if it exists).
-    pub fn get_observation_rinex(&self, indexing: QcIndexing) -> Option<&Rinex> {
-        self.rinex_products_iter(QcProductType::Observation)
-            .filter_map(|(index, v)| if *index == indexing { Some(v) } else { None })
+    /// Returns reference to given RINEX [QcProductType] with desired index
+    fn get_rinex_data(&self, prod_type: QcProductType, indexing: &QcIndexing) -> Option<&Rinex> {
+        self.rinex_products_iter(prod_type)
+            .filter_map(|(index, v)| if index == indexing { Some(v) } else { None })
             .reduce(|k, _| k)
+    }
+
+    /// Returns mutable reference to given RINEX [QcProductType] with desired index
+    fn get_rinex_data_mut(
+        &mut self,
+        prod_type: QcProductType,
+        indexing: &QcIndexing,
+    ) -> Option<&mut Rinex> {
+        self.rinex_products_iter_mut(prod_type)
+            .filter_map(|(index, v)| if index == indexing { Some(v) } else { None })
+            .reduce(|k, _| k)
+    }
+
+    /// Returns reference to indexed [QcProductType::Observation] RINEX product (if it exists).
+    pub fn get_observation_rinex(&self, indexing: &QcIndexing) -> Option<&Rinex> {
+        self.get_rinex_data(QcProductType::Observation, indexing)
     }
 
     /// Returns mutable reference to indexed [QcProductType::Observation] RINEX product (if it exists).
-    pub fn get_observation_rinex_mut(&mut self, indexing: QcIndexing) -> Option<&mut Rinex> {
-        self.rinex_products_iter_mut(QcProductType::Observation)
-            .filter_map(|(index, v)| if *index == indexing { Some(v) } else { None })
-            .reduce(|k, _| k)
+    pub fn get_observation_rinex_mut(&mut self, indexing: &QcIndexing) -> Option<&mut Rinex> {
+        self.get_rinex_data_mut(QcProductType::Observation, indexing)
+    }
+
+    /// Returns reference to indexed [QcProductType::MeteoObservation] RINEX product (if it exists).
+    pub fn get_meteo_observation_rinex(&self, indexing: &QcIndexing) -> Option<&Rinex> {
+        self.get_rinex_data(QcProductType::MeteoObservation, indexing)
+    }
+
+    /// Returns mutable reference to indexed [QcProductType::Observation] RINEX product (if it exists).
+    pub fn get_meteo_observation_rinex_mut(&mut self, indexing: &QcIndexing) -> Option<&mut Rinex> {
+        self.get_rinex_data_mut(QcProductType::MeteoObservation, indexing)
     }
 
     /// Returns reference to indexed [QcProductType::BroadcastNavigation] RINEX product (if it exists).
-    pub fn get_brdc_navigation_rinex(&self, indexing: QcIndexing) -> Option<&Rinex> {
-        self.rinex_products_iter(QcProductType::BroadcastNavigation)
-            .filter_map(|(index, v)| if *index == indexing { Some(v) } else { None })
-            .reduce(|k, _| k)
+    pub fn get_brdc_navigation_rinex(&self, indexing: &QcIndexing) -> Option<&Rinex> {
+        self.get_rinex_data(QcProductType::BroadcastNavigation, indexing)
     }
 
     /// Returns mutable reference to indexed [QcProductType::BroadcastNavigation] RINEX product (if it exists).
-    pub fn get_brdc_navigation_rinex_mut(&mut self, indexing: QcIndexing) -> Option<&mut Rinex> {
-        self.rinex_products_iter_mut(QcProductType::BroadcastNavigation)
-            .filter_map(|(index, v)| if *index == indexing { Some(v) } else { None })
-            .reduce(|k, _| k)
+    pub fn get_brdc_navigation_rinex_mut(&mut self, indexing: &QcIndexing) -> Option<&mut Rinex> {
+        self.get_rinex_data_mut(QcProductType::BroadcastNavigation, indexing)
     }
 
     /// Returns reference to indexed [QcProductType::PreciseClock] RINEX product (if it exists).
-    pub fn get_clock_rinex(&self, indexing: QcIndexing) -> Option<&Rinex> {
-        self.rinex_products_iter(QcProductType::PreciseClock)
-            .filter_map(|(index, v)| if *index == indexing { Some(v) } else { None })
-            .reduce(|k, _| k)
+    pub fn get_clock_rinex(&self, indexing: &QcIndexing) -> Option<&Rinex> {
+        self.get_rinex_data(QcProductType::PreciseClock, indexing)
     }
 
     /// Returns mutable reference to indexed [QcProductType::PreciseClock] RINEX product (if it exists).
-    pub fn get_clock_rinex_mut(&mut self, indexing: QcIndexing) -> Option<&mut Rinex> {
-        self.rinex_products_iter_mut(QcProductType::PreciseClock)
-            .filter_map(|(index, v)| if *index == indexing { Some(v) } else { None })
-            .reduce(|k, _| k)
+    pub fn get_clock_rinex_mut(&mut self, indexing: &QcIndexing) -> Option<&mut Rinex> {
+        self.get_rinex_data_mut(QcProductType::PreciseClock, indexing)
     }
 }

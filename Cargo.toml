@@ -40,7 +40,6 @@ navigation = [
     "dep:anise",
     "rinex/nav",
     "sp3?/anise",
-    "dep:log",
     "dep:gnss-rtk",
 ]
 
@@ -58,7 +57,6 @@ cggtts = [
     "dep:anise",
     "rinex/nav",
     "sp3?/anise",
-    "dep:log",
     "dep:gnss-rtk",
     "dep:cggtts",
 ]
@@ -113,6 +111,7 @@ features = [
 optional = true
 
 [dependencies]
+log = "0.4"
 thiserror = "2"
 
 strum = "0.27"
@@ -122,8 +121,6 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 hifitime = { git = "https://github.com/nyx-space/hifitime", branch = "master", features = ["serde", "std"] }
 anise = { git = "https://github.com/nyx-space/anise", branch = "dep/hifitime-github", optional = true }
-
-log = { version = "0.4", optional = true }
 
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
 gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", branch = "main", features = ["processing"] }
