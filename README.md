@@ -42,7 +42,19 @@ Licensing
 This library is part of the [RTK-rs framework](https://github.com/rtk-rs) which
 is delivered under the [Mozilla V2 Public](https://www.mozilla.org/en-US/MPL/2.0) license.
 
-## Core level
+Logs
+====
+
+This framework uses `$RUST_LOG` for debug traces. Turn them on to debug, in particular:
+
+* the data indexing. When a prefered indexing method is selected, it might no be feasible.
+For example, you selected `QcPreferedIndexing::GnssReceiver` while no GNSS receiver definitions
+were found. We will leave a debug trace (error) as possibly another indexing method was internally selected.
+* when performing complex task, like P.V.T solutions solving, it is recommended to monitor the process
+using the debug traces.
+
+Core fundations
+===============
 
 The fundammental blocks that we rely upon, at all times
 
@@ -56,13 +68,15 @@ shared behavior by all GNSS libraries
 the RINEX files as the most fundamental. It is currently not possible to build
 this library without RINEX support (say: SP3 only application). But that could easily be changed.
 
-## Basic and default features
+Basic and default features
+==========================
 
 - `flate2` is activated by default, and allows Gzip compressed files to be naturally supported.
 - `sp3` is activated by default, because we consider people interested in GNSS post processing
 are interested in high precision at all times. This is easily changed by de-activating this crate feature.
 
-## Navigation feature
+Navigation feature
+==================
 
 `navigation` is the most advanced feature. It allows post processed navigation and is the heaviest option.
 This option relies on 
@@ -124,7 +138,8 @@ while let Some(output) = ppp.next(user_profile) {
 }
 ```
 
-## Deploying without navigation support
+Deploying without navigation support
+====================================
 
 Without navigation support, this library will allow GNSS context creation and basic processing.
 You will not access the most advanced solvers.
