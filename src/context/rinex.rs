@@ -23,6 +23,7 @@ impl QcContext {
         format!("{}-{}", rx.model, rx.sn)
     }
 
+    /// Format [GeodeticMarker] name
     fn format_geodetic_marker(marker: &GeodeticMarker) -> String {
         if let Some(number) = marker.number() {
             format!("{}-{}", marker.name, number)
@@ -31,10 +32,12 @@ impl QcContext {
         }
     }
 
+    /// Format [Antenna] model
     fn format_rx_antenna(antenna: &Antenna) -> String {
         format!("{}-{}", antenna.model, antenna.sn)
     }
 
+    /// [Rinex] smart automated indexing
     fn auto_indexing(rinex: &Rinex) -> QcIndexing {
         if let Some(marker) = &rinex.header.geodetic_marker {
             QcIndexing::GeodeticMarker(Self::format_geodetic_marker(&marker))
@@ -163,12 +166,12 @@ impl QcContext {
         {
             debug!("{} - extension", indexing);
             indexed.merge_mut(&rinex)?;
-            Ok(())
         } else {
             debug!("{} - new entry", indexing);
             self.observations.insert(indexing, rinex);
-            Ok(())
         }
+
+        Ok(())
     }
 
     /// Load a readable [Rinex] file into this [QcContext].

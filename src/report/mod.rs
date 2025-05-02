@@ -163,22 +163,24 @@ impl Render for QcReport {
                         // observations section
                         @ if !self.observations.is_empty() {
                             section id="observations" class="section" {
+                                h2 {
+                                    "RINEX Observations"
+                                }
+
                                 // one tab to select observation source
-                                    @ for (num, source) in self.observations.keys().unique().sorted().enumerate() {
+                                div class="tabs" id="observation-sources" {
+                                    @ for (num, source) in self.observations.keys().sorted().enumerate() {
                                         @ if num == 0 {
-                                            div class="tabs" {
-                                                div class="tab" {
-                                                    (source.to_string())
-                                                }
-                                             }
-                                        } else {
-                                            div class="tabs" {
-                                                div class="tab" {
-                                                    (source.to_string())
-                                                }
-                                             }
+                                            div class="tab" observation-source=(source.to_string()) {
+                                                (source.to_string())
+                                            }
+                                        } @ else {
+                                            div class="tab" observation-source=(source.to_string()) {
+                                                (source.to_string())
+                                            }
                                         }
                                     }
+                                }
 
                             }
                         }
@@ -228,7 +230,7 @@ impl Render for QcReport {
                                 "GNSS-QC is part of the RTK-rs framework for advanced GNSS and Geodesy applications"
                             }
                             p {
-
+                                "TODO"
                             }
                         }
                     }

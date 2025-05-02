@@ -111,6 +111,45 @@ nav a:hover {
   background-color: var(--accent);
   color: #000;
 }
+
+.tab.active {
+  background-color: var(--accent);
+  color: #000;
+  font-weight: bold;
+}
+
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.95rem;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+}
+
+.styled-table thead {
+  background-color: var(--secondary);
+  text-align: left;
+}
+
+.styled-table th, .styled-table td {
+  padding: 0.75rem 1rem;
+}
+
+.styled-table tbody tr {
+  border-bottom: 1px solid #4444;
+}
+
+.styled-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.styled-table tbody tr:last-of-type {
+  border-bottom: none;
+}
         "
         .to_string()
     }

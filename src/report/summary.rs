@@ -39,24 +39,22 @@ impl QcSummary {
 impl Render for QcSummary {
     fn render(&self) -> Markup {
         html! {
-            div class="table-container" {
-                table class="table is-bordered" {
-                    tbody {
-                        tr {
-                            th class="is-info is-bordered" {
-                                "Date/Time"
-                            }
-                            td {
-                                (self.datetime.to_string())
-                            }
+            table class="styled-table" {
+                tbody {
+                    tr {
+                        th class="is-info is-bordered" {
+                            "Date/Time"
                         }
-                        tr {
-                            th class="is-info is-bordered" {
-                                "Configuration"
-                            }
-                            td {
-                                (self.cfg.render())
-                            }
+                        td {
+                            (self.datetime.to_string())
+                        }
+                    }
+                    tr {
+                        th class="is-info is-bordered" {
+                            "Configuration"
+                        }
+                        td {
+                            (self.cfg.render())
                         }
                     }
                 }

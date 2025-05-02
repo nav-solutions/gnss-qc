@@ -77,10 +77,18 @@ impl QcConfig {
 impl Render for QcConfig {
     fn render(&self) -> Markup {
         html! {
-            div class="table-container" {
-                table class="table is-bordered" {
-                    tbody {
-                        tr {
+            table class="styled-table" {
+                tbody {
+                    tr {
+                        th {
+                            "Indexing Preference"
+                        }
+                        td {
+                            (self.indexing.to_string())
+                        }
+                    }
+                    tr {
+                        th {
                             "Orbit preference"
                         }
                         td {

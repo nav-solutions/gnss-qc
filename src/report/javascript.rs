@@ -35,16 +35,14 @@ impl QcReport {
       });
     });
 
-    let currentConstellation = 'gps';
-
-    const sourceTabs = document.querySelectorAll('#source-tabs .tab');
+    const sourceTabs = document.querySelectorAll('#observation-sources .tab');
     const constellationTabs = document.querySelectorAll('#constellation-tabs .tab');
     
     // Gestion des clics sur les sources
     sourceTabs.forEach(tab => {
       tab.addEventListener('click', () => {
-        currentSource = tab.getAttribute('data-source');
-        updatePlot();
+        currentSource = tab.getAttribute('observation-source');
+        // updatePlot();
         sourceTabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
       });

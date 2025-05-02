@@ -20,6 +20,17 @@ pub enum QcPreferedIndexing {
     Agency,
 }
 
+impl std::fmt::Display for QcPreferedIndexing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Auto => write!(f, "Auto"),
+            Self::Operator => write!(f, "Operator"),
+            Self::GnssReceiver => write!(f, "GNSS RX"),
+            Self::Agency => write!(f, "Agency / Publisher"),
+        }
+    }
+}
+
 impl std::str::FromStr for QcPreferedIndexing {
     type Err = QcError;
 
