@@ -186,7 +186,7 @@ impl QcContext {
     }
 
     /// Returns reference to [QcProductType::Observation] for this data source
-    pub fn observations(&self, data_source: &QcIndexing) -> Option<&Rinex> {
+    pub fn observations_data(&self, data_source: &QcIndexing) -> Option<&Rinex> {
         self.observation_sources_iter()
             .filter_map(|(source, data)| {
                 if source == data_source {
@@ -199,7 +199,7 @@ impl QcContext {
     }
 
     /// Returns mutable reference to [QcProductType::Observation] for this data source
-    pub fn observations_mut(&mut self, data_source: &QcIndexing) -> Option<&mut Rinex> {
+    pub fn observations_data_mut(&mut self, data_source: &QcIndexing) -> Option<&mut Rinex> {
         self.observation_sources_iter_mut()
             .filter_map(|(source, data)| {
                 if source == data_source {
@@ -225,8 +225,48 @@ impl QcContext {
         self.brdc_navigation.is_some()
     }
 
+    /// Returns reference to [QcProductType::BroadcastNavigation] data, if preset in the current [QcContext].
+    pub fn brdc_navigation_data(&self) -> Option<&Rinex> {
+        self.brdc_navigation.as_ref()
+    }
+
+    /// Returns mutable reference to [QcProductType::BroadcastNavigation] data, if preset in the current [QcContext].
+    pub fn brdc_navigation_data_mut(&mut self) -> Option<&mut Rinex> {
+        self.brdc_navigation.as_mut()
+    }
+
     /// Returns true if [QcProductType::MeteoObservation] is present in the current [QcContext].
     pub fn has_meteo_observations(&self) -> bool {
         self.meteo_observations.is_some()
+    }
+
+    /// Returns reference to [QcProductType::MeteoObservation] data, if preset in the current [QcContext].
+    pub fn meteo_observations_data(&self) -> Option<&Rinex> {
+        self.meteo_observations.as_ref()
+    }
+
+    /// Returns mutable reference to [QcProductType::MeteoObservation] data, if preset in the current [QcContext].
+    pub fn meteo_observations_data_mut(&mut self) -> Option<&mut Rinex> {
+        self.meteo_observations.as_mut()
+    }
+
+    /// Returns reference to [QcProductType::PreciseClock] data, if preset in the current [QcContext].
+    pub fn precise_clock_data(&self) -> Option<&Rinex> {
+        self.precise_clocks.as_ref()
+    }
+
+    /// Returns mutable reference to [QcProductType::MeteoObservation] data, if preset in the current [QcContext].
+    pub fn precise_clock_data_mut(&mut self) -> Option<&mut Rinex> {
+        self.meteo_observations.as_mut()
+    }
+
+    /// Returns reference to [QcProductType::IONEX] data, if preset in the current [QcContext].
+    pub fn ionex_data(&self) -> Option<&Rinex> {
+        self.ionex.as_ref()
+    }
+
+    /// Returns reference to [QcProductType::IONEX] data, if preset in the current [QcContext].
+    pub fn ionex_data_mut(&mut self) -> Option<&mut Rinex> {
+        self.ionex.as_mut()
     }
 }

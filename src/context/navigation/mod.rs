@@ -27,32 +27,32 @@ use anise::{
 use crate::{
     config::QcConfig,
     context::QcIndexing,
-    navigation::{NavFilter, NavFilterType},
+    navigation::{QcNavFilter, QcNavFilterType},
     prelude::{Constellation, QcContext},
 };
 
 use crate::prelude::{Orbit, ReferenceEcefPosition};
 
 //pub(crate) mod buffer;
-pub(crate) mod nav_ppp;
+//pub(crate) mod nav_ppp;
 pub(crate) mod time;
+
+// #[cfg(feature = "cggtts")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "cggtts")))]
+// pub(crate) mod nav_cggtts;
 
 mod solutions_iter;
 
-pub use nav_ppp::NavPPPSolver;
+//pub use nav_ppp::NavPPPSolver;
 pub use solutions_iter::SolutionsIter;
 
 //use buffer::ephemeris::QcEphemerisData;
 
-#[cfg(feature = "cggtts")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cggtts")))]
-pub(crate) mod nav_cggtts;
+// #[cfg(feature = "cggtts")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "cggtts")))]
+// pub use nav_cggtts::NavCggttsSolver;
 
-#[cfg(feature = "cggtts")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cggtts")))]
-pub use nav_cggtts::NavCggttsSolver;
-
-pub use time::NavTimeSolver;
+// pub use time::NavTimeSolver;
 
 #[derive(Debug, Error)]
 pub enum NavigationError {
@@ -117,8 +117,14 @@ impl QcContext {
         Self {
             almanac,
             earth_cef: frame,
-            data: Default::default(),
+            ionex: Default::default(),
             configuration: QcConfig::default(),
+            brdc_navigation: Default::default(),
+            observations: Default::default(),
+            precise_clocks: Default::default(),
+            meteo_observations: Default::default(),
+            #[cfg(feature = "sp3")]
+            sp3: Default::default(),
         }
     }
 
@@ -148,10 +154,10 @@ impl QcContext {
     /// other possible source. If no Observations were loaded, there is no point
     /// asking for this in this current form.
     pub fn reference_rx_position(&self, data_source: &QcIndexing) -> Option<ReferenceEcefPosition> {
-        let obs_rinex = self.get_observation_rinex(data_source)?;
-        let t = obs_rinex.first_epoch()?;
+        let observations = self.observations_data(data_source)?;
+        let t = observations.first_epoch()?;
 
-        let rx_orbit = obs_rinex.header.rx_orbit(t, self.earth_cef)?;
+        let rx_orbit = observations.header.rx_orbit(t, self.earth_cef)?;
         let pos = ReferenceEcefPosition::from_orbit(&rx_orbit);
         Some(pos)
     }
@@ -163,32 +169,32 @@ impl QcContext {
     /// other possible source. If no Observations were loaded, there is no point
     /// asking for this in this current form.
     pub fn reference_rx_orbit(&self, data_source: &QcIndexing) -> Option<Orbit> {
-        let obs_rinex = self.get_observation_rinex(data_source)?;
-        let t = obs_rinex.first_epoch()?;
+        let observations = self.observations_data(data_source)?;
+        let t = observations.first_epoch()?;
 
-        let rx_orbit = obs_rinex.header.rx_orbit(t, self.earth_cef)?;
+        let rx_orbit = observations.header.rx_orbit(t, self.earth_cef)?;
         Some(rx_orbit)
     }
 
-    // Gather all [QcEphemerisData] available
-    pub fn buffered_ephemeris_data(&self) -> Vec<QcEphemerisData> {
-        let mut ret = Vec::<QcEphemerisData>::with_capacity(8);
+    // // Gather all [QcEphemerisData] available
+    // pub fn buffered_ephemeris_data(&self) -> Vec<QcEphemerisData> {
+    //     let mut ret = Vec::<QcEphemerisData>::with_capacity(8);
 
-        if let Some(brdc) = self.brdc_navigation() {
-            for (k, v) in brdc.nav_ephemeris_frames_iter() {
-                if let Some(stored) = QcEphemerisData::from_ephemeris(k.sv, k.epoch, &v) {
-                    ret.push(stored);
-                }
-            }
-        }
+    //     if let Some(brdc) = self.brdc_navigation() {
+    //         for (k, v) in brdc.nav_ephemeris_frames_iter() {
+    //             if let Some(stored) = QcEphemerisData::from_ephemeris(k.sv, k.epoch, &v) {
+    //                 ret.push(stored);
+    //             }
+    //         }
+    //     }
 
-        ret
-    }
+    //     ret
+    // }
 
     /// Applies complex [NavFilter] to mutable [QcContext].
-    pub fn nav_filter_mut(&mut self, filter: &NavFilter) {
+    pub fn nav_filter_mut(&mut self, filter: &QcNavFilter) {
         // apply nav conditions
-        if let Some(brdc) = self.brdc_navigation_mut() {
+        if let Some(brdc) = &mut self.brdc_navigation {
             let any_constellation = filter.constellations.is_empty();
             let broad_sbas = filter.constellations.contains(&Constellation::SBAS);
 
@@ -197,7 +203,7 @@ impl QcContext {
             brdc_rec.retain(|k, data| {
                 if let Some(eph) = data.as_ephemeris() {
                     match filter.filter {
-                        NavFilterType::Healthy => {
+                        QcNavFilterType::Healthy => {
                             if k.sv.constellation.is_sbas() && broad_sbas {
                                 eph.sv_healthy()
                             } else {
@@ -212,7 +218,7 @@ impl QcContext {
                                 }
                             }
                         }
-                        NavFilterType::Testing => {
+                        QcNavFilterType::Testing => {
                             if k.sv.constellation.is_sbas() && broad_sbas {
                                 eph.sv_in_testing()
                             } else {
@@ -227,7 +233,7 @@ impl QcContext {
                                 }
                             }
                         }
-                        NavFilterType::Unhealthy => {
+                        QcNavFilterType::Unhealthy => {
                             if k.sv.constellation.is_sbas() && broad_sbas {
                                 !eph.sv_healthy()
                             } else {

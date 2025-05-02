@@ -8,25 +8,24 @@ use crate::{
 fn default_observations_indexing() {
     let mut ctx = QcContext::new();
 
-    ctx.load_gzip_rinex_file("data/CRNX/V1/AJAC3550.21D")
-        .unwrap();
+    ctx.load_rinex_file("data/CRNX/V1/AJAC3550.21D").unwrap();
 
     let geo_marker = QcIndexing::GeodeticMarker("AJAC-10077M005".to_string());
     let invalid_marker = QcIndexing::GeodeticMarker("Invalid".to_string());
     let gnss_rx = QcIndexing::GnssReceiver("LEICA GR50-209088".to_string());
 
     assert!(
-        ctx.observations(&geo_marker).is_some(),
+        ctx.observations_data(&geo_marker).is_some(),
         "Geodetic marker is default indexer"
     );
 
     assert!(
-        ctx.observations(&invalid_marker).is_none(),
+        ctx.observations_data(&invalid_marker).is_none(),
         "non existing (invalid) marker"
     );
 
     assert!(
-        ctx.observations(&gnss_rx).is_none(),
+        ctx.observations_data(&gnss_rx).is_none(),
         "Geodetic marker should have been prefered"
     );
 }
@@ -37,19 +36,46 @@ fn prefered_gnss_receiver_indexing() {
 
     let mut ctx = QcContext::new().with_configuration_preferences(cfg);
 
-    ctx.load_gzip_rinex_file("data/CRNX/V1/AJAC3550.21D")
-        .unwrap();
+    ctx.load_rinex_file("data/CRNX/V1/AJAC3550.21D").unwrap();
 
     let geo_marker = QcIndexing::GeodeticMarker("AJAC-10077M005".to_string());
-    let gnss_rx = QcIndexing::GnssReceiver("LEICA GR50-209088".to_string());
+    let gnss_rx = QcIndexing::GnssReceiver("LEICA GR50-2090088".to_string());
 
     assert!(
-        ctx.observations(&geo_marker).is_some(),
+        ctx.observations_data(&geo_marker).is_none(),
         "GNSS-RX should have been prefered"
     );
 
     assert!(
-        ctx.observations(&gnss_rx).is_some(),
+        ctx.observations_data(&gnss_rx).is_some(),
         "GNSS-RX set as prefered indexer"
+    );
+}
+
+#[test]
+fn prefered_operator_indexing() {
+    let cfg = QcConfig::default().with_prefered_indexing(QcPreferedIndexing::Operator);
+
+    let mut ctx = QcContext::new().with_configuration_preferences(cfg);
+
+    ctx.load_rinex_file("data/CRNX/V1/AJAC3550.21D").unwrap();
+
+    let geo_marker = QcIndexing::GeodeticMarker("AJAC-10077M005".to_string());
+    let gnss_rx = QcIndexing::GnssReceiver("LEICA GR50-2090088".to_string());
+    let operator = QcIndexing::Operator("Automatic".to_string());
+
+    assert!(
+        ctx.observations_data(&geo_marker).is_none(),
+        "Operator should have been prefered"
+    );
+
+    assert!(
+        ctx.observations_data(&gnss_rx).is_none(),
+        "Operator should have been prefered"
+    );
+
+    assert!(
+        ctx.observations_data(&operator).is_some(),
+        "Operator should have been prefered"
     );
 }

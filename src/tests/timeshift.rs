@@ -1,4 +1,5 @@
 use crate::{
+    context::QcIndexing,
     prelude::{QcContext, TimeScale},
     tests::toolkit::obs_rinex::rinex_comparison_eq as obs_rinex_comparison_eq,
 };
@@ -38,19 +39,25 @@ fn test_gps_gpst_timescale_transposition() {
         .load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
         .unwrap();
 
-    let original_obs = context.observations().unwrap();
-    let _ = context.brdc_navigation().unwrap();
+    let geo_marker = QcIndexing::GeodeticMarker("ESBC00DNK-10118M001".to_string());
+
+    let original_obs = context.observations_data(&geo_marker).unwrap();
 
     let transposed = context.timescale_transposition(TimeScale::GPST);
 
-    let transposed_obs = transposed.observation().unwrap();
-    let _ = transposed.brdc_navigation().unwrap();
+    let transposed_obs = transposed.observations_data(&geo_marker).unwrap();
 
     // verify input is GPST
-    assert_eq!(context.timescale(), Some(TimeScale::GPST));
+    assert_eq!(
+        context.observations_timescale(&geo_marker),
+        Some(TimeScale::GPST)
+    );
 
     // verify transposed is GPST
-    assert_eq!(transposed.timescale(), Some(TimeScale::GPST));
+    assert_eq!(
+        transposed.observations_timescale(&geo_marker),
+        Some(TimeScale::GPST)
+    );
 
     obs_rinex_comparison_eq(&original_obs, &transposed_obs);
 }
@@ -68,19 +75,25 @@ fn test_gps_gst_timescale_transposition() {
         .load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
         .unwrap();
 
-    let original_obs = context.observation().unwrap();
-    let _ = context.brdc_navigation().unwrap();
+    let geo_marker = QcIndexing::GeodeticMarker("ESBC00DNK-10118M001".to_string());
+
+    let original_obs = context.observations_data(&geo_marker).unwrap();
 
     let transposed = context.timescale_transposition(TimeScale::GST);
 
-    let transposed_obs = transposed.observation().unwrap();
-    let _ = transposed.brdc_navigation().unwrap();
+    let transposed_obs = transposed.observations_data(&geo_marker).unwrap();
 
     // verify input is GPST
-    assert_eq!(context.timescale(), Some(TimeScale::GPST));
+    assert_eq!(
+        context.observations_timescale(&geo_marker),
+        Some(TimeScale::GPST)
+    );
 
     // verify transposed is GST
-    assert_eq!(transposed.timescale(), Some(TimeScale::GST));
+    assert_eq!(
+        transposed.observations_timescale(&geo_marker),
+        Some(TimeScale::GST)
+    );
 
     verify_dut_header(&transposed_obs.header, TimeScale::GST);
 }

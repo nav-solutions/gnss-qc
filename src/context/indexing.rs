@@ -2,8 +2,6 @@ use crate::error::QcError;
 
 use serde::{Deserialize, Serialize};
 
-pub(crate) enum QcIndexer {}
-
 /// [QcIndexing] is used to index data and be able to differentiate two identical product types between each other.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
 pub enum QcIndexing {

@@ -299,7 +299,7 @@ impl QcContext {
     /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>
     /// may apply to selected data source.
     pub fn is_cpp_navigation_compatible(&self, data_source: &QcIndexing) -> bool {
-        if let Some(observations) = self.observations(data_source) {
+        if let Some(observations) = self.observations_data(data_source) {
             // TODO wrong: only PR
             observations.carrier_iter().count() > 1
         } else {
@@ -311,7 +311,7 @@ impl QcContext {
     /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>
     /// may apply to selected data source.
     pub fn is_ppp_navigation_compatible(&self, data_source: &QcIndexing) -> bool {
-        if let Some(observations) = self.observations(data_source) {
+        if let Some(observations) = self.observations_data(data_source) {
             // TODO wrong: PR+PH
             observations.carrier_iter().count() > 1
         } else {

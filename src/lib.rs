@@ -24,7 +24,7 @@ extern crate gnss_rs as gnss;
 mod config;
 mod context;
 mod product;
-mod report;
+// mod report;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
@@ -38,11 +38,11 @@ mod tests;
 
 pub mod prelude {
     pub use crate::{
-        config::{QcConfig, QcPreferedIndexing, QcReportType},
+        config::{QcConfig, QcPreferedIndexing},
         context::{QcContext, QcIndexing},
         error::QcError,
         product::QcProductType,
-        report::{QcExtraPage, QcReport},
+        // report::{QcExtraPage, QcReport},
     };
 
     // GNSS re-export
@@ -70,7 +70,7 @@ pub mod prelude {
     #[cfg(feature = "navigation")]
     pub use crate::{
         config::QcOrbitPreference,
-        context::navigation::{NavPPPSolver, SolutionsIter as NavSolutionsIter},
+        context::navigation::SolutionsIter as NavSolutionsIter,
         navigation::{QcNavFilter, QcNavFilterType, ReferenceEcefPosition},
     };
 
@@ -83,6 +83,6 @@ pub mod prelude {
     #[cfg(feature = "navigation")]
     pub use gnss_rtk::prelude::{Config as NavPreset, Method as NavMethod, User as NavUserProfile};
 
-    #[cfg(feature = "cggtts")]
-    pub use crate::context::navigation::NavCggttsSolver;
+    // #[cfg(feature = "cggtts")]
+    // pub use crate::context::navigation::NavCggttsSolver;
 }

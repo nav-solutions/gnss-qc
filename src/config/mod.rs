@@ -9,7 +9,7 @@ mod indexing;
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
 mod orbit;
 
-pub use crate::config::{indexing::QcPreferedIndexing, report::QcReportType};
+pub use crate::config::indexing::QcPreferedIndexing;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
