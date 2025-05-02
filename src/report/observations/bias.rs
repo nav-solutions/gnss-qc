@@ -22,7 +22,7 @@ impl BiasSummary {
 impl Render for BiasSummary {
     fn render(&self) -> Markup {
         html! {
-            table class="table" {
+            table class="styled-table" {
                 tbody {
                     tr {
                         th {

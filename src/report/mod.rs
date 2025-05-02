@@ -21,8 +21,8 @@ use summary::QcSummary;
 mod observations;
 use observations::Report as ObservationsReport;
 
-// #[cfg(feature = "navigation")]
-// mod orbital;
+mod orbital;
+use orbital::OrbitalProjections;
 
 /// [QcExtraPage] you can add to customize [QcReport]
 pub struct QcExtraPage {
@@ -39,13 +39,9 @@ pub struct QcReport {
     /// Report Summary (always present)
     summary: QcSummary,
 
-    // /// Orbital projections (when feasible)
-    // #[cfg(feature = "navigation")]
-    // orbital_proj: Option<OrbitalProjections>,
+    /// Orbital projections (when feasible)
+    orbital_proj: OrbitalProjections,
 
-    // /// Orbital residual analysis, only when BRDC+SP3
-    // /// only works correctly for a single couple of publisher, as of today
-    // #[cfg(all(feature = "navigation", feature = "sp3")]
     // orbital_proj: Option<OrbitalProjections>,
     /// Reported observations, for each data source
     observations: HashMap<QcIndexing, ObservationsReport>,
@@ -63,6 +59,7 @@ impl QcContext {
     pub fn summary_report(&self, now: Epoch) -> QcReport {
         QcReport {
             summary: QcSummary::new(now, self),
+            orbital_proj: Default::default(),
             custom_chapters: Vec::new(),
             observations: Default::default(),
         }
@@ -89,6 +86,7 @@ impl QcContext {
 
                 tabbed
             },
+            orbital_proj: OrbitalProjections::new(self),
         }
     }
 }
@@ -137,6 +135,13 @@ impl Render for QcReport {
                             }
                         }
 
+                        @ if self.orbital_proj.not_empty {
+                            // Create a nav menu
+                            a data-target="orbit-proj" {
+                                "Orbital Projections"
+                            }
+                        }
+
                         a data-target="documentation" {
                             "Documentation"
                         }
@@ -171,17 +176,41 @@ impl Render for QcReport {
                                 div class="tabs" id="observation-sources" {
                                     @ for (num, source) in self.observations.keys().sorted().enumerate() {
                                         @ if num == 0 {
-                                            div class="tab" observation-source=(source.to_string()) {
+                                            div class="tab active" data-target=(source.to_string()) {
                                                 (source.to_string())
                                             }
                                         } @ else {
-                                            div class="tab" observation-source=(source.to_string()) {
+                                            div class="tab" data-target=(source.to_string()) {
                                                 (source.to_string())
                                             }
                                         }
                                     }
                                 }
 
+                                // one section per source
+                                @ for (num, source) in self.observations.keys().enumerate() {
+                                    @ if num == 0 {
+                                        @ if let Some(report) = self.observations.get(&source) {
+                                            div class="content-section active" id=(source.to_string()) {
+                                                (report.render())
+                                            }
+                                        }
+                                    } @ else {
+                                        @ if let Some(report) = self.observations.get(&source) {
+                                            div class="content-section" id=(source.to_string()) {
+                                                (report.render())
+                                            }
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+
+                        @ if self.orbital_proj.not_empty {
+                            // Render content
+                            section id="orbit-proj" class="section" {
+                                (self.orbital_proj.render())
                             }
                         }
 

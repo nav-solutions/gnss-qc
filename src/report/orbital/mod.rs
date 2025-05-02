@@ -1,11 +1,11 @@
-#[cfg(feature = "sp3")]
-mod mixed;
+#[cfg(feature = "navigation")]
+mod compatible;
 
-#[cfg(feature = "sp3")]
-pub use mixed::*;
+#[cfg(feature = "navigation")]
+pub use compatible::OrbitalProjections;
 
-#[cfg(not(feature = "sp3"))]
-mod default;
+#[cfg(not(feature = "navigation"))]
+mod incompatible;
 
-#[cfg(not(feature = "sp3"))]
-pub use default::*;
+#[cfg(not(feature = "navigation"))]
+pub use incompatible::OrbitalProjections;

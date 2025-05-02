@@ -150,6 +150,19 @@ nav a:hover {
 .styled-table tbody tr:last-of-type {
   border-bottom: none;
 }
+
+.content-section {
+  display: none;
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+}
+
+.content-section active {
+  display: block;
+}
         "
         .to_string()
     }

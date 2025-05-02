@@ -67,6 +67,8 @@ impl QcContext {
             .to_string_lossy()
             .to_string();
 
+        let filename = filename.split('.').collect::<Vec<_>>()[0];
+
         // Observation RINEX are uniquely indexed.
         // Any other types are still mixed up.
         // Which facilitates the post-processing.
@@ -76,29 +78,37 @@ impl QcContext {
             }
             QcProductType::MeteoObservation => {
                 if let Some(meteo) = &mut self.meteo_observations {
+                    debug!("{} - Meteo RINEX extension", filename);
                     meteo.merge_mut(&rinex)?;
                 } else {
+                    debug!("{} - new Meteo RINEX", filename);
                     self.meteo_observations = Some(rinex);
                 }
             }
             QcProductType::BroadcastNavigation => {
                 if let Some(brdc) = &mut self.brdc_navigation {
+                    debug!("{} - NAV RINEX extension", filename);
                     brdc.merge_mut(&rinex)?;
                 } else {
+                    debug!("{} - new NAV RINEX", filename);
                     self.brdc_navigation = Some(rinex);
                 }
             }
             QcProductType::PreciseClock => {
                 if let Some(clock) = &mut self.precise_clocks {
+                    debug!("{} - Clock RINEX extension", filename);
                     clock.merge_mut(&rinex)?;
                 } else {
+                    debug!("{} - new Clock RINEX", filename);
                     self.precise_clocks = Some(rinex);
                 }
             }
             QcProductType::IONEX => {
                 if let Some(ionex) = &mut self.ionex {
+                    debug!("{} - IONEX extension", filename);
                     ionex.merge_mut(&rinex)?;
                 } else {
+                    debug!("{} - new IONEX", filename);
                     self.ionex = Some(rinex);
                 }
             }
@@ -110,7 +120,7 @@ impl QcContext {
         Ok(())
     }
 
-    fn load_observation_rinex(&mut self, filename: String, rinex: Rinex) -> Result<(), QcError> {
+    fn load_observation_rinex(&mut self, filename: &str, rinex: Rinex) -> Result<(), QcError> {
         let indexing = match self.configuration.indexing {
             QcPreferedIndexing::Agency => {
                 if let Some(agency) = &rinex.header.agency {

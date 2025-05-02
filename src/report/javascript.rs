@@ -35,16 +35,28 @@ impl QcReport {
       });
     });
 
-    const sourceTabs = document.querySelectorAll('#observation-sources .tab');
+    const observationsSourceTabs = document.querySelectorAll('#observation-sources .tab');
+    const observationsSectionContent  = document.querySelectorAll('.content-section');
     const constellationTabs = document.querySelectorAll('#constellation-tabs .tab');
+
     
-    // Gestion des clics sur les sources
-    sourceTabs.forEach(tab => {
+    // Gestion des clics sur les sources d'observation
+    observationsSourceTabs.forEach(tab => {
+
       tab.addEventListener('click', () => {
-        currentSource = tab.getAttribute('observation-source');
+        const targetId = tab.getAttribute('data-target');
+
         // updatePlot();
-        sourceTabs.forEach(t => t.classList.remove('active'));
+        observationsSourceTabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
+
+        observationsSectionContent.forEach(section => {
+          section.classList.remove('active');
+          if (section.id == targetId) {
+            section.classList.add('active');
+          }
+        });
+
       });
     });
 
@@ -52,14 +64,25 @@ impl QcReport {
     constellationTabs.forEach(tab => {
       tab.addEventListener('click', () => {
         currentConstellation = tab.getAttribute('data-constellation');
-        updatePlot();
+        //updatePlot();
         constellationTabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
       });
     });
 
+    const orbitalProjTabs = document.querySelectorAll('#orbit-proj .tabs');
+
+    // Gestion de la selection de la projection d'orbite
+    orbitalProjTabs.forEach(tab => {
+      tab.AddEventListener('click', () => {
+        selectedProj = tab.getAttribute('data-target');
+        orbitalProjTabs.forEarch(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+
     // Initialisation
-    updatePlot();
+    // updatePlot();
     sourceTabs[0].classList.add('active');
     constellationTabs[0].classList.add('active');
 
