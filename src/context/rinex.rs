@@ -139,6 +139,12 @@ impl QcContext {
         }
     }
 
+    /// Load a readable [Rinex] file into this [QcContext].
+    pub fn load_rinex_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), QcError> {
+        let rinex = Rinex::from_file(&path)?;
+        self.load_rinex(path, rinex)
+    }
+
     /// Returns reference to all inner RINEX products matching desired [QcProductType]
     /// ```
     /// use gnss_qc::prelude::{QcContext, QcIndexing, QcProductType};
@@ -216,26 +222,36 @@ impl QcContext {
     }
 
     /// Returns reference to all [QcProductType::Observation] RINEX products.
-    pub fn observations_rinex_iter(&self) -> Box<dyn Iterator<Item = (&QcIndexing, &Rinex)> + '_> {
+    pub fn observations_iter(&self) -> Box<dyn Iterator<Item = (&QcIndexing, &Rinex)> + '_> {
         self.rinex_products_iter(QcProductType::Observation)
     }
 
     /// Returns mutable reference to all [QcProductType::Observation] RINEX products.
-    pub fn observations_rinex_iter_mut(
+    pub fn observations_iter_mut(
         &mut self,
     ) -> Box<dyn Iterator<Item = (&QcIndexing, &mut Rinex)> + '_> {
         self.rinex_products_iter_mut(QcProductType::Observation)
     }
 
+    /// Returns reference to all [QcProductType::MeteoObservation] RINEX products.
+    pub fn meteo_observations_iter(&self) -> Box<dyn Iterator<Item = (&QcIndexing, &Rinex)> + '_> {
+        self.rinex_products_iter(QcProductType::MeteoObservation)
+    }
+
+    /// Returns mutable reference to all [QcProductType::MeteoObservation] RINEX products.
+    pub fn meteo_observations_iter_mut(
+        &mut self,
+    ) -> Box<dyn Iterator<Item = (&QcIndexing, &mut Rinex)> + '_> {
+        self.rinex_products_iter_mut(QcProductType::MeteoObservation)
+    }
+
     /// Returns reference to all [QcProductType::BroadcastNavigation] RINEX products.
-    pub fn brdc_navigations_rinex_iter(
-        &self,
-    ) -> Box<dyn Iterator<Item = (&QcIndexing, &Rinex)> + '_> {
+    pub fn brdc_navigations_iter(&self) -> Box<dyn Iterator<Item = (&QcIndexing, &Rinex)> + '_> {
         self.rinex_products_iter(QcProductType::BroadcastNavigation)
     }
 
     /// Returns mutable reference to all [QcProductType::BroadcastNavigation] RINEX products.
-    pub fn brdc_navigations_rinex_iter_mut(
+    pub fn brdc_navigations_iter_mut(
         &mut self,
     ) -> Box<dyn Iterator<Item = (&QcIndexing, &mut Rinex)> + '_> {
         self.rinex_products_iter_mut(QcProductType::BroadcastNavigation)
@@ -309,5 +325,32 @@ impl QcContext {
     /// Returns mutable reference to indexed [QcProductType::PreciseClock] RINEX product (if it exists).
     pub fn get_clock_rinex_mut(&mut self, indexing: &QcIndexing) -> Option<&mut Rinex> {
         self.get_rinex_data_mut(QcProductType::PreciseClock, indexing)
+    }
+
+    /// Returns true if [QcProductType::Observation] is present in current [QcContext],
+    /// whatever the data source.
+    pub fn has_observations(&self) -> bool {
+        for (_, _) in self.observations_iter() {
+            return true;
+        }
+        false
+    }
+
+    /// Returns true if [QcProductType::BroadcastNavigation] is present in the current [QcContext],
+    /// whatever the publisher.
+    pub fn has_brdc_navigation(&self) -> bool {
+        for (_, _) in self.brdc_navigations_iter() {
+            return true;
+        }
+        false
+    }
+
+    /// Returns true if [QcProductType::MeteoObservation] is present in the current [QcContext],
+    /// whatever the publisher.
+    pub fn has_meteo_observations(&self) -> bool {
+        for (_, _) in self.meteo_observations_iter() {
+            return true;
+        }
+        false
     }
 }

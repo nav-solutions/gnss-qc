@@ -274,77 +274,6 @@ impl QcContext {
         None
     }
 
-    /// Returns path to File considered as Primary product in this Context.
-    /// When a unique file had been loaded, it is obviously considered Primary.
-    pub fn primary_path(&self) -> Option<&PathBuf> {
-        /*
-         * Order is important: determines what format are prioritized
-         * in the "primary" determination
-         */
-        for product in [
-            QcProductType::Observation,
-            QcProductType::DORIS,
-            QcProductType::BroadcastNavigation,
-            QcProductType::MeteoObservation,
-            QcProductType::IONEX,
-            QcProductType::ANTEX,
-            QcProductType::PreciseClock,
-            #[cfg(feature = "sp3")]
-            QcProductType::PreciseOrbit,
-        ] {
-            if let Some(paths) = self.files(product) {
-                return paths.first();
-            }
-        }
-        None
-    }
-
-    /// Returns name of this context.
-    /// Context is named after the file considered as Primary, see [Self::primary_path].
-    /// If no files were previously loaded, simply returns "Undefined".
-    pub fn name(&self) -> String {
-        if let Some(path) = self.primary_path() {
-            path.file_name()
-                .unwrap_or(OsStr::new("Undefined"))
-                .to_string_lossy()
-                // removes possible .crx ; .gz extensions
-                .split('.')
-                .next()
-                .unwrap_or("Undefined")
-                .to_string()
-        } else {
-            "Undefined".to_string()
-        }
-    }
-
-    /// Returns reference to files loaded in given category
-    pub fn files(&self, product: QcProductType) -> Option<&Vec<PathBuf>> {
-        self.files
-            .iter()
-            .filter_map(|(prod_type, paths)| {
-                if *prod_type == product {
-                    Some(paths)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-    }
-
-    /// Returns mutable reference to files loaded in given category
-    pub fn files_mut(&mut self, product: QcProductType) -> Option<&Vec<PathBuf>> {
-        self.files
-            .iter()
-            .filter_map(|(prod_type, paths)| {
-                if *prod_type == product {
-                    Some(paths)
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)
-    }
-
     /// Returns reference to all inner data matching this [QcProductType].
     pub(crate) fn products_iter(
         &self,
@@ -417,134 +346,96 @@ impl QcContext {
         Some(matched)
     }
 
-    /// Returns true if [ProductType::Observation] are present in Self
-    pub fn has_observation(&self) -> bool {
-        self.observation().is_some()
-    }
-
-    /// Returns true if [ProductType::BroadcastNavigation] are present in Self
-    pub fn has_brdc_navigation(&self) -> bool {
-        self.brdc_navigation().is_some()
-    }
-
-    /// Returns true if at least one [ProductType::DORIS] file is present
-    pub fn has_doris(&self) -> bool {
-        self.doris().is_some()
-    }
-
-    /// Returns true if [ProductType::MeteoObservation] are present in Self
-    pub fn has_meteo(&self) -> bool {
-        self.meteo().is_some()
-    }
-
-    /// Load a readable [Rinex] file into this [QcContext].
-    pub fn load_rinex_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
-        let rinex = Rinex::from_file(&path)?;
-        self.load_rinex(path, rinex)
-    }
-
     /// True if current [QcContext] is compatible with basic post processed navigation.
     /// It does not mean you can actually perform post processed navigation, you need the "navigation"
     /// feature for that.
     pub fn is_navigation_compatible(&self) -> bool {
-        self.observation().is_some() && self.brdc_navigation().is_some()
-    }
-
-    /// Returns true if provided Input products allow Ionosphere bias
-    /// model optimization
-    pub fn iono_bias_model_optimization(&self) -> bool {
-        self.ionex().is_some() // TODO: BRDC V3 or V4
+        self.has_brdc_navigation() && self.has_observations()
     }
 
     /// Returns true if provided Input products allow Troposphere bias
     /// model optimization
     pub fn tropo_bias_model_optimization(&self) -> bool {
-        self.has_meteo()
+        self.has_meteo_observations()
     }
 
-    /// Apply preprocessing filter algorithm to mutable [Self].
-    /// Filter will apply to all data contained in the context.
+    /// Apply preprocessing filter algorithm to mutable [QcContext].
+    /// Filter will apply to all internal products when applicable.
     pub fn filter_mut(&mut self, filter: &Filter) {
-        if let Some(data) = self.observation_mut() {
-            data.filter_mut(filter);
+        for (_, rinex) in self.observations_iter_mut() {
+            rinex.filter_mut(filter);
         }
-        if let Some(data) = self.brdc_navigation_mut() {
-            data.filter_mut(filter);
+
+        for (_, rinex) in self.brdc_navigations_iter_mut() {
+            rinex.filter_mut(filter);
         }
-        if let Some(data) = self.doris_mut() {
-            data.filter_mut(filter);
+
+        for (_, rinex) in self.meteo_observations_iter_mut() {
+            rinex.filter_mut(filter);
         }
-        if let Some(data) = self.meteo_mut() {
-            data.filter_mut(filter);
-        }
-        if let Some(data) = self.clock_mut() {
-            data.filter_mut(filter);
-        }
-        if let Some(data) = self.ionex_mut() {
-            data.filter_mut(filter);
+
+        for (_, rinex) in self.clocks_rinex_iter_mut() {
+            rinex.filter_mut(filter);
         }
 
         #[cfg(feature = "sp3")]
-        if let Some(data) = self.sp3_mut() {
-            data.filter_mut(filter);
+        for (_, sp3) in self.sp3_agencies_iter_mut() {
+            sp3.filter_mut(filter);
         }
     }
 
-    /// Fix given [Repair] condition
-    pub fn repair_mut(&mut self, r: Repair) {
-        if let Some(rinex) = self.observation_mut() {
-            rinex.repair_mut(r);
+    /// Apply desired [Repair]ment to mutable [QcContext].
+    /// This only applies to [QcProductType::Observation] products.
+    pub fn repair_mut(&mut self, repair: Repair) {
+        for (_, rinex) in self.observations_iter_mut() {
+            rinex.repair_mut(repair)
         }
     }
 
-    /// True if current [QcContext] is compatible with CPP positioning method
-    /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>.
-    /// This does not mean you can deploy a navigation solver, because that requires
-    /// the "navigation" create feature.
-    pub fn is_cpp_navigation_compatible(&self) -> bool {
-        // TODO: improve: only PR
-        if let Some(obs) = self.observation() {
-            obs.carrier_iter().count() > 1
+    /// Returns True if CPP positioning method
+    /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>
+    /// may apply to selected data source.
+    pub fn is_cpp_navigation_compatible(&self, data_source: &QcIndexing) -> bool {
+        if let Some(rinex) = self.get_observation_rinex(data_source) {
+            // TODO wrong: only PR
+            rinex.carrier_iter().count() > 1
         } else {
             false
         }
     }
 
-    /// Returns True if current [QcContext] is compatible with PPP positioning method
-    /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.PPP>.
-    /// This does not mean you can deploy a navigation solver, because that requires
-    /// the "navigation" create feature.
-    pub fn is_ppp_navigation_compatible(&self) -> bool {
-        // TODO: check PH as well
-        self.is_cpp_navigation_compatible()
-    }
-
-    #[cfg(not(feature = "sp3"))]
-    /// SP3 is required for 100% PPP compatibility
-    pub fn is_ppp_ultra_navigation_compatible(&self) -> bool {
-        false
-    }
-}
-
-impl std::fmt::Debug for QcContext {
-    /// Debug formatting, prints all loaded files per Product category.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Primary: \"{}\"", self.name())?;
-        for product in [
-            QcProductType::Observation,
-            QcProductType::BroadcastNavigation,
-            QcProductType::MeteoObservation,
-            QcProductType::PreciseClock,
-            QcProductType::IONEX,
-            QcProductType::ANTEX,
-            #[cfg(feature = "sp3")]
-            QcProductType::PreciseOrbit,
-        ] {
-            if let Some(files) = self.files(product) {
-                write!(f, "\n{}: ", product)?;
-                write!(f, "{:?}", files,)?;
-            }
+    /// Returns True if PPP positioning method
+    /// <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>
+    /// may apply to selected data source.
+    pub fn is_ppp_navigation_compatible(&self, data_source: &QcIndexing) -> bool {
+        if let Some(rinex) = self.get_observation_rinex(data_source) {
+            // TODO wrong: only PH+PR
+            rinex.carrier_iter().count() > 1
+        } else {
+            false
         }
-        Ok(())
     }
 }
+
+// impl std::fmt::Debug for QcContext {
+//     /// Debug formatting, prints all loaded files per Product category.
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         for product in [
+//             QcProductType::Observation,
+//             QcProductType::BroadcastNavigation,
+//             QcProductType::MeteoObservation,
+//             QcProductType::PreciseClock,
+//             QcProductType::IONEX,
+//             QcProductType::ANTEX,
+//             #[cfg(feature = "sp3")]
+//             QcProductType::PreciseOrbit,
+//         ] {
+//             if let Some(files) = self.files(product) {
+//                 write!(f, "\n{}: ", product)?;
+//                 write!(f, "{:?}", files,)?;
+//             }
+//         }
+
+//         Ok(())
+//     }
+// }
