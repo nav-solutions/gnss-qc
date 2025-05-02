@@ -20,6 +20,8 @@ following purpose:
 * Obtain Radio based orbital projections (on `navigation` lib feature)
 * Obtain SP3 orbital projection (on `navigation` lib feature)
 * Perform SP3 versus radio based residual analysis
+* Compare precise RINEX products between them
+* Compare precise SP3 products between them (on `sp3` lib feature)
 * Consider precise Clock products
 * Preprocess all supported products, in particular
   * data filtering
