@@ -74,7 +74,10 @@ pub mod prelude {
     };
 
     #[cfg(feature = "navigation")]
-    pub use anise::prelude::{Almanac, Frame, Orbit};
+    pub use anise::{
+        constants::frames::{EARTH_ITRF93, EARTH_J2000, IAU_EARTH_FRAME, SUN_J2000},
+        prelude::{Almanac, Frame, Orbit},
+    };
 
     #[cfg(feature = "navigation")]
     pub use gnss_rtk::prelude::{Config as NavPreset, Method as NavMethod, User as NavUserProfile};

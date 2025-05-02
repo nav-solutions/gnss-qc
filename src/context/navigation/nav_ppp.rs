@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use gnss_rtk::prelude::{
-    AbsoluteTime, Bias, BiasRuntime, Candidate, Config as PPPConfig, Duration, Epoch, Error,
-    Observation, OrbitSource, PVTSolution, StaticPPP, User as UserProfile, PPP, SV,
+    Bias, BiasRuntime, Candidate, Config as PPPConfig, Duration, Epoch, Error, Observation,
+    PVTSolution, User as UserProfile, PPP, SV,
 };
 
 use crate::context::{
@@ -29,28 +29,6 @@ impl Bias for NullBias {
     }
 }
 
-/// [Solver] wrapps the two kinds of PPP solvers
-enum PPPSolver<O: OrbitSource, B: Bias, T: AbsoluteTime> {
-    /// [StaticPPP] solver
-    Static(StaticPPP<O, B, T>),
-    /// Dynamic [PPP] solver
-    Dynamic(PPP<O, B, T>),
-}
-
-impl<O: OrbitSource, B: Bias, T: AbsoluteTime> PPPSolver<O, B, T> {
-    fn resolve(
-        &mut self,
-        user: UserProfile,
-        epoch: Epoch,
-        candidates: &[Candidate],
-    ) -> Result<PVTSolution, Error> {
-        match self {
-            Self::Static(solver) => solver.resolve(user, epoch, candidates),
-            Self::Dynamic(solver) => solver.resolve(user, epoch, candidates),
-        }
-    }
-}
-
 /// [NavPPPSolver] is used to resolve [PVTSolution]s from a [QcContext].
 pub struct NavPPPSolver<'a> {
     /// [QcSignalBuffer]
@@ -69,7 +47,7 @@ pub struct NavPPPSolver<'a> {
     candidates: Vec<Candidate>,
 
     /// Internal [PPPSolver]
-    solver: PPPSolver<QcNavigationBuffer<'a>, NullBias, NavTimeSolver>,
+    solver: PPP<QcNavigationBuffer<'a>, NullBias, NavTimeSolver>,
 }
 
 #[cfg(feature = "navigation")]
@@ -95,7 +73,7 @@ impl QcContext {
     /// let preset = NavPreset::default();
     ///
     /// // Deployment: static application.
-    /// let mut ppp = ctx.nav_static_ppp_solver(preset)
+    /// let mut ppp = ctx.nav_ppp_solver(preset)
     ///     .expect("This context is navigation compatible!");
     ///
     /// // In static use case like this example,
@@ -121,7 +99,7 @@ impl QcContext {
     ///     }
     /// }
     /// ```
-    pub fn nav_static_ppp_solver<'a>(&'a self, cfg: PPPConfig) -> Option<NavPPPSolver<'a>> {
+    pub fn nav_ppp_solver<'a>(&'a self, cfg: PPPConfig) -> Option<NavPPPSolver<'a>> {
         // gather all ephemeris
         let buffered_ephemeris = self.buffered_ephemeris_data();
 
@@ -132,7 +110,7 @@ impl QcContext {
 
         let null_bias = NullBias {};
 
-        let solver = PPPSolver::Static(StaticPPP::new(
+        let solver = PPP::new(
             self.almanac.clone(),
             self.earth_cef,
             cfg,
@@ -140,7 +118,7 @@ impl QcContext {
             nav_time,
             null_bias,
             None,
-        ));
+        );
 
         let next_signal = signals.next()?;
 

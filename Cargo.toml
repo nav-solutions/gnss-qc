@@ -133,3 +133,5 @@ plotly = "0.12"
 
 [dev-dependencies]
 serde_json = "1"
+rstest = "0.25.0"
+env_logger = "0.11"

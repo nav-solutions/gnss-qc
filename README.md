@@ -75,8 +75,8 @@ ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
 // Select a general preset, that mostly defines the selected navigation method.
 let preset = NavPreset::static_preset(NavMethod::CPP);
 
-// Deploy the solver. Selecting static use case here.
-let mut ppp = ctx.nav_static_ppp_solver(config)
+// Deploy the solver.
+let mut ppp = ctx.nav_ppp_solver(preset)
     .expect("This context is navigation compatible!");
 
 // In static applications like this example,
@@ -135,15 +135,15 @@ ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
 ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
     .unwrap();
 
-// Deploy the solver. Selecting static use case here.
-let mut nav_ppp = ctx.nav_static_pvt_solver()
+// Deploy the solver.
+let mut nav_ppp = ctx.nav_pvt_solver()
     .expect("This context is navigation compatible!");
 ```
 
 CGGTTS solutions
 ================
 
-Activate `cggtts` option to lock the `nav_cggtts_solver` method, associated solver and structures.  
+Activate `cggtts` option to unlock the `nav_cggtts_ppp_solver` method, associated solver and structures.  
 This one operates very similarly as `NavPvtSolver` and is dedicated to CGGTTS solutions solving.
 
 This option relies on [CGGTTS by RTK-rs](https://github.com/rtk-rs/cggtts):
@@ -160,6 +160,7 @@ ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     .unwrap();
 
-let mut nav_cggtts = ctx.nav_cggtts_solver()
+// Deploy the solver, using PPP navigation technique.
+let mut nav_cggtts = ctx.nav_cggtts_ppp_solver()
     .expect("This context is navigation compatible!");
 ```

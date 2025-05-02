@@ -50,17 +50,12 @@ impl QcContext {
     /// Obtain a [NavCggttsSolver] from any navigation compatible [QcContext] using absolute/direct navigation
     /// (no external reference).  
     /// You can then grab the solutions with [SolutionsIter::next].
-    ///
-    /// NB: this deploys a static solver, the measurement system is supposed to be held static
-    /// during CGGTTS sessions. Evolutions (like potential degradations) of the measurement system
-    /// are described in the iteration process, through [User] description, that you should keep up to date.
-    ///
     /// ## Input
     /// - cfg: [PPPConfig] preset
     /// ## Output
     /// - solver: [NavCggttsSolver]
     pub fn nav_cggtts_ppp_solver<'a>(&'a self, cfg: PPPConfig) -> Option<NavCggttsSolver<'a>> {
-        let nav_ppp = self.nav_static_ppp_solver(cfg)?;
+        let nav_ppp = self.nav_ppp_solver(cfg)?;
 
         let cv_calendar = CvCalendar::bipm();
 
