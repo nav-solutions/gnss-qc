@@ -31,6 +31,48 @@ pub enum QcIndexing {
     Custom(String),
 }
 
+impl QcIndexing {
+    /// Unwraps self as [QcIndexing::GnssReceiver] model name, if applicable
+    pub fn as_gnss_receiver(&self) -> Option<String> {
+        match self {
+            Self::GnssReceiver(gnss_rx) => Some(gnss_rx.clone()),
+            _ => None,
+        }
+    }
+
+    /// Unwraps self as [QcIndexing::GeodeticMarker] ID, if applicable
+    pub fn as_geodetic_marker(&self) -> Option<String> {
+        match self {
+            Self::GeodeticMarker(marker) => Some(marker.clone()),
+            _ => None,
+        }
+    }
+
+    /// Unwraps self as [QcIndexing::Agency] name, if applicable
+    pub fn as_agency(&self) -> Option<String> {
+        match self {
+            Self::Agency(agency) => Some(agency.clone()),
+            _ => None,
+        }
+    }
+
+    /// Unwraps self as [QcIndexing::Operator] name, if applicable
+    pub fn as_operator(&self) -> Option<String> {
+        match self {
+            Self::Operator(operator) => Some(operator.clone()),
+            _ => None,
+        }
+    }
+
+    /// Unwraps self as [QcIndexing::Custom] name, if applicable
+    pub fn as_custom_name(&self) -> Option<String> {
+        match self {
+            Self::Custom(custom) => Some(custom.clone()),
+            _ => None,
+        }
+    }
+}
+
 impl std::str::FromStr for QcIndexing {
     type Err = QcError;
 

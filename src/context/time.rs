@@ -68,12 +68,12 @@ impl QcContext {
     pub fn timescale_transposition_mut(&mut self, target: TimeScale) {
         let solver = self.gnss_absolute_time_solver();
 
-        if let Some(observations) = self.observation_mut() {
-            observations.timeshift_mut(&solver, target);
+        for (_, rinex) in self.observations_rinex_iter_mut() {
+            rinex.timeshift_mut(&solver, target);
         }
 
         #[cfg(feature = "sp3")]
-        if let Some(sp3) = self.sp3_mut() {
+        for (_, sp3) in self.sp3_products_iter_mut() {
             sp3.timeshift_mut(&solver, target);
         }
     }
