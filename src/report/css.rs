@@ -171,6 +171,29 @@ nav a:hover {
   color: var(--text-color);
   margin-bottom: 0.75rem;
 }
+
+.radio-group {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.radio-option {
+  position: relative;
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background-color: #1e1e1e;
+  color: #ffff;
+  border: 2px solid #555;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.radio-option: hover {
+  border-color: var(--accent, #facc15);
+}
         "
         .to_string()
     }

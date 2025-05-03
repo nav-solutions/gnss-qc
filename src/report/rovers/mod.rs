@@ -4,6 +4,7 @@ use crate::{
     report::selector::Selector,
 };
 
+use itertools::Itertools;
 use std::collections::HashMap;
 
 mod rover;
@@ -18,7 +19,7 @@ pub struct Report {
 impl Default for Report {
     fn default() -> Self {
         Self {
-            selector: Selector::new("rovers"),
+            selector: Selector::new("rovers", false),
             rovers: Default::default(),
         }
     }
@@ -30,7 +31,7 @@ impl Report {
     }
 
     pub fn new(ctx: &QcContext) -> Self {
-        let mut selector = Selector::new("rovers");
+        let mut selector = Selector::new("rovers", false);
         let mut rovers = HashMap::new();
 
         for rover in ctx.observations.keys() {
@@ -44,6 +45,23 @@ impl Report {
 
 impl Render for Report {
     fn render(&self) -> Markup {
-        html! {}
+        html! {
+            p {
+                (self.selector.render())
+            }
+            @ for (index, rover) in self.rovers.keys().sorted().enumerate() {
+                @ if let Some(content) = self.rovers.get(&rover) {
+                    @ if index == 0 {
+                        section class="rover active" id=(rover.to_string()) {
+                            (content.render())
+                        }
+                    } @ else {
+                        section class="rover" id=(rover.to_string()) {
+                            (content.render())
+                        }
+                    }
+                }
+            }
+        }
     }
 }

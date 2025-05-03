@@ -1,9 +1,12 @@
 use crate::{
     context::QcContext,
     plot::Plot,
-    prelude::{html, Epoch, MarkerSymbol, Markup, Mode, Render, SV},
-    report::{selector::PosVel, AxisSelector, ConstellationSelector, PosVelSelector},
+    prelude::{Constellation, Epoch, MarkerSymbol, Mode, SV},
+    report::{AxisSelector, ConstellationSelector, PosVelSelector},
 };
+
+use itertools::Itertools;
+use maud::{html, Markup, PreEscaped, Render};
 
 use log::error;
 use std::collections::HashMap;
@@ -31,25 +34,19 @@ impl<'a> Iterator for SatellitesPosVelIter<'a> {
 }
 
 pub struct Projection {
-    position_plot: Plot,
-    velocity_plot: Plot,
     axis_sel: AxisSelector,
     pos_vel_sel: PosVelSelector,
     constellation_sel: ConstellationSelector,
+    position_plots: HashMap<Constellation, Plot>,
 }
 
 impl Default for Projection {
     fn default() -> Self {
         Self {
-            position_plot: {
-                Plot::timedomain_plot("position-residuals", "BRDC/SP3 Residual", "Error [m]", true)
-            },
-            velocity_plot: {
-                Plot::timedomain_plot("velocity-residuals", "BRDC/SP3 Residual", "Error [m]", true)
-            },
+            position_plots: Default::default(),
             axis_sel: AxisSelector::new("orbit-residuals"),
             pos_vel_sel: PosVelSelector::new("orbit-residuals"),
-            constellation_sel: ConstellationSelector::new("orbit-residuals"),
+            constellation_sel: ConstellationSelector::new("orbit-residuals", true),
         }
     }
 }
@@ -58,21 +55,10 @@ impl Projection {
     pub fn new(context: &QcContext) -> Self {
         let pos_vel_selector = PosVelSelector::new("orbit-residual-posvel");
 
-        let mut constell_selector = ConstellationSelector::new("orbit-residuals-constellation");
+        let mut constell_selector =
+            ConstellationSelector::new("orbit-residuals-constellation", true);
 
-        let mut pos_plot = Plot::timedomain_plot(
-            "position-residuals",
-            "SP3/BRDC Residuals",
-            "Error [m]",
-            true,
-        );
-
-        let mut vel_plot = Plot::timedomain_plot(
-            "velocity-residuals",
-            "SP3/BRDC Residuals",
-            "Error [m]",
-            true,
-        );
+        let mut pos_plots = HashMap::<Constellation, Plot>::new();
 
         if let Some(sp3) = &context.sp3 {
             if let Some(brdc) = &context.brdc_navigation {
@@ -82,17 +68,13 @@ impl Projection {
                 let mut y_err_data = HashMap::<SV, Vec<f64>>::new();
                 let mut z_err_data = HashMap::<SV, Vec<f64>>::new();
 
-                let mut velx_err_data = HashMap::<SV, Vec<f64>>::new();
-                let mut vely_err_data = HashMap::<SV, Vec<f64>>::new();
-                let mut velz_err_data = HashMap::<SV, Vec<f64>>::new();
-
                 let mut iter = if sp3.has_satellite_velocity() {
                     SatellitesPosVelIter::PositionVelocity(sp3.satellites_pos_vel_km_iter())
                 } else {
                     SatellitesPosVelIter::PositionOnly(sp3.satellites_position_km_iter())
                 };
 
-                while let Some((t, sv, pos_km, vel_km)) = iter.next() {
+                while let Some((t, sv, pos_km, _)) = iter.next() {
                     if let Some((toc, _, ephemeris)) = brdc
                         .nav_ephemeris_frames_iter()
                         .filter_map(|(k, eph)| {
@@ -122,6 +104,20 @@ impl Projection {
                         {
                             constell_selector.add(&sv.constellation);
 
+                            if pos_plots.get(&sv.constellation).is_none() {
+                                pos_plots.insert(
+                                    sv.constellation,
+                                    Plot::plot_3d(
+                                        "position-residuals",
+                                        "SP3/BRDC Positions Residuals",
+                                        "Error [m]",
+                                        "Error [m]",
+                                        "Error [m]",
+                                        true,
+                                    ),
+                                );
+                            }
+
                             if let Some(epochs) = err_epochs.get_mut(&sv) {
                                 epochs.push(t);
                             } else {
@@ -143,111 +139,39 @@ impl Projection {
                                 y_err_data.insert(sv, vec![y_err_m]);
                                 z_err_data.insert(sv, vec![z_err_m]);
                             }
-
-                            if let Some(vel_km) = vel_km {
-                                let (velx_err_m, vely_err_m, velz_err_m) = (
-                                    kepler_vel_km[0] * 1e3 - vel_km.0 * 1e3,
-                                    kepler_vel_km[1] * 1e3 - vel_km.1 * 1e3,
-                                    kepler_vel_km[2] * 1e3 - vel_km.2 * 1e3,
-                                );
-
-                                if x_err_data.get(&sv).is_some() {
-                                    velx_err_data.get_mut(&sv).unwrap().push(velx_err_m);
-                                    vely_err_data.get_mut(&sv).unwrap().push(vely_err_m);
-                                    velz_err_data.get_mut(&sv).unwrap().push(velz_err_m);
-                                } else {
-                                    velx_err_data.insert(sv, vec![velx_err_m]);
-                                    vely_err_data.insert(sv, vec![vely_err_m]);
-                                    velz_err_data.insert(sv, vec![velz_err_m]);
-                                }
-                            }
                         }
                     }
                 }
 
-                for (index, (sv, epochs)) in err_epochs.iter().enumerate() {
-                    let x_err_m = x_err_data.get(&sv).unwrap();
-                    let y_err_m = y_err_data.get(&sv).unwrap();
-                    let z_err_m = z_err_data.get(&sv).unwrap();
+                for (constellation, plots) in pos_plots.iter_mut() {
+                    for (index, (sv, epochs)) in err_epochs.iter().enumerate() {
+                        if sv.constellation != *constellation {
+                            continue;
+                        }
 
-                    let trace = Plot::timedomain_chart(
-                        &format!("{}(x)", sv),
-                        Mode::Markers,
-                        MarkerSymbol::Diamond,
-                        epochs,
-                        x_err_m.to_vec(),
-                        index == 0,
-                    );
+                        let x_err_m = x_err_data.get(&sv).unwrap();
+                        let y_err_m = y_err_data.get(&sv).unwrap();
+                        let z_err_m = z_err_data.get(&sv).unwrap();
 
-                    pos_plot.add_trace(trace);
-
-                    let trace = Plot::timedomain_chart(
-                        &format!("{}(y)", sv),
-                        Mode::Markers,
-                        MarkerSymbol::Diamond,
-                        epochs,
-                        y_err_m.to_vec(),
-                        index == 0,
-                    );
-
-                    pos_plot.add_trace(trace);
-
-                    let trace = Plot::timedomain_chart(
-                        &format!("{}(z)", sv),
-                        Mode::Markers,
-                        MarkerSymbol::Diamond,
-                        epochs,
-                        z_err_m.to_vec(),
-                        index == 0,
-                    );
-
-                    pos_plot.add_trace(trace);
-
-                    if let Some(velx_err_m) = velx_err_data.get(&sv) {
-                        let trace = Plot::timedomain_chart(
-                            &format!("{}(velx)", sv),
+                        let trace = Plot::chart_3d(
+                            &format!("{}", sv),
                             Mode::Markers,
                             MarkerSymbol::Diamond,
                             epochs,
-                            velx_err_m.to_vec(),
-                            index == 0,
+                            x_err_m.to_vec(),
+                            y_err_m.to_vec(),
+                            z_err_m.to_vec(),
+                            true,
                         );
 
-                        vel_plot.add_trace(trace);
-                    }
-
-                    if let Some(vely_err_m) = vely_err_data.get(&sv) {
-                        let trace = Plot::timedomain_chart(
-                            &format!("{}(vely)", sv),
-                            Mode::Markers,
-                            MarkerSymbol::Diamond,
-                            epochs,
-                            vely_err_m.to_vec(),
-                            index == 0,
-                        );
-
-                        vel_plot.add_trace(trace);
-                    }
-
-                    if let Some(velz_err_m) = velz_err_data.get(&sv) {
-                        let trace = Plot::timedomain_chart(
-                            &format!("{}(velz)", sv),
-                            Mode::Markers,
-                            MarkerSymbol::Diamond,
-                            epochs,
-                            velz_err_m.to_vec(),
-                            index == 0,
-                        );
-
-                        vel_plot.add_trace(trace);
+                        plots.add_trace(trace);
                     }
                 }
             }
         }
 
         Self {
-            position_plot: pos_plot,
-            velocity_plot: vel_plot,
+            position_plots: pos_plots,
             pos_vel_sel: pos_vel_selector,
             constellation_sel: constell_selector,
             axis_sel: AxisSelector::new("orbit-proj"),
@@ -257,35 +181,67 @@ impl Projection {
     pub fn has_content(&self) -> bool {
         self.constellation_sel.has_content()
     }
+
+    fn javascript(&self) -> &str {
+        "
+        const constell_sel = document.getElementById('orbit-residuals-constell');
+        const position_residuals_plots = document.querySelectorAll('.orbit-position-residuals');
+
+        // constellation listener
+        constell_sel.addEventListener('change', (event) => {
+            console.log('selected constell: ' + event.target.value);
+
+            if (event.target.value == 'All' || event.target.value == 'Both') {
+                position_residuals_plots.forEach(plot => {
+                    plot.style = 'display: block';
+                });
+            }
+        });
+        "
+    }
 }
 
 impl Render for Projection {
     fn render(&self) -> Markup {
         html! {
+
             // pos/vel selector
-            div class="data-sel filter" name="constellation" {
-                (self.pos_vel_sel.render())
+            div id="orbit-residuals-posvel" {
+                p {
+                    (self.pos_vel_sel.render())
+                }
             }
 
             // axis selector
-            div class="data-sel filter" name="axis" {
-                (self.axis_sel.render())
+            div id="orbit-residuals-axis" {
+                p {
+                    (self.axis_sel.render())
+                }
             }
 
             // constellations selector
-            div class="data-sel filter" name="constellation" {
-                (self.constellation_sel.render())
+            div id="orbit-residuals-constell" {
+                p {
+                    (self.constellation_sel.render())
+                }
             }
 
-            // residuals
-            div class="data" id="position-residuals" style="display: none" {
-                (self.position_plot.render())
+            // positions
+            @ for (index, constellation) in self.position_plots.keys().sorted().enumerate() {
+                @ if let Some(plot) = self.position_plots.get(&constellation) {
+                    div id="{}-orbit-position-residuals" class="data orbit-position-residuals" style="display: block" {
+                        p {
+                            (plot.render())
+                        }
+                    }
+                }
             }
 
-            // residuals
-            div class="data" id="velocity-residuals" style="display: none" {
-                (self.velocity_plot.render())
+
+            script {
+                (PreEscaped(self.javascript()))
             }
+
         }
     }
 }

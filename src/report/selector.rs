@@ -2,7 +2,6 @@ use crate::prelude::{html, Constellation, Markup, Render};
 use std::fmt::Display;
 
 pub type ConstellationSelector = Selector<Constellation>;
-pub type StringSelector = Selector<String>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub enum Axis {
@@ -44,7 +43,7 @@ pub struct PosVelSelector {
 
 impl PosVelSelector {
     pub fn new(html_id: &str) -> Self {
-        let mut selector = Selector::new(html_id);
+        let mut selector = Selector::new(html_id, true);
 
         selector.add(&PosVel::Position);
         selector.add(&PosVel::Velocity);
@@ -67,7 +66,7 @@ pub struct AxisSelector {
 
 impl AxisSelector {
     pub fn new(html_id: &str) -> Self {
-        let mut selector = Selector::new(html_id);
+        let mut selector = Selector::new(html_id, true);
 
         selector.add(&Axis::X);
         selector.add(&Axis::Y);
@@ -87,12 +86,14 @@ impl Render for AxisSelector {
 
 pub struct Selector<T: Default + Clone + Display> {
     html_id: String,
+    allows_all: bool,
     inner: Vec<T>,
 }
 
 impl<T: Default + Clone + PartialEq + Display> Selector<T> {
-    pub fn new(html_id: &str) -> Self {
+    pub fn new(html_id: &str, allows_all: bool) -> Self {
         Self {
+            allows_all,
             html_id: html_id.to_string(),
             inner: Default::default(),
         }
@@ -109,16 +110,51 @@ impl<T: Default + Clone + PartialEq + Display> Selector<T> {
     }
 }
 
-impl<T: Default + Copy + Clone + Display> Render for Selector<T> {
+impl<T: Default + Clone + Display> Render for Selector<T> {
     fn render(&self) -> Markup {
         html! {
-            div class="tabs" id=(self.html_id) {
-                div class="tab active" data-target="all" {
-                    ("All")
+            form class="radio-group" id=(self.html_id) {
+                @ if self.allows_all {
+                    @ if self.inner.len() == 2 {
+                        label class="radio-option" {
+                            input type="radio" name=(self.html_id) value="both" checked {}
+                            span {
+                                "Both"
+                            }
+                        }
+                    } @ else {
+                        label class="radio-option" {
+                            input type="radio" name=(self.html_id) value="both" checked {}
+                            span {
+                                "All"
+                            }
+                        }
+                    }
                 }
-                @ for item in self.inner.iter() {
-                    div class="tab" data-target=(item.to_string()) {
-                        (item.to_string())
+                @ for (index, item) in self.inner.iter().enumerate() {
+                    @ if index == 0 {
+                        @ if self.allows_all {
+                            label class="radio-option" {
+                                input type="radio" name=(self.html_id) value=(item) {}
+                                span {
+                                    (item.to_string())
+                                }
+                            }
+                        } @ else {
+                            label class="radio-option" {
+                                input type="radio" name=(self.html_id) value=(item) checked {}
+                                span {
+                                    (item.to_string())
+                                }
+                            }
+                        }
+                    } @ else {
+                        label class="radio-option" {
+                            input type="radio" name=(self.html_id) value=(item) {}
+                            span {
+                                (item.to_string())
+                            }
+                        }
                     }
                 }
             }
