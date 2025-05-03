@@ -1,12 +1,6 @@
-//! Generic analysis report
-use std::collections::HashMap;
-
 use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 
-use crate::{
-    context::QcIndexing,
-    prelude::{Epoch, QcContext},
-};
+use crate::prelude::{Epoch, QcContext};
 
 mod css;
 mod javascript;
@@ -24,10 +18,13 @@ use rovers::Report as RoversReport;
 mod orbit_residuals;
 use orbit_residuals::Projection as OrbitResidualsProjection;
 
+mod temporal_residuals;
+use temporal_residuals::Projection as TemporalResidualsProjection;
+
 mod sp3;
 use sp3::Report as SP3Report;
 
-pub(crate) use selector::{AxisSelector, ConstellationSelector, PosVelSelector};
+pub(crate) use selector::{ConstellationSelector, PosVelSelector};
 
 /// [QcExtraPage] you can add to customize [QcReport]
 pub struct QcExtraPage {
@@ -50,6 +47,9 @@ pub struct QcReport {
     /// Orbital residuals (when feasible)
     orbit_residuals_proj: OrbitResidualsProjection,
 
+    /// Temporal residuals (when feasible)
+    temporal_residuals_proj: TemporalResidualsProjection,
+
     /// Reported rovers (when feasible)
     rovers: RoversReport,
 
@@ -68,6 +68,7 @@ impl QcContext {
             rovers: Default::default(),
             sp3_files_report: Default::default(),
             orbit_residuals_proj: Default::default(),
+            temporal_residuals_proj: Default::default(),
         }
     }
 
@@ -81,6 +82,7 @@ impl QcContext {
             rovers: RoversReport::new(self),
             sp3_files_report: SP3Report::new(self),
             orbit_residuals_proj: OrbitResidualsProjection::new(self),
+            temporal_residuals_proj: TemporalResidualsProjection::new(self),
         }
     }
 }
@@ -140,6 +142,16 @@ impl Render for QcReport {
                                     "Orbital Residuals "
                                 }
                                 i data-lucide="satellite" {}
+                            }
+                        }
+
+                        @ if self.temporal_residuals_proj.has_content() {
+                            // Create a nav menu
+                            a data-target="temporal-residuals" {
+                                span {
+                                    "Temporal Residuals "
+                                }
+                                i data-lucide="clock" {}
                             }
                         }
 
@@ -218,6 +230,18 @@ impl Render for QcReport {
                                 }
                                 p {
                                     (self.orbit_residuals_proj.render())
+                                }
+                            }
+                        }
+
+                        // temporal residuals section
+                        @ if self.temporal_residuals_proj.has_content() {
+                            section id="temporal-residuals" class="section" {
+                                h2 {
+                                    "Temporal Residuals"
+                                }
+                                p {
+                                    (self.temporal_residuals_proj.render())
                                 }
                             }
                         }

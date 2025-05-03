@@ -21,8 +21,10 @@ extern crate log;
 extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 
+// mod analysis;
 mod config;
 mod context;
+mod plot;
 mod product;
 mod report;
 
@@ -31,7 +33,6 @@ mod report;
 mod navigation;
 
 pub mod error;
-pub mod plot;
 
 #[cfg(test)]
 mod tests;
@@ -61,7 +62,6 @@ pub mod prelude {
 
     pub use std::path::Path;
 
-    pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
     pub use maud::{html, Markup, Render};
 
     #[cfg(feature = "sp3")]

@@ -7,6 +7,7 @@ use rinex::{
 
 use gnss_rtk::prelude::{Frame, Orbit, OrbitSource};
 
+#[derive(Clone)]
 pub struct QcEphemerisData {
     pub sv: SV,
     pub toe: Epoch,
@@ -42,11 +43,8 @@ pub struct QcEphemerisBuffer<'a> {
     /// Should be an Earth Centered [Frame] for 100% correctness.
     frame: Frame,
 
-    /// [QcEphemerisData] Iterator
-    pub iter: Box<dyn Iterator<Item = QcEphemerisData> + 'a>,
-
-    /// Buffered [QcEphemerisData]
-    buffered: Vec<QcEphemerisData>,
+    /// [QcSynchronousIterator]
+    buff: QcSynchronousIterator<'a, QcEphemerisData>,
 }
 
 impl<'a> OrbitSource for QcEphemerisBuffer<'a> {

@@ -1,7 +1,7 @@
 use crate::{
     context::QcContext,
-    plot::Plot,
-    prelude::{Constellation, Epoch, MarkerSymbol, Mode, SV},
+    plot::{MarkerSymbol, Mode, Plot},
+    prelude::{Constellation, Epoch, SV},
     report::{ConstellationSelector, PosVelSelector},
 };
 
@@ -195,14 +195,14 @@ impl Projection {
 
             if (event.target.value == 'All' || event.target.value == 'Both') {
                 for (let i = 0;  i < position_plots.length; i++) {
-                    position_plots[i].style = 'display: block';
+                    position_plots[i].style.display = 'block';
                 }
             } else {
                 for (let i = 0;  i < position_plots.length; i++) {
                     if (position_plots[i].id == event.target.value) {
-                        position_plots[i].style = 'display: block';
+                        position_plots[i].style.display = 'block';
                     } else {
-                        position_plots[i].style = 'display: none';
+                        position_plots[i].style.display = 'none';
                     }
                 }
             }
@@ -239,7 +239,6 @@ impl Render for Projection {
                     }
                 }
             }
-
 
             script {
                 (PreEscaped(self.javascript()))

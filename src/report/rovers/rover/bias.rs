@@ -26,7 +26,7 @@ impl Render for BiasSummary {
                 tbody {
                     tr {
                         th {
-                            button aria-label="Troposphere bias cancelling" data-balloon-pos="up" {
+                            button aria-label="Troposphere bias cancelling" data-balloon-pos="right" {
                                 "Troposphere Bias"
                             }
                         }
@@ -36,7 +36,7 @@ impl Render for BiasSummary {
                                     i class="fa-solid fa-circle-check" {}
                                 }
                                 button aria-label="Troposphere bias model can be optimized.
-        Standard internal model is optimized with regional measurements" data-balloon-pos="up" {
+        Standard internal model is optimized with regional measurements" data-balloon-pos="right" {
                                     "Model optimization"
                                 }
                             }
@@ -46,7 +46,7 @@ impl Render for BiasSummary {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
                                 button aria-label="Troposphere bias model cannot be optimized: missing Meteo IONEX.
-        Bias modelling will solely rely on internal standard models." data-balloon-pos="up" {
+        Bias modelling will solely rely on internal standard models." data-balloon-pos="right" {
                                     "Model optimization"
                                 }
                             }
@@ -54,7 +54,7 @@ impl Render for BiasSummary {
                     }
                     tr {
                         th {
-                            button aria-label="Ionosphere bias cancelling" data-balloon-pos="up" {
+                            button aria-label="Ionosphere bias cancelling" data-balloon-pos="right" {
                                 "Ionosphere Bias"
                             }
                         }
@@ -64,7 +64,7 @@ impl Render for BiasSummary {
                                     i class="fa-solid fa-circle-check" {}
                                 }
                                 button aria-label="Ionosphere bias model optimized by IONEX measurement/prediction.
-        This will not impact your solutions if direct cancellation is feasible." data-balloon-pos="up" {
+        This will not impact your solutions if direct cancellation is feasible." data-balloon-pos="right" {
                                     "Model optimization"
                                 }
                             }
@@ -74,7 +74,7 @@ impl Render for BiasSummary {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
                                 button aria-label="Ionosphere bias model cannot be optimized: import a IONEX (special RINEX).
-        This will not impact your solutions if direct cancellation is feasible." data-balloon-pos="up" {
+        This will not impact your solutions if direct cancellation is feasible." data-balloon-pos="right" {
                                     "Model optimization"
                                 }
                             }
@@ -84,7 +84,7 @@ impl Render for BiasSummary {
                                 span class="icon" style="color:green" {
                                     i class="fa-solid fa-circle-check" {}
                                 }
-                                button aria-label="Direct IONOD cancellation by signal observation." data-balloon-pos="up" {
+                                button aria-label="Direct IONOD cancellation by signal observation." data-balloon-pos="right" {
                                     "Cancelling"
                                 }
                             }
@@ -93,7 +93,7 @@ impl Render for BiasSummary {
                                 span class="icon" style="color:red" {
                                     i class="fa-solid fa-circle-xmark" {}
                                 }
-                                button aria-label="Direct IONOD cancellation is not feasible: missing secondary frequency." data-balloon-pos="up" {
+                                button aria-label="Direct IONOD cancellation is not feasible: missing secondary frequency." data-balloon-pos="right" {
                                     "Cancelling"
                                 }
                             }

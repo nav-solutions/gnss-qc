@@ -47,10 +47,9 @@ Logs
 
 This framework uses `$RUST_LOG` for debug traces. Turn them on to debug, in particular:
 
-* the data indexing. When a prefered indexing method is selected, it might no be feasible.
-For example, you selected `QcPreferedIndexing::GnssReceiver` while no GNSS receiver definitions
-were found. We will leave a debug trace (error) as possibly another indexing method was internally selected.
-* when performing complex task, like P.V.T solutions solving, it is recommended to monitor the process
+* the data indexing. Especially when using manual indexing (custom preferences),
+you can make sure the framework picked up your preference correctly.
+* when performing complex tasks, like P.V.T solutions solving, it is recommended to monitor the process
 using the debug traces.
 
 Core fundations
@@ -74,6 +73,21 @@ Basic and default features
 - `flate2` is activated by default, and allows Gzip compressed files to be naturally supported.
 - `sp3` is activated by default, because we consider people interested in GNSS post processing
 are interested in high precision at all times. This is easily changed by de-activating this crate feature.
+
+Analysis report
+===============
+
+`GNSS-Qc` will parse your context and iterate it once, to synthesize 
+all desired analysis (unless you're synthesizing the `QcSummary` only). 
+Use the `QcConfig`uration to define the analysis you are interested in.
+
+The Qc report is vital for high accuracy positioning.
+For people interested in post-processed navigation, you should jump
+to the [Navigation feature](#navigation-feature) to understand the solvers we offer.
+
+You don't have to manually deploy the solver, you can specify in your Qc settings
+the solutions you want to wrap in your analysis. We support PVT and CGGTTS solutions,
+both can be activated at the same time.
 
 Navigation feature
 ==================

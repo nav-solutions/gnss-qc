@@ -17,7 +17,7 @@ fn html_summary_report() {
     ctx.load_gzip_rinex_file("data/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
         .unwrap();
 
-    ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
+    ctx.load_gzip_rinex_file("data/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz")
         .unwrap();
 
     let report = ctx.summary_report(now);
@@ -40,10 +40,10 @@ fn html_report() {
     ctx.load_gzip_rinex_file("data/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
         .unwrap();
 
-    ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
+    ctx.load_gzip_rinex_file("data/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz")
         .unwrap();
 
-    assert!(ctx.has_sp3_data());
+    assert!(ctx.precise_clock_data().is_some());
     assert!(ctx.brdc_navigation.is_some());
 
     let report = ctx.report(now);

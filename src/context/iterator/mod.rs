@@ -1,5 +1,13 @@
 pub use crate::prelude::QcContext;
 
+#[derive(Debug, Copy, Clone, Default)]
+enum State {
+    #[default]
+    Ephemeris,
+}
+
+mod iterator;
+
 pub mod ephemeris;
 pub mod signals;
 

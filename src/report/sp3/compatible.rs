@@ -28,7 +28,7 @@ impl FileReport {
 
         Self {
             agency: sp3.header.agency.clone(),
-            revision: sp3.header.version.to_string(),
+            revision: sp3.header.version.to_string().to_uppercase(),
             coord_system: sp3.header.coord_system.clone(),
             orbit_fit: sp3.header.orbit_type.to_string(),
             time_scale: sp3.header.timescale.to_string(),
