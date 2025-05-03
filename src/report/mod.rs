@@ -1,5 +1,4 @@
 //! Generic analysis report
-use itertools::Itertools;
 use std::collections::HashMap;
 
 use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
@@ -9,9 +8,9 @@ use crate::{
     prelude::{Epoch, QcContext},
 };
 
-mod constellations_sel;
 mod css;
 mod javascript;
+mod selector;
 
 // shared analysis, that may apply to several products
 mod shared;
@@ -19,13 +18,16 @@ mod shared;
 mod summary;
 use summary::QcSummary;
 
-mod observations;
-use observations::Report as ObservationsReport;
+mod rovers;
+use rovers::Report as RoversReport;
 
-mod orbital;
-use orbital::OrbitalProjections;
+mod orbit_residuals;
+use orbit_residuals::Projection as OrbitResidualsProjection;
 
-pub(crate) use constellations_sel::ConstellationsSelector;
+mod sp3;
+use sp3::Report as SP3Report;
+
+pub(crate) use selector::{AxisSelector, ConstellationSelector, PosVelSelector};
 
 /// [QcExtraPage] you can add to customize [QcReport]
 pub struct QcExtraPage {
@@ -42,15 +44,15 @@ pub struct QcReport {
     /// Report Summary (always present)
     summary: QcSummary,
 
-    /// Orbital projections (when feasible)
-    orbital_proj: OrbitalProjections,
+    /// SP3 report (when feasible)
+    sp3_files_report: SP3Report,
 
-    // orbital_proj: Option<OrbitalProjections>,
-    /// Reported observations, for each data source
-    observations: HashMap<QcIndexing, ObservationsReport>,
+    /// Orbital residuals (when feasible)
+    orbit_residuals_proj: OrbitResidualsProjection,
 
-    // /// IONEX TEC page when it exists
-    // ionex_page: Option<IonexPage>,
+    /// Reported rovers (when feasible)
+    rovers: RoversReport,
+
     /// Custom chapters
     custom_chapters: Vec<QcExtraPage>,
 }
@@ -62,9 +64,10 @@ impl QcContext {
     pub fn summary_report(&self, now: Epoch) -> QcReport {
         QcReport {
             summary: QcSummary::new(now, self),
-            orbital_proj: Default::default(),
             custom_chapters: Vec::new(),
-            observations: Default::default(),
+            rovers: Default::default(),
+            sp3_files_report: Default::default(),
+            orbit_residuals_proj: Default::default(),
         }
     }
 
@@ -75,21 +78,9 @@ impl QcContext {
         QcReport {
             summary: QcSummary::new(now, self),
             custom_chapters: Vec::new(),
-            observations: {
-                let mut tabbed = HashMap::new();
-
-                for source in self.observations.keys() {
-                    if let Some(observations) = self.observations.get(&source) {
-                        tabbed.insert(
-                            source.clone(),
-                            ObservationsReport::new(self, source, observations),
-                        );
-                    }
-                }
-
-                tabbed
-            },
-            orbital_proj: OrbitalProjections::new(self),
+            rovers: RoversReport::new(self),
+            sp3_files_report: SP3Report::new(self),
+            orbit_residuals_proj: OrbitResidualsProjection::new(self),
         }
     }
 }
@@ -112,6 +103,7 @@ impl Render for QcReport {
                     meta name="viewport" content="width=device-width, initial-scale=1";
                     link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/rtk-rs/.github/master/logos/logo2.jpg";
                     script src="https://cdn.plot.ly/plotly-2.12.1.min.js" {};
+                    script src="https://unpkg.com/lucide@latest" {};
                     script defer="true" src="https://use.fontawesome.com/releases/v5.3.1/js/all.js" {};
                     script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" {};
                     link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css";
@@ -131,30 +123,52 @@ impl Render for QcReport {
                             "Summary"
                         }
 
-                        @ if !self.observations.is_empty() {
+                        @ if self.rovers.has_content() {
                             // Create a nav menu
                             a data-target="observations" {
                                 "Observations"
                             }
                         }
 
-                        @ if self.orbital_proj.has_content() {
+                        @ if self.sp3_files_report.has_content() {
+                            // Create nav menu
+                            a data-target="sp3" {
+                                span {
+                                    "SP3 Precise Orbits "
+                                }
+                                i data-lucide="satellite" {}
+                            }
+                        }
+
+                        @ if self.orbit_residuals_proj.has_content() {
                             // Create a nav menu
-                            a data-target="orbit-proj" {
-                                "Orbital Projections"
+                            a data-target="orbit-residuals" {
+                                span {
+                                    "Orbital Residuals "
+                                }
+                                i data-lucide="satellite" {}
                             }
                         }
 
                         a data-target="documentation" {
-                            "Documentation"
+                            span {
+                                "Documentation "
+                            }
+                            i data-lucide="book" {}
                         }
 
                         a data-target="sources" {
-                            "Sources"
+                            span {
+                                "Sources "
+                            }
+                            i data-lucide="book" {}
                         }
 
                         a data-target="credits" {
-                            "Credits"
+                            span {
+                                "Credits "
+                            }
+                            i data-lucide="radio" {}
                         }
                     }
 
@@ -168,52 +182,24 @@ impl Render for QcReport {
                             }
                         }
 
-                        // observations section
-                        @ if !self.observations.is_empty() {
-                            section id="observations" class="section" {
-                                h2 {
-                                    "RINEX Observations"
-                                }
-
-                                // one tab to select observation source
-                                div class="tabs" id="observation-sources" {
-                                    @ for (num, source) in self.observations.keys().sorted().enumerate() {
-                                        @ if num == 0 {
-                                            div class="tab active" data-target=(source.to_string()) {
-                                                (source.to_string())
-                                            }
-                                        } @ else {
-                                            div class="tab" data-target=(source.to_string()) {
-                                                (source.to_string())
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // one section per source
-                                @ for (num, source) in self.observations.keys().enumerate() {
-                                    @ if num == 0 {
-                                        @ if let Some(report) = self.observations.get(&source) {
-                                            div class="content-section active" id=(source.to_string()) {
-                                                (report.render())
-                                            }
-                                        }
-                                    } @ else {
-                                        @ if let Some(report) = self.observations.get(&source) {
-                                            div class="content-section" id=(source.to_string()) {
-                                                (report.render())
-                                            }
-                                        }
-                                    }
-                                }
-
+                        // rovers section
+                        @ if self.rovers.has_content() {
+                            section id="rovers" class="section" {
+                                (self.rovers.render())
                             }
                         }
 
-                        @ if self.orbital_proj.has_content() {
-                            // Render content
-                            section id="orbit-proj" class="section" {
-                                (self.orbital_proj.render())
+                        // SP3 files section
+                        @ if self.sp3_files_report.has_content() {
+                            section id="sp3-files" class="section" {
+                                (self.sp3_files_report.render())
+                            }
+                        }
+
+                        // orbital residuals section
+                        @ if self.orbit_residuals_proj.has_content() {
+                            section id="orbit-residuals" class="section" {
+                                (self.orbit_residuals_proj.render())
                             }
                         }
 

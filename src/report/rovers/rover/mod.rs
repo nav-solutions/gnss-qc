@@ -1,24 +1,32 @@
-use crate::{
-    context::{QcContext, QcIndexing},
-    prelude::{html, Markup, Render, Rinex, TimeScale},
-};
+use crate::prelude::{html, Markup, QcContext, QcIndexing, Render, TimeScale};
 
 mod bias;
 use bias::BiasSummary;
 
-pub struct Report {
-    /// [TimeScale] observations are expressed in
-    timescale: Option<TimeScale>,
+// mod orbital_proj;
+// use orbital_proj::Projection as OrbitalProjection;
 
-    /// [BiasSummary]
+// mod observations;
+// use observations::Report as ObservationsReport;
+
+pub struct Report {
     bias: BiasSummary,
+    timescale: Option<TimeScale>,
+    // orbit_proj: OrbitalProjection,
+    // observations: ObservationsReport,
 }
 
 impl Report {
-    pub fn new(ctx: &QcContext, source: &QcIndexing, rinex: &Rinex) -> Self {
+    pub fn new(ctx: &QcContext, source: &QcIndexing) -> Self {
+        let observations = ctx
+            .observations_data(source)
+            .expect("internal error: data should exist");
+
         Self {
-            bias: BiasSummary::new(ctx, rinex),
+            bias: BiasSummary::new(ctx, observations),
             timescale: ctx.observations_timescale(source),
+            // orbit_proj: OrbitalProjection::new(&ctx, &observations),
+            // observations: ObservationsReport::new(&observations),
         }
     }
 }

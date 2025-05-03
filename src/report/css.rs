@@ -163,6 +163,14 @@ nav a:hover {
 .content-section active {
   display: block;
 }
+
+.icon-block {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-color);
+  margin-bottom: 0.75rem;
+}
         "
         .to_string()
     }

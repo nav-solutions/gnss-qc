@@ -123,8 +123,11 @@ impl QcContext {
             observations: Default::default(),
             precise_clocks: Default::default(),
             meteo_observations: Default::default(),
+
             #[cfg(feature = "sp3")]
             sp3: Default::default(),
+            #[cfg(feature = "sp3")]
+            sp3_filename: Default::default(),
         }
     }
 

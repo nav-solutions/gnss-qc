@@ -2,7 +2,7 @@ use crate::{
     context::QcContext,
     plot::Plot,
     prelude::{html, Constellation, Epoch, MarkerSymbol, Markup, Mode, Render, SV},
-    report::ConstellationsSelector,
+    report::{AxisSelector, ConstellationSelector},
 };
 
 use log::error;
@@ -33,10 +33,10 @@ impl<'a> Iterator for SatellitesPosVelIter<'a> {
 
 pub struct OrbitalProjections {
     orbits: Plot,
-    sky_plot: Plot,
     #[cfg(feature = "sp3")]
     residuals: Plot,
-    constellations_sel: ConstellationsSelector,
+    axis_sel: AxisSelector,
+    constellation_sel: ConstellationSelector,
 }
 
 impl Default for OrbitalProjections {
@@ -52,20 +52,19 @@ impl Default for OrbitalProjections {
                     true,
                 )
             },
-            sky_plot: { Plot::sky_plot("sky-plot", "Sky plot", true) },
             residuals: {
                 Plot::timedomain_plot("orbit-residual", "BRDC/SP3 Residual", "Error [km]", true)
             },
-            constellations_sel: ConstellationsSelector::new("orbit-proj"),
+            axis_sel: AxisSelector::new("orbit-proj"),
+            constellation_sel: ConstellationSelector::new("orbit-proj"),
         }
     }
 }
 
 impl OrbitalProjections {
     pub fn new(context: &QcContext) -> Self {
-        let mut selector = ConstellationsSelector::new("orbit-proj");
 
-        let mut sky_plot = Plot::sky_plot("sky-plot", "Sky plot", true);
+        let mut constell_selector = ConstellationSelector::new("orbit-proj");
 
         let mut orbits = Plot::plot_3d(
             "orbits",
@@ -82,15 +81,28 @@ impl OrbitalProjections {
 
         #[cfg(feature = "sp3")]
         if let Some(sp3) = &context.sp3 {
-            if let Some(brdc) = &context.brdc_navigation {
-                let mut epochs = HashMap::<SV, Vec<Epoch>>::new();
-                let mut x_data = HashMap::<SV, Vec<f64>>::new();
-                let mut y_data = HashMap::<SV, Vec<f64>>::new();
-                let mut z_data = HashMap::<SV, Vec<f64>>::new();
 
-                let mut velx_data = HashMap::<SV, Vec<f64>>::new();
-                let mut vely_data = HashMap::<SV, Vec<f64>>::new();
-                let mut velz_data = HashMap::<SV, Vec<f64>>::new();
+            let mut sp3_epochs = HashMap::<SV, Vec<Epoch>>::new();
+
+            let mut sp3_x_data = HashMap::<SV, Vec<f64>>::new();
+            let mut sp3_y_data = HashMap::<SV, Vec<f64>>::new();
+            let mut sp3_z_data = HashMap::<SV, Vec<f64>>::new();
+            
+            let mut sp3_velx_data = HashMap::<SV, Vec<f64>>::new();
+            let mut sp3_vely_data = HashMap::<SV, Vec<f64>>::new();
+            let mut sp3_velz_data = HashMap::<SV, Vec<f64>>::new();
+
+            if let Some(brdc) = &context.brdc_navigation {
+
+                let mut err_epochs = HashMap::<SV, Vec<Epoch>>::new();
+
+                let mut x_err_data = HashMap::<SV, Vec<f64>>::new();
+                let mut y_err_data = HashMap::<SV, Vec<f64>>::new();
+                let mut z_err_data = HashMap::<SV, Vec<f64>>::new();
+
+                let mut velx_err_data = HashMap::<SV, Vec<f64>>::new();
+                let mut vely_err_data = HashMap::<SV, Vec<f64>>::new();
+                let mut velz_err_data = HashMap::<SV, Vec<f64>>::new();
 
                 let mut iter = if sp3.has_satellite_velocity() {
                     SatellitesPosVelIter::PositionVelocity(sp3.satellites_pos_vel_km_iter())
@@ -99,6 +111,15 @@ impl OrbitalProjections {
                 };
 
                 while let Some((t, sv, pos_km, vel_km)) = iter.next() {
+
+                    constell_selector.add(&sv.constellation);
+
+                    if let Some(epochs) = sp3_epochs.get_mut(&sv) {
+                        epochs.push(t);
+                    } else {
+                        sp3_epochs.insert(sv, vec![t]);
+                    }
+
                     if let Some((toc, _, ephemeris)) = brdc
                         .nav_ephemeris_frames_iter()
                         .filter_map(|(k, eph)| {
@@ -126,12 +147,10 @@ impl OrbitalProjections {
                         if let Some((kepler_pos_km, kepler_vel_km)) =
                             ephemeris.kepler2position_velocity(sv, toc, t)
                         {
-                            selector.add_sv(&sv);
-
-                            if let Some(epochs) = epochs.get_mut(&sv) {
+                            if let Some(epochs) = err_epochs.get_mut(&sv) {
                                 epochs.push(t);
                             } else {
-                                epochs.insert(sv, vec![t]);
+                                err_epochs.insert(sv, vec![t]);
                             }
 
                             let (x_err_m, y_err_m, z_err_m) = (
@@ -140,14 +159,14 @@ impl OrbitalProjections {
                                 kepler_pos_km[2] * 1e3 - pos_km.2 * 1e3,
                             );
 
-                            if let Some(x_data) = x_data.get_mut(&sv) {
-                                x_data.push(x_err_m);
-                                y_data.get_mut(&sv).unwrap().push(y_err_m);
-                                z_data.get_mut(&sv).unwrap().push(z_err_m);
+                            if let Some(x_err_data) = x_err_data.get_mut(&sv) {
+                                x_err_data.push(x_err_m);
+                                y_err_data.get_mut(&sv).unwrap().push(y_err_m);
+                                z_err_data.get_mut(&sv).unwrap().push(z_err_m);
                             } else {
-                                x_data.insert(sv, vec![x_err_m]);
-                                y_data.insert(sv, vec![y_err_m]);
-                                z_data.insert(sv, vec![z_err_m]);
+                                x_err_data.insert(sv, vec![x_err_m]);
+                                y_err_data.insert(sv, vec![y_err_m]);
+                                z_err_data.insert(sv, vec![z_err_m]);
                             }
 
                             if let Some(vel_km) = vel_km {
@@ -157,24 +176,66 @@ impl OrbitalProjections {
                                     kepler_vel_km[2] * 1e3 - vel_km.2 * 1e3,
                                 );
 
-                                if x_data.get(&sv).is_some() {
-                                    velx_data.get_mut(&sv).unwrap().push(velx_err_m);
-                                    vely_data.get_mut(&sv).unwrap().push(vely_err_m);
-                                    velz_data.get_mut(&sv).unwrap().push(velz_err_m);
+                                if x_err_data.get(&sv).is_some() {
+                                    velx_err_data.get_mut(&sv).unwrap().push(velx_err_m);
+                                    vely_err_data.get_mut(&sv).unwrap().push(vely_err_m);
+                                    velz_err_data.get_mut(&sv).unwrap().push(velz_err_m);
                                 } else {
-                                    velx_data.insert(sv, vec![velx_err_m]);
-                                    vely_data.insert(sv, vec![vely_err_m]);
-                                    velz_data.insert(sv, vec![velz_err_m]);
+                                    velx_err_data.insert(sv, vec![velx_err_m]);
+                                    vely_err_data.insert(sv, vec![vely_err_m]);
+                                    velz_err_data.insert(sv, vec![velz_err_m]);
                                 }
                             }
                         }
                     }
+
+                    if let Some(x_data) = sp3_x_data.get_mut(&sv) {
+                        x_data.push(pos_km.0);
+                        sp3_y_data.get_mut(&sv).unwrap().push(pos_km.1);
+                        sp3_z_data.get_mut(&sv).unwrap().push(pos_km.2);
+
+                        if let Some(vel_km) = vel_km {
+                            sp3_velx_data.get_mut(&sv).unwrap().push(vel_km.0);
+                            sp3_vely_data.get_mut(&sv).unwrap().push(vel_km.1);
+                            sp3_velz_data.get_mut(&sv).unwrap().push(vel_km.2);
+                        }
+                    } else {
+                        sp3_x_data.insert(sv, vec![pos_km.0]);
+                        sp3_y_data.insert(sv, vec![pos_km.1]);
+                        sp3_z_data.insert(sv, vec![pos_km.2]);
+
+                        if let Some(vel_km) = vel_km {
+                            sp3_velx_data.insert(sv, vec![vel_km.0]);
+                            sp3_vely_data.insert(sv, vec![vel_km.1]);
+                            sp3_velz_data.insert(sv, vec![vel_km.2]);
+                        }
+                    }
                 }
 
-                for (index, (sv, epochs)) in epochs.iter().enumerate() {
-                    let x_err_m = x_data.get(&sv).unwrap();
-                    let y_err_m = y_data.get(&sv).unwrap();
-                    let z_err_m = z_data.get(&sv).unwrap();
+                for (index, (sv, epochs)) in sp3_epochs.iter().enumerate() {
+                    let x_km = sp3_x_data.get(&sv).unwrap();
+                    let y_km = sp3_y_data.get(&sv).unwrap();
+                    let z_km = sp3_z_data.get(&sv).unwrap();
+
+                    let trace = Plot::chart_3d(
+                        &format!("{}", sv),
+                        Mode::Markers,
+                        MarkerSymbol::Diamond,
+                        epochs,
+                        x_km.to_vec(),
+                        y_km.to_vec(),
+                        z_km.to_vec(),
+                        index == 0,
+                    );
+
+                    orbits.add_trace(trace);
+
+                }
+
+                for (index, (sv, epochs)) in err_epochs.iter().enumerate() {
+                    let x_err_m = x_err_data.get(&sv).unwrap();
+                    let y_err_m = y_err_data.get(&sv).unwrap();
+                    let z_err_m = z_err_data.get(&sv).unwrap();
 
                     let trace = Plot::timedomain_chart(
                         &format!("{}(x)", sv),
@@ -209,7 +270,7 @@ impl OrbitalProjections {
 
                     residuals.add_trace(trace);
 
-                    if let Some(velx_err_m) = velx_data.get(&sv) {
+                    if let Some(velx_err_m) = velx_err_data.get(&sv) {
                         let trace = Plot::timedomain_chart(
                             &format!("{}(velx)", sv),
                             Mode::Markers,
@@ -222,7 +283,7 @@ impl OrbitalProjections {
                         residuals.add_trace(trace);
                     }
 
-                    if let Some(vely_err_m) = vely_data.get(&sv) {
+                    if let Some(vely_err_m) = vely_err_data.get(&sv) {
                         let trace = Plot::timedomain_chart(
                             &format!("{}(vely)", sv),
                             Mode::Markers,
@@ -235,7 +296,7 @@ impl OrbitalProjections {
                         residuals.add_trace(trace);
                     }
 
-                    if let Some(velz_err_m) = velz_data.get(&sv) {
+                    if let Some(velz_err_m) = velz_err_data.get(&sv) {
                         let trace = Plot::timedomain_chart(
                             &format!("{}(velz)", sv),
                             Mode::Markers,
@@ -251,19 +312,17 @@ impl OrbitalProjections {
             }
         }
 
-        if let Some(brdc) = &context.brdc_navigation {}
-
         Self {
             orbits,
-            sky_plot,
             #[cfg(feature = "sp3")]
             residuals,
-            constellations_sel: selector,
+            constellation_sel: constell_selector,
+            axis_sel: AxisSelector::new("orbit-proj"),
         }
     }
 
     pub fn has_content(&self) -> bool {
-        self.constellations_sel.has_content()
+        self.constellation_sel.has_content()
     }
 }
 
@@ -276,17 +335,10 @@ impl Render for OrbitalProjections {
                 div class="tab active" data-target="orbits" {
                     "Orbits"
                 }
-                div class="tab" data-target="skyplot" {
-                    "Skyplot"
-                }
             }
             // orbit proj
             div class="section" id="orbits" {
                 (self.orbits.render())
-            }
-            // skyplot
-            div class="section" id="skyplot" {
-                (self.sky_plot.render())
             }
         }
     }
@@ -295,12 +347,9 @@ impl Render for OrbitalProjections {
     fn render(&self) -> Markup {
         html! {
             // one tab to select the projection
-            div class="tabs" id="data-sel" {
+            div class="tabs" {
                 div class="tab active" data-target="orbits" {
                     "Orbits"
-                }
-                div class="tab" data-target="skyplot" {
-                    "Skyplot"
                 }
                 div class="tab" data-target="residuals" {
                     "Residuals"
@@ -308,17 +357,18 @@ impl Render for OrbitalProjections {
             }
 
             // constellations selector
-            div id="constell-sel" {
-                (self.constellations_sel.render())
+            div class="data-sel filter" name="constellation" {
+                (self.constellation_sel.render())
+            }
+
+            // axis selector
+            div class="data-sel filter" name="axis" {
+                (self.axis_sel.render())
             }
 
             // orbit proj
             div class="data" id="orbits" style="display: block" {
                 (self.orbits.render())
-            }
-            // skyplot
-            div class="data" id="skyplot" style="display: none" {
-                (self.sky_plot.render())
             }
             // residuals
             div class="data" id="residuals" style="display: none" {

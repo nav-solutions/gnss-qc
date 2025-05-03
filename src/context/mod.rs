@@ -169,6 +169,12 @@ pub struct QcContext {
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     pub(crate) sp3: Option<SP3>,
+
+    /// Name of [SP3] file that was loaded.
+    /// Only one data source supported at the moment.
+    #[cfg(feature = "sp3")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
+    pub(crate) sp3_filename: Option<String>,
 }
 
 impl QcContext {
@@ -195,14 +201,18 @@ impl QcContext {
             almanac,
             #[cfg(feature = "navigation")]
             earth_cef,
+
             #[cfg(feature = "sp3")]
             sp3: Default::default(),
-            observations: Default::default(),
-            meteo_observations: Default::default(),
+            #[cfg(feature = "sp3")]
+            sp3_filename: Default::default(),
+
             ionex: Default::default(),
             brdc_navigation: Default::default(),
             precise_clocks: Default::default(),
             configuration: QcConfig::default(),
+            meteo_observations: Default::default(),
+            observations: Default::default(),
         }
     }
 

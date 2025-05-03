@@ -3,6 +3,9 @@ use crate::prelude::QcReport;
 impl QcReport {
     pub(crate) fn javascript(&self) -> String {
         "
+
+        lucide.createIcons();
+
     const sidebar = document.getElementById('sidebar');
     let inactivityTimer;
 
@@ -41,33 +44,40 @@ impl QcReport {
     
     pages.forEach(page => {
 
-      // grab possible tabs
-      const tabs = page.querySelectorAll('.tabs .tab');
+      // Data selection listener
+      const data_selectors = page.querySelectorAll('.tabs .tab');
 
-      tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          const data_target = tab.getAttribute('data-target');
-          console.log('clicked on:' + data_target);
+      data_selectors.forEach(selector => {
 
-          tabs.forEach(tab => {
-            tab.classList.remove('active');
+        // Event listener
+        selector.addEventListener('click', () => {
+
+          const target = selector.getAttribute('data-target');
+          console.log('targetting :' + target);
+
+          data_selectors.forEach(selector => {
+            selector.classList.remove('active');
           });
 
-          tab.classList.add('active');
+          selector.classList.add('active');
 
-          // locate associated data
-          const datas = page.querySelectorAll('.data');
+          // Data selection or data filtering
+          console.log('classes: '+ selector.classList);
+          
+          const data_set_selection = selector.getAttribute('filter') == null;
 
-          datas.forEach(data => {
-            const data_id = data.id;
-            console.log('data id: '+data_id);
-
-            if (data_id == data_target) {
-              data.style.display = 'block';
-            } else {
-              data.style.display = 'none';
-            }
-          });
+          if (data_set_selection) {
+            // locate associated data
+            const datas = page.querySelectorAll('.data');
+  
+            datas.forEach(data => {
+              if (data.id == target) {
+                data.style.display = 'block';
+              } else {
+                data.style.display = 'none';
+              }
+            });
+          }
 
         });
       });

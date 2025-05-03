@@ -4,17 +4,17 @@ use crate::{
     prelude::{html, Markup, Render},
 };
 
-pub struct OrbitalProjections {
+pub struct OrbitResidualProjects {
     pub not_empty: bool,
 }
 
-impl OrbitalProjections {
+impl OrbitResidualProjects {
     pub fn new(context: &QcContext) -> Self {
         Self { not_empty: false }
     }
 }
 
-impl Render for OrbitalProjections {
+impl Render for OrbitResidualProjects {
     fn render(&self) -> Markup {
         html! {}
     }

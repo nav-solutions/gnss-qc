@@ -334,11 +334,19 @@ impl Plot {
         x: Vec<T>,
         y: Vec<T>,
         z: Vec<T>,
+        visible: bool,
     ) -> Box<Scatter3D<T, T, T>> {
         let txt = t.iter().map(|t| t.to_string()).collect::<Vec<_>>();
         Scatter3D::new(x, y, z)
             .mode(mode)
             .name(name)
+            .visible({
+                if visible {
+                    Visible::True
+                } else {
+                    Visible::LegendOnly
+                }
+            })
             .hover_text_array(txt)
             .hover_info(HoverInfo::All)
             .marker(Marker::new().symbol(symbol))

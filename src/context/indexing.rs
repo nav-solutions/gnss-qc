@@ -3,9 +3,10 @@ use crate::error::QcError;
 use serde::{Deserialize, Serialize};
 
 /// [QcIndexing] is used to index data and be able to differentiate two identical product types between each other.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum QcIndexing {
     /// No clear identifier found or existing for this type of product
+    #[default]
     None,
 
     /// Identified by the name, model or serial number of the GNSS-Receiver.

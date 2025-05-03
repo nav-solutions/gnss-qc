@@ -29,6 +29,7 @@ impl QcContext {
         } else {
             debug!("{} - new SP3", filename);
             self.sp3 = Some(sp3);
+            self.sp3_filename = Some(filename.to_string());
         }
 
         Ok(())
