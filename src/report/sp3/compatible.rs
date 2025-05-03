@@ -39,12 +39,13 @@ impl FileReport {
             uses_prediction: sp3.has_satellite_positions_prediction(),
             has_maneuvers: sp3.has_satellite_maneuver(),
             sampling: SamplingReport::from_sp3(sp3),
-            constellations: satellites
-                .iter()
-                .map(|sv| sv.constellation)
-                .unique()
-                .collect(),
             satellites,
+            // constellations: satellites
+            //     .iter()
+            //     .map(|sv| sv.constellation)
+            //     .unique()
+            //     .collect(),
+            constellations: Default::default(),
         }
     }
 }
@@ -99,7 +100,7 @@ impl Render for FileReport {
                             "Has Precise Velocity"
                         }
                         td {
-                            (self.has_velocity.to_string())
+                            (self.has_velocity)
                         }
                     }
                     tr {
@@ -107,7 +108,7 @@ impl Render for FileReport {
                             "Has Precise Clock"
                         }
                         td {
-                            (self.has_clock.to_string())
+                            (self.has_clock)
                         }
                     }
                     tr {
@@ -115,7 +116,7 @@ impl Render for FileReport {
                             "Has Precise Clock Drift"
                         }
                         td {
-                            (self.has_clock_drift.to_string())
+                            (self.has_clock_drift)
                         }
                     }
                     tr {
@@ -131,7 +132,7 @@ impl Render for FileReport {
                             "Has Precise Clock Drift"
                         }
                         td {
-                            (self.has_clock_drift.to_string())
+                            (self.has_clock_drift)
                         }
                     }
                     tr {
@@ -139,7 +140,7 @@ impl Render for FileReport {
                             "SV Maneuvers"
                         }
                         td {
-                            (self.has_maneuvers.to_string())
+                            (self.has_maneuvers)
                         }
                     }
                     tr {
@@ -147,7 +148,7 @@ impl Render for FileReport {
                             "SV Clock Events"
                         }
                         td {
-                            (self.has_clock_events.to_string())
+                            (self.has_clock_events)
                         }
                     }
                     tr {

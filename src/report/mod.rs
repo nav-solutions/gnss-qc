@@ -123,13 +123,6 @@ impl Render for QcReport {
                             "Summary"
                         }
 
-                        @ if self.rovers.has_content() {
-                            // Create a nav menu
-                            a data-target="observations" {
-                                "Observations"
-                            }
-                        }
-
                         @ if self.sp3_files_report.has_content() {
                             // Create nav menu
                             a data-target="sp3" {
@@ -149,6 +142,17 @@ impl Render for QcReport {
                                 i data-lucide="satellite" {}
                             }
                         }
+
+                        @ if self.rovers.has_content() {
+                            // Create a nav menu
+                            a data-target="rovers" {
+                                span {
+                                    "Rovers "
+                                }
+                                i data-lucide="radio" {}
+                            }
+                        }
+
 
                         a data-target="documentation" {
                             span {
@@ -175,7 +179,7 @@ impl Render for QcReport {
                     div class="content" {
                         section id="summary" class="section active" {
                             h2 {
-                                "Summary report"
+                                "Summary"
                             }
                             p {
                                 (self.summary.render())
@@ -185,32 +189,53 @@ impl Render for QcReport {
                         // rovers section
                         @ if self.rovers.has_content() {
                             section id="rovers" class="section" {
-                                (self.rovers.render())
+                                h2 {
+                                    "ROVERS"
+                                }
+                                p {
+                                    (self.rovers.render())
+                                }
                             }
                         }
 
                         // SP3 files section
                         @ if self.sp3_files_report.has_content() {
-                            section id="sp3-files" class="section" {
-                                (self.sp3_files_report.render())
+                            section id="sp3" class="section" {
+                                h2 {
+                                    "SP3 (Precise Orbits)"
+                                }
+                                p {
+                                    (self.sp3_files_report.render())
+                                }
                             }
                         }
 
                         // orbital residuals section
                         @ if self.orbit_residuals_proj.has_content() {
                             section id="orbit-residuals" class="section" {
-                                (self.orbit_residuals_proj.render())
+                                h2 {
+                                    "Orbit Residuals"
+                                }
+                                p {
+                                    (self.orbit_residuals_proj.render())
+                                }
                             }
                         }
 
                         section id="documentation" class="section" {
                             h2 {
-                                "Test"
+                                "Documentation"
+                            }
+                            p {
+                                "TODO"
                             }
                         }
 
                         section id="sources" class="section" {
                             h2 {
+                                "Code sources"
+                            }
+                            p {
                                 "GNSS-QC is part of the RTK-rs framework for advanced GNSS and Geodesy applications"
                             }
                             p {

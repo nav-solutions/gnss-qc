@@ -53,6 +53,7 @@ impl SamplingReport {
             gaps,
         }
     }
+
     #[cfg(feature = "sp3")]
     pub fn from_sp3(sp3: &SP3) -> Self {
         let t_start = sp3.first_epoch();
@@ -76,7 +77,7 @@ impl SamplingReport {
 impl Render for SamplingReport {
     fn render(&self) -> Markup {
         html! {
-            div class="table-container" {
+            div class="styled-table" {
                 table class="table is-bordered" {
                     tbody {
                         tr {
@@ -106,25 +107,21 @@ impl Render for SamplingReport {
                                 (self.duration.to_string())
                             }
                         }
-                        @if let Some(sampling_interval) = self.sampling_interval {
+                        @ if let Some(sampling_interval) = self.sampling_interval {
                             tr {
                                 th class="is-info" {
                                     "Sampling Period"
                                 }
-                            }
-                            tr {
                                 td {
-                                    (sampling_interval.to_string())
+                                    (sampling_interval)
                                 }
                             }
                         }
-                        @if let Some(sample_rate) = self.dominant_sample_rate {
+                        @ if let Some(sample_rate) = self.dominant_sample_rate {
                             tr {
                                 th class="is-info" {
                                     "Dominant Sampling Rate"
                                 }
-                            }
-                            tr {
                                 td {
                                     (format!("{:.3} Hz", sample_rate))
                                 }
