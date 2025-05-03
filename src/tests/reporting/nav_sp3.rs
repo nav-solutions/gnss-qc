@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Write;
 
 use crate::{
-    prelude::{Epoch, QcConfig, QcContext, QcPreferedIndexing},
+    prelude::{Epoch, QcContext},
     tests::init_logger,
 };
 
@@ -38,6 +38,7 @@ fn html_report() {
 
     ctx.load_gzip_rinex_file("data/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
         .unwrap();
+
     ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
         .unwrap();
 

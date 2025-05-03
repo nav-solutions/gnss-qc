@@ -31,61 +31,47 @@ impl QcReport {
         sections.forEach(section => {
           section.classList.remove('active');
         });
+
         document.getElementById(targetId).classList.add('active');
       });
     });
 
-    const observationsSourceTabs = document.querySelectorAll('#observation-sources .tab');
-    const observationsSectionContent  = document.querySelectorAll('.content-section');
-    const constellationTabs = document.querySelectorAll('#constellation-tabs .tab');
-
+    // Grab pages
+    const pages = document.querySelectorAll('.content');
     
-    // Gestion des clics sur les sources d'observation
-    observationsSourceTabs.forEach(tab => {
+    pages.forEach(page => {
 
-      tab.addEventListener('click', () => {
-        const targetId = tab.getAttribute('data-target');
+      // grab possible tabs
+      const tabs = page.querySelectorAll('.tabs .tab');
 
-        // updatePlot();
-        observationsSourceTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const data_target = tab.getAttribute('data-target');
+          console.log('clicked on:' + data_target);
 
-        observationsSectionContent.forEach(section => {
-          section.classList.remove('active');
-          if (section.id == targetId) {
-            section.classList.add('active');
-          }
+          tabs.forEach(tab => {
+            tab.classList.remove('active');
+          });
+
+          tab.classList.add('active');
+
+          // locate associated data
+          const datas = page.querySelectorAll('.data');
+
+          datas.forEach(data => {
+            const data_id = data.id;
+            console.log('data id: '+data_id);
+
+            if (data_id == data_target) {
+              data.style.display = 'block';
+            } else {
+              data.style.display = 'none';
+            }
+          });
+
         });
-
       });
     });
-
-    // Gestion des clics sur les constellations
-    constellationTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        currentConstellation = tab.getAttribute('data-constellation');
-        //updatePlot();
-        constellationTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-      });
-    });
-
-    const orbitalProjTabs = document.querySelectorAll('#orbit-proj .tabs');
-
-    // Gestion de la selection de la projection d'orbite
-    orbitalProjTabs.forEach(tab => {
-      tab.AddEventListener('click', () => {
-        selectedProj = tab.getAttribute('data-target');
-        orbitalProjTabs.forEarch(t => t.classList.remove('active'));
-        tab.classList.add('active');
-      });
-    });
-
-    // Initialisation
-    // updatePlot();
-    sourceTabs[0].classList.add('active');
-    constellationTabs[0].classList.add('active');
-
     "
         .to_string()
     }

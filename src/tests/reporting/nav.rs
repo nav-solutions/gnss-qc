@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Write;
 
 use crate::{
-    prelude::{Epoch, QcConfig, QcContext, QcPreferedIndexing},
+    prelude::{Epoch, QcContext},
     tests::init_logger,
 };
 

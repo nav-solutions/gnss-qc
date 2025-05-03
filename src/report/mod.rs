@@ -9,6 +9,7 @@ use crate::{
     prelude::{Epoch, QcContext},
 };
 
+mod constellations_sel;
 mod css;
 mod javascript;
 
@@ -23,6 +24,8 @@ use observations::Report as ObservationsReport;
 
 mod orbital;
 use orbital::OrbitalProjections;
+
+pub(crate) use constellations_sel::ConstellationsSelector;
 
 /// [QcExtraPage] you can add to customize [QcReport]
 pub struct QcExtraPage {
@@ -124,7 +127,7 @@ impl Render for QcReport {
                         h1 {
                             "GNSS-QC Report"
                         }
-                        a data-target="summary" {
+                        a class="active" data-target="summary" {
                             "Summary"
                         }
 
@@ -135,7 +138,7 @@ impl Render for QcReport {
                             }
                         }
 
-                        @ if self.orbital_proj.not_empty {
+                        @ if self.orbital_proj.has_content() {
                             // Create a nav menu
                             a data-target="orbit-proj" {
                                 "Orbital Projections"
@@ -207,7 +210,7 @@ impl Render for QcReport {
                             }
                         }
 
-                        @ if self.orbital_proj.not_empty {
+                        @ if self.orbital_proj.has_content() {
                             // Render content
                             section id="orbit-proj" class="section" {
                                 (self.orbital_proj.render())
@@ -263,11 +266,12 @@ impl Render for QcReport {
                             }
                         }
                     }
-                }//body
 
-                script {
-                    (PreEscaped(self.javascript()))
-                }
+                    script {
+                        (PreEscaped(self.javascript()))
+                    }
+
+                }//body
 
             }
         }
