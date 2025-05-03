@@ -2,7 +2,7 @@ use crate::{
     context::QcContext,
     plot::Plot,
     prelude::{Constellation, Epoch, MarkerSymbol, Mode, SV},
-    report::{AxisSelector, ConstellationSelector, PosVelSelector},
+    report::{ConstellationSelector, PosVelSelector},
 };
 
 use itertools::Itertools;
@@ -34,7 +34,6 @@ impl<'a> Iterator for SatellitesPosVelIter<'a> {
 }
 
 pub struct Projection {
-    axis_sel: AxisSelector,
     pos_vel_sel: PosVelSelector,
     constellation_sel: ConstellationSelector,
     position_plots: HashMap<Constellation, Plot>,
@@ -44,7 +43,6 @@ impl Default for Projection {
     fn default() -> Self {
         Self {
             position_plots: Default::default(),
-            axis_sel: AxisSelector::new("orbit-residuals"),
             pos_vel_sel: PosVelSelector::new("orbit-residuals"),
             constellation_sel: ConstellationSelector::new("orbit-residuals", true),
         }
@@ -108,8 +106,11 @@ impl Projection {
                                 pos_plots.insert(
                                     sv.constellation,
                                     Plot::plot_3d(
-                                        "position-residuals",
-                                        "SP3/BRDC Positions Residuals",
+                                        &format!("{}-position-residuals-plotly", sv.constellation),
+                                        &format!(
+                                            "{} SP3/BRDC Positions Residuals",
+                                            sv.constellation
+                                        ),
                                         "Error [m]",
                                         "Error [m]",
                                         "Error [m]",
@@ -144,7 +145,7 @@ impl Projection {
                 }
 
                 for (constellation, plots) in pos_plots.iter_mut() {
-                    for (index, (sv, epochs)) in err_epochs.iter().enumerate() {
+                    for (sv, epochs) in err_epochs.iter() {
                         if sv.constellation != *constellation {
                             continue;
                         }
@@ -174,7 +175,6 @@ impl Projection {
             position_plots: pos_plots,
             pos_vel_sel: pos_vel_selector,
             constellation_sel: constell_selector,
-            axis_sel: AxisSelector::new("orbit-proj"),
         }
     }
 
@@ -185,16 +185,26 @@ impl Projection {
     fn javascript(&self) -> &str {
         "
         const constell_sel = document.getElementById('orbit-residuals-constell');
-        const position_residuals_plots = document.querySelectorAll('.orbit-position-residuals');
 
         // constellation listener
         constell_sel.addEventListener('change', (event) => {
             console.log('selected constell: ' + event.target.value);
 
+            const position_plots = document.getElementsByClassName('data orbit-residuals-position-plot');
+            console.log('items: ' + position_plots.length);
+
             if (event.target.value == 'All' || event.target.value == 'Both') {
-                position_residuals_plots.forEach(plot => {
-                    plot.style = 'display: block';
-                });
+                for (let i = 0;  i < position_plots.length; i++) {
+                    position_plots[i].style = 'display: block';
+                }
+            } else {
+                for (let i = 0;  i < position_plots.length; i++) {
+                    if (position_plots[i].id == event.target.value) {
+                        position_plots[i].style = 'display: block';
+                    } else {
+                        position_plots[i].style = 'display: none';
+                    }
+                }
             }
         });
         "
@@ -212,13 +222,6 @@ impl Render for Projection {
                 }
             }
 
-            // axis selector
-            div id="orbit-residuals-axis" {
-                p {
-                    (self.axis_sel.render())
-                }
-            }
-
             // constellations selector
             div id="orbit-residuals-constell" {
                 p {
@@ -227,9 +230,9 @@ impl Render for Projection {
             }
 
             // positions
-            @ for (index, constellation) in self.position_plots.keys().sorted().enumerate() {
+            @ for constellation in self.position_plots.keys().sorted() {
                 @ if let Some(plot) = self.position_plots.get(&constellation) {
-                    div id="{}-orbit-position-residuals" class="data orbit-position-residuals" style="display: block" {
+                    div id=(constellation.to_string()) class="data orbit-residuals-position-plot" style="display: block" {
                         p {
                             (plot.render())
                         }
