@@ -1,23 +1,25 @@
 use rinex::{
     navigation::Ephemeris,
-    prelude::{Duration, Epoch, SV},
+    prelude::{Epoch, SV},
 };
 
 use crate::{
-    prelude::{Frame, Orbit, QcContext},
+    prelude::{Orbit, QcContext},
     serializer::sync::QcSynchronousIterator,
 };
 
+use log::trace;
+
 #[derive(Debug, Clone)]
 pub struct QcEphemerisData {
-    /// [SV] source
-    pub sv: SV,
+    /// Time of clock as [Epoch]
+    pub toc: Epoch,
 
     /// Time of issue of [Ephemeris] as [Epoch]
     pub toe: Epoch,
 
-    /// Time of clock as [Epoch]
-    pub toc: Epoch,
+    /// [SV] source
+    pub sv: SV,
 
     /// [Ephemeris]
     pub ephemeris: Ephemeris,
@@ -94,14 +96,18 @@ impl QcContext {
         let buffered_iter = match self.brdc_navigation_data() {
             Some(brdc) => QcSynchronousIterator::new(Box::new(
                 brdc.nav_ephemeris_frames_iter().filter_map(|(k, v)| {
-                    let timescale = k.sv.constellation.timescale()?;
-                    let toe = v.toe(timescale)?;
-                    Some(QcEphemerisData {
-                        sv: k.sv,
-                        toe,
-                        toc: k.epoch,
-                        ephemeris: v.clone(),
-                    })
+                    if let Some(timescale) = k.sv.constellation.timescale() {
+                        let toe = v.toe(timescale)?;
+                        Some(QcEphemerisData {
+                            sv: k.sv,
+                            toe,
+                            toc: k.epoch,
+                            ephemeris: v.clone(),
+                        })
+                    } else {
+                        trace!("{}({}) - timescale is not supported", k.epoch, k.sv);
+                        None
+                    }
                 }),
             )),
             None => QcSynchronousIterator::null(),
