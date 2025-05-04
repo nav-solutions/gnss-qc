@@ -9,10 +9,13 @@ GNSS Quality Control
 [![MRSV](https://img.shields.io/badge/MSRV-1.81.0-orange?style=for-the-badge)](https://github.com/rust-lang/rust/releases/tag/1.81.0)
 [![License](https://img.shields.io/badge/license-MPL_2.0-orange?style=for-the-badge&logo=mozilla)](https://github.com/rtk-rs/qc-traits/blob/main/LICENSE)
 
-The GNSS Quality Control (QC) library is an advanced library that proposes
-from basic up to advanced GNSS and Geodesy processing features. Since the spectrum
-of GNSS applications is broad, so is `gnss_qc`. Amongst several, you may use this library for the
-following purpose:
+The GNSS Quality Control (QC) library is a complete scalable and highly configurable
+library that allows the formation of GNSS and Geodesy processing pipelines.
+
+The origin of this library, is to answer the need to gather several different data sources,
+as required by GNSS post-processing. Since the spectrum of GNSS applications is broad,
+so is the potential applications of `GNSS-QC`. Amonst several, here are a few we can either think
+of or have already been tested and deployed:
 
 * Process RINEX files
 * Process SP3 files (on `sp3` lib feature)
@@ -22,19 +25,21 @@ following purpose:
 * Perform SP3 versus radio based residual analysis
 * Compare precise RINEX products between them
 * Compare precise SP3 products between them (on `sp3` lib feature)
-* Consider precise Clock products
+* Precise Clock products analysis
 * Preprocess all supported products, in particular
   * data filtering
   * decimation (down sampling)
   * focus on data of interest
   * transpose to different TimeScale
-* Resolve precise P.V.T (Position, Velocity, Time) solutions
-by deploying the `NavPPP` solver (on `navigation` lib feature)
-* Resolve precise CGGTTS solutions
-by deploying a `NavCggtts` solver (on `navigation` lib feature)
+* Resolve precise P.V.T (Position, Velocity, Time) solutions (on `navigation` lib feature)
+* Resolve precise CGGTTS solutions (on `navigation` + `cggtts` lib features)
 
-It is made possible by the complex combination of several frameworks and libraries.
-It is important to understand this library's features & options.
+To offer all of this, `GNSS-QC` relies on core principles and building blocks:
+- Core parsers (RINEX, SP3 by `RTK-rs`)
+- The Iterator ecosystem offered by Rust
+- The scalable multithreading ecosystem offered by Rust
+- Temporal support offered by the `Nyx-Space`
+- Navigation support, offered by the `Nyx-Space` framework
 
 Licensing
 =========

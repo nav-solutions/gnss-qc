@@ -2,8 +2,6 @@ use crate::prelude::{QcContext, Epoch};
 
 use super::{ephemeris::QcEphemerisData, State};
 
-
-
 // Synchronous [QcContext] Iterator
 pub struct QcContextIterator<'a> {
     state: State,

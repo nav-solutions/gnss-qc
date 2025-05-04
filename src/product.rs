@@ -3,6 +3,7 @@ use serde::Serialize;
 
 use rinex::prelude::RinexType;
 
+/// [QcProductType]s we support.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum QcProductType {
     /// GNSS carrier signal observation in the form

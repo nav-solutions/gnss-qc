@@ -26,7 +26,8 @@ mod config;
 mod context;
 mod plot;
 mod product;
-mod report;
+mod serializer;
+// mod report;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
@@ -43,7 +44,6 @@ pub mod prelude {
         context::{QcContext, QcIndexing},
         error::QcError,
         product::QcProductType,
-        report::{QcExtraPage, QcReport},
     };
 
     // GNSS re-export
