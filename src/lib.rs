@@ -24,10 +24,11 @@ extern crate gnss_rs as gnss;
 // mod analysis;
 mod config;
 mod context;
+mod pipeline;
 mod plot;
 mod product;
+mod report;
 mod serializer;
-// mod report;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]

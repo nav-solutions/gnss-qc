@@ -18,8 +18,10 @@ features = ["sp3", "flate2", "navigation"]
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [features]
-# Supports SP3 files by default
 # Support Gzip compressed files by default
+# Supports SP3 parsing and indexing by default
+# Multithreaded QcPipelines by default
+# Post-processed Navigation not possible by default (heavy job)
 default = ["sp3", "flate2", "navigation", "cggtts"]
 
 # Support Gzip compressed files natively
@@ -113,6 +115,8 @@ optional = true
 [dependencies]
 log = "0.4"
 thiserror = "2"
+flume = "0.11"
+tokio = { version = "1", features = ["full"] }
 
 strum = "0.27"
 strum_macros = "0.26"

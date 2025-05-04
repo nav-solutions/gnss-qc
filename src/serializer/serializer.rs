@@ -2,11 +2,9 @@ use crate::{
     context::QcContext,
     serializer::{
         ephemeris::{QcEphemerisData, QcEphemerisSerializer},
-        signal::QcSignalDataPoint,
+        signal::{QcSignalDataPoint, QcSignalSerializer},
     },
 };
-
-use super::signal::QcSignalSerializer;
 
 #[derive(Debug, Copy, Clone)]
 pub enum State {
@@ -49,7 +47,7 @@ pub struct QcSerializer<'a> {
 }
 
 impl QcContext {
-    /// Obtain [QcSerializer] from current [QcContext], ready to serialize the entire context.
+    /// Obtain a synchronous [QcSerializer] from current [QcContext], ready to serialize the entire context.
     pub fn serializer<'a>(&'a self) -> QcSerializer<'a> {
         let num_obs_sources = self.observations.keys().count();
 
@@ -212,7 +210,7 @@ impl<'a> Iterator for QcSerializer<'a> {
 #[cfg(test)]
 mod test {
 
-    use crate::{prelude::QcContext, serializer::serializer::QcSerializer};
+    use crate::prelude::QcContext;
 
     #[test]
     fn ephemeris_context_serializer() {
