@@ -20,9 +20,9 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [features]
 # Support Gzip compressed files by default
 # Supports SP3 parsing and indexing by default
-# Multithreaded QcPipelines by default
+# HTML reports by default
 # Post-processed Navigation not possible by default (heavy job)
-default = ["sp3", "flate2", "navigation", "cggtts"]
+default = ["sp3", "flate2", "html", "navigation", "cggtts"]
 
 # Support Gzip compressed files natively
 flate2 = [
@@ -51,7 +51,8 @@ navigation = [
 # This option removes the need to access the Internet for most applications.
 embed_ephem = [
     "dep:anise",
-    "anise/embed_ephem",
+    "anise?/embed_ephem",
+    "gnss-rtk?/embed_ephem",
 ]
 
 # Unlock NAV CGGTTS solution solver
@@ -63,73 +64,47 @@ cggtts = [
     "dep:cggtts",
 ]
 
-# Unlock graphical analysis (plots rendering), otherwise reports are solely text based
-# plot = [
-#     "dep:plotly", 
-# ]
-
-[dependencies.rinex]
-git = "https://github.com/rtk-rs/rinex"
-branch = "main"
-features = [
-    "qc", 
-    "processing", 
-    "obs", 
-    "nav", 
-    "ut1", 
-    "meteo", 
-    "clock", 
-    "ionex", 
-    "antex", 
-    "serde",
+# html report rendering
+html = [
+    "dep:maud",
+    "dep:plotly",
 ]
-
-[dependencies.sp3]
-git = "https://github.com/rtk-rs/sp3"
-branch = "main"
-features = [
-    "qc", 
-    "processing", 
-    "serde"
-]
-optional = true
-
-[dependencies.gnss-rtk]
-path = "../gnss-rtk"
-optional = true
-features = [
-    "serde", 
-    "embed_ephem"
-]
-
-[dependencies.cggtts]
-git = "https://github.com/rtk-rs/cggtts"
-branch = "main"
-features = [
-    "serde", 
-    "scheduler",
-    "tracker"
-]
-optional = true
 
 [dependencies]
 log = "0.4"
 thiserror = "2"
-tokio = { version = "1", features = ["full"] }
 
 strum = "0.27"
 strum_macros = "0.26"
 itertools = "0.14.0"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
+##############################
+# Multi-threading
+##############################
+tokio = { version = "1", features = ["full"] }
+
+##############################
+# Nyx-space framework
+##############################
 hifitime = { git = "https://github.com/nyx-space/hifitime", branch = "master", features = ["serde", "std"] }
 anise = { git = "https://github.com/nyx-space/anise", branch = "dep/hifitime-github", optional = true }
 
+##############################
+# RTK-rs framework
+##############################
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
+sp3 = { git = "https://github.com/rtk-rs/sp3", branch = "main", features = ["qc", "processing", "serde"], optional = true }
 gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", branch = "main", features = ["processing"] }
+gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"], optional = true }
+cggtts = { git = "https://github.com/rtk-rs/cggtts", branch = "main", features = ["serde", "scheduler", "tracker"], optional = true }
+rinex = { git = "https://github.com/rtk-rs/rinex", branch = "main", features = ["qc", "processing", "obs", "nav", "ut1", "meteo", "clock", "ionex", "antex", "serde"] }
 
-maud = "0.26"
-plotly = "0.12"
+##############################
+# HTML Rendering
+##############################
+maud = { version = "0.26", optional = true }
+plotly = { version = "0.12", optional = true }
 
 [dev-dependencies]
 serde_json = "1"

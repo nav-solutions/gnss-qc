@@ -1,5 +1,4 @@
 //! Qc analysis report
-
 pub mod sampling;
 
 mod summary;
@@ -11,6 +10,10 @@ use observations::QcObservationsReport;
 use crate::serializer::data::QcSerializedSignal;
 
 pub mod temporal_data;
+
+#[cfg(feature = "html")]
+#[cfg_attr(docsrs, doc(cfg(feature = "html")))]
+mod html;
 
 // #[cfg(doc)]
 // use crate::pipeline::QcPipeline;
@@ -28,7 +31,7 @@ pub struct QcRunReport {
 
 impl QcRunReport {
     /// Add new report contribution
-    pub fn add_signal_contribution(&mut self, data: QcSerializedSignal) {
+    pub(crate) fn add_signal_contribution(&mut self, data: QcSerializedSignal) {
         // Contributes to observations (obviously)
         self.observations.add_contribution(data);
     }

@@ -34,10 +34,10 @@ use crate::prelude::QcContext;
 // #[cfg_attr(docsrs, doc(cfg(feature = "cggtts")))]
 // pub(crate) mod nav_cggtts;
 
-mod solutions_iter;
+// mod solutions_iter;
 
 //pub use nav_ppp::NavPPPSolver;
-pub use solutions_iter::SolutionsIter;
+//pub use solutions_iter::SolutionsIter;
 
 //use buffer::ephemeris::QcEphemerisData;
 

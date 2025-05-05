@@ -237,6 +237,9 @@ impl<'a> QcPipeline<'a> {
 #[cfg(test)]
 mod test {
 
+    use std::fs::File;
+    use std::io::Write;
+
     use crate::{prelude::QcContext, tests::init_logger};
 
     #[tokio::test]
@@ -254,6 +257,16 @@ mod test {
 
         let mut pipeline = ctx.qc_processing_pipeline();
 
-        let _ = pipeline.run().await;
+        let report = pipeline
+            .run()
+            .await
+            .unwrap_or_else(|e| panic!("Report synthesis failed with: {}", e));
+
+        let html = report.render_html().into_string();
+
+        let mut fd = File::create("report.html")
+            .unwrap_or_else(|e| panic!("Failed to create report.html test file: {}", e));
+
+        write!(fd, "{}", html).unwrap_or_else(|e| panic!("Failed to dump HTML: {}", e));
     }
 }

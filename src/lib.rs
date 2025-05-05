@@ -26,6 +26,7 @@ mod config;
 mod context;
 mod pipeline;
 // mod plot;
+// mod html;
 mod report;
 mod serializer;
 
@@ -61,7 +62,8 @@ pub mod prelude {
 
     pub use std::path::Path;
 
-    pub use maud::{html, Markup, Render};
+    #[cfg(feature = "html")]
+    pub use maud::Markup;
 
     #[cfg(feature = "sp3")]
     pub use sp3::prelude::{Error as SP3Error, SP3};
@@ -69,7 +71,6 @@ pub mod prelude {
     #[cfg(feature = "navigation")]
     pub use crate::{
         config::QcOrbitPreference,
-        context::navigation::SolutionsIter as NavSolutionsIter,
         navigation::{QcNavFilter, QcNavFilterType, ReferenceEcefPosition},
     };
 
@@ -79,8 +80,8 @@ pub mod prelude {
         prelude::{Almanac, Frame, Orbit},
     };
 
-    #[cfg(feature = "navigation")]
-    pub use gnss_rtk::prelude::{Config as NavPreset, Method as NavMethod, User as NavUserProfile};
+    // #[cfg(feature = "navigation")]
+    // pub use gnss_rtk::prelude::{Config as NavPreset, Method as NavMethod, User as NavUserProfile};
 
     // #[cfg(feature = "cggtts")]
     // pub use crate::context::navigation::NavCggttsSolver;
