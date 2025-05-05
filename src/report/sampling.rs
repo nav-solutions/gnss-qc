@@ -1,8 +1,4 @@
-use maud::{html, Markup, Render};
-use rinex::prelude::{Duration, Epoch, Rinex};
-
-#[cfg(feature = "sp3")]
-use sp3::SP3;
+use crate::prelude::{Epoch, Duration};
 
 /// [SamplingGap]
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
@@ -14,6 +10,7 @@ pub struct SamplingGap {
 }
 
 /// [SamplingGap] analysis, present on perturbated sampling
+#[derive(Debug, Default)]
 pub struct SamplingGapAnalysis {
     /// [SamplingGap]s that were identified
     pub gaps: Vec<SamplingGap>,
@@ -26,6 +23,7 @@ pub struct SamplingGapAnalysis {
 }
 
 /// [Sampling] analysis may apply to any time domain datasets
+#[derive(Debug, Default)]
 pub struct Sampling {
     /// Total number of [Epoch]s processed
     pub total_epochs: usize,

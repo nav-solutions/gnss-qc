@@ -1,18 +1,9 @@
-use crate::pipeline::QcJob;
-use flume::Receiver;
-use std::future::Future;
+pub mod observations;
 
-pub struct QcTasklet {
-    pub job: QcJob,
-}
 
-impl QcTasklet {
-    pub fn new(job: QcJob) -> Self {
-        Self { job }
-    }
+pub trait QcTasklet {
+    type Output;
 
-    // #[cfg(feature = "tokio")]
-    // pub fn spawn(&self) -> impl Future<Output = f64> {
-
-    // }
+    /// Execute [QcTasklet]
+    fn run(&mut self) -> Self::Output;
 }

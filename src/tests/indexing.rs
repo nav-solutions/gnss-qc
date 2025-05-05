@@ -15,17 +15,17 @@ fn default_observations_indexing() {
     let gnss_rx = QcIndexing::GnssReceiver("LEICA GR50-209088".to_string());
 
     assert!(
-        ctx.observations_data(&geo_marker).is_some(),
+        ctx.rinex_observation_data(&geo_marker).is_some(),
         "Geodetic marker is default indexer"
     );
 
     assert!(
-        ctx.observations_data(&invalid_marker).is_none(),
+        ctx.rinex_observation_data(&invalid_marker).is_none(),
         "non existing (invalid) marker"
     );
 
     assert!(
-        ctx.observations_data(&gnss_rx).is_none(),
+        ctx.rinex_observation_data(&gnss_rx).is_none(),
         "Geodetic marker should have been prefered"
     );
 }
@@ -42,12 +42,12 @@ fn prefered_gnss_receiver_indexing() {
     let gnss_rx = QcIndexing::GnssReceiver("LEICA GR50-2090088".to_string());
 
     assert!(
-        ctx.observations_data(&geo_marker).is_none(),
+        ctx.rinex_observation_data(&geo_marker).is_none(),
         "GNSS-RX should have been prefered"
     );
 
     assert!(
-        ctx.observations_data(&gnss_rx).is_some(),
+        ctx.rinex_observation_data(&gnss_rx).is_some(),
         "GNSS-RX set as prefered indexer"
     );
 }
@@ -65,17 +65,17 @@ fn prefered_operator_indexing() {
     let operator = QcIndexing::Operator("Automatic".to_string());
 
     assert!(
-        ctx.observations_data(&geo_marker).is_none(),
+        ctx.rinex_observation_data(&geo_marker).is_none(),
         "Operator should have been prefered"
     );
 
     assert!(
-        ctx.observations_data(&gnss_rx).is_none(),
+        ctx.rinex_observation_data(&gnss_rx).is_none(),
         "Operator should have been prefered"
     );
 
     assert!(
-        ctx.observations_data(&operator).is_some(),
+        ctx.rinex_observation_data(&operator).is_some(),
         "Operator should have been prefered"
     );
 }

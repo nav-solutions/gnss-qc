@@ -1,10 +1,10 @@
 // Synchronous + buffered data
-pub struct QcSynchronousIterator<'a, T> {
+pub struct QcAbstractIterator<'a, T> {
     pub eos: bool,
     iter: Box<dyn Iterator<Item = T> + 'a>,
 }
 
-impl<'a, T: 'a> QcSynchronousIterator<'a, T> {
+impl<'a, T: 'a> QcAbstractIterator<'a, T> {
     pub fn null() -> Self {
         Self {
             eos: true,
@@ -17,7 +17,7 @@ impl<'a, T: 'a> QcSynchronousIterator<'a, T> {
     }
 }
 
-impl<'a, T> Iterator for QcSynchronousIterator<'a, T> {
+impl<'a, T> Iterator for QcAbstractIterator<'a, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {

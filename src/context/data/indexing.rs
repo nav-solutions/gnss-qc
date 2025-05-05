@@ -2,6 +2,12 @@ use crate::error::QcError;
 
 use serde::{Deserialize, Serialize};
 
+use rinex::{
+    hardware::{Antenna, Receiver},
+    marker::GeodeticMarker,
+    prelude::Rinex,
+};
+
 /// [QcIndexing] is used to index data and be able to differentiate two identical product types between each other.
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 pub enum QcIndexing {
@@ -35,6 +41,42 @@ pub enum QcIndexing {
 }
 
 impl QcIndexing {
+    /// Builds new [QcIndexing] from RINEX [Receiver] model
+    pub fn from_receiver(rx: &Receiver) -> Self {
+        Self::GnssReceiver(format!("{}-{}", rx.model, rx.sn))
+    }
+
+    /// Builds new [QcIndexing] from RINEX [Antenna] model
+    pub fn from_antenna(antenna: &Antenna) -> Self {
+        Self::RxAntenna(format!("{}-{}", antenna.model, antenna.sn))
+    }
+
+    /// Builds new [QcIndexing] from RINEX [GeodeticMarker]
+    pub fn from_geodetic_marker(marker: &GeodeticMarker) -> Self {
+        if let Some(number) = marker.number() {
+            Self::GeodeticMarker(format!("{}-{}", marker.name, number))
+        } else {
+            Self::GeodeticMarker(marker.name.to_string())
+        }
+    }
+
+    /// [Rinex] smart automated indexing
+    pub(crate) fn rinex_indexing(rinex: &Rinex) -> QcIndexing {
+        if let Some(marker) = &rinex.header.geodetic_marker {
+            QcIndexing::from_geodetic_marker(marker)
+        } else if let Some(receiver) = &rinex.header.rcvr {
+            QcIndexing::from_receiver(receiver)
+        } else if let Some(agency) = &rinex.header.agency {
+            QcIndexing::Agency(agency.clone())
+        } else if let Some(operator) = &rinex.header.observer {
+            QcIndexing::Operator(operator.clone())
+        } else if let Some(antenna) = &rinex.header.rcvr_antenna {
+            QcIndexing::from_antenna(antenna)
+        } else {
+            QcIndexing::None
+        }
+    }
+
     /// Unwraps self as [QcIndexing::GnssReceiver] model name, if applicable
     pub fn as_gnss_receiver(&self) -> Option<String> {
         match self {

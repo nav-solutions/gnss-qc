@@ -1,9 +1,13 @@
 //! Qc analysis report
 
-mod sampling;
+pub mod sampling;
 
-mod summary;
+pub mod summary;
 use summary::QcRunSummary;
+
+pub mod observations;
+
+pub mod temporal_data;
 
 #[cfg(doc)]
 use crate::pipeline::QcPipeline;

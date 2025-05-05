@@ -24,10 +24,9 @@ extern crate gnss_rs as gnss;
 // mod analysis;
 mod config;
 mod context;
-mod pipeline;
-mod plot;
-mod product;
-mod report;
+// mod pipeline;
+// mod plot;
+// mod report;
 mod serializer;
 
 #[cfg(feature = "navigation")]
@@ -42,9 +41,8 @@ mod tests;
 pub mod prelude {
     pub use crate::{
         config::{QcConfig, QcPreferedIndexing},
-        context::{QcContext, QcIndexing},
+        context::{QcContext, QcIndexing, QcProductType},
         error::QcError,
-        product::QcProductType,
     };
 
     // GNSS re-export

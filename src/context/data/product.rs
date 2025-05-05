@@ -35,6 +35,18 @@ pub enum QcProductType {
     PreciseOrbit,
 }
 
+impl QcProductType {
+    /// Returns true if this [QcProductType] matches a RINEX product type.
+    pub(crate) fn is_rinex_product(&self) -> bool {
+        !matches!(self, Self::PreciseOrbit)
+    }
+
+    /// Returns true if this [QcProductType] represents some kind of constant data.
+    pub(crate) fn is_atemporal_product(&self) -> bool {
+        matches!(self, Self::ANTEX)
+    }
+}
+
 impl std::fmt::Display for QcProductType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {

@@ -24,18 +24,11 @@ use anise::{
     prelude::{Almanac, Frame, MetaAlmanac},
 };
 
-use crate::{
-    config::QcConfig,
-    context::QcIndexing,
-    navigation::{QcNavFilter, QcNavFilterType},
-    prelude::{Constellation, QcContext},
-};
-
-use crate::prelude::{Orbit, ReferenceEcefPosition};
+use crate::prelude::QcContext;
 
 //pub(crate) mod buffer;
 //pub(crate) mod nav_ppp;
-pub(crate) mod time;
+// pub(crate) mod time;
 
 // #[cfg(feature = "cggtts")]
 // #[cfg_attr(docsrs, doc(cfg(feature = "cggtts")))]
@@ -117,17 +110,8 @@ impl QcContext {
         Self {
             almanac,
             earth_cef: frame,
-            ionex: Default::default(),
-            configuration: QcConfig::default(),
-            brdc_navigation: Default::default(),
-            observations: Default::default(),
-            precise_clocks: Default::default(),
-            meteo_observations: Default::default(),
-
-            #[cfg(feature = "sp3")]
-            sp3: Default::default(),
-            #[cfg(feature = "sp3")]
-            sp3_filename: Default::default(),
+            data: Default::default(),
+            configuration: Default::default(),
         }
     }
 
@@ -150,35 +134,6 @@ impl QcContext {
         (almanac, frame)
     }
 
-    /// Returns a possible [ReferenceEcefPosition] if defined in current [QcContext]
-    /// for desired data source.
-    ///
-    /// NB: this is only picked from a possible [Rinex] Observations, not any
-    /// other possible source. If no Observations were loaded, there is no point
-    /// asking for this in this current form.
-    pub fn reference_rx_position(&self, data_source: &QcIndexing) -> Option<ReferenceEcefPosition> {
-        let observations = self.observations_data(data_source)?;
-        let t = observations.first_epoch()?;
-
-        let rx_orbit = observations.header.rx_orbit(t, self.earth_cef)?;
-        let pos = ReferenceEcefPosition::from_orbit(&rx_orbit);
-        Some(pos)
-    }
-
-    /// Returns a possible reference position, expressed as [Orbit], if defined in current [QcContext]
-    /// for the selected data source.
-    ///
-    /// NB: this is only picked from a possible [Rinex] Observations, not any
-    /// other possible source. If no Observations were loaded, there is no point
-    /// asking for this in this current form.
-    pub fn reference_rx_orbit(&self, data_source: &QcIndexing) -> Option<Orbit> {
-        let observations = self.observations_data(data_source)?;
-        let t = observations.first_epoch()?;
-
-        let rx_orbit = observations.header.rx_orbit(t, self.earth_cef)?;
-        Some(rx_orbit)
-    }
-
     // // Gather all [QcEphemerisData] available
     // pub fn buffered_ephemeris_data(&self) -> Vec<QcEphemerisData> {
     //     let mut ret = Vec::<QcEphemerisData>::with_capacity(8);
@@ -193,72 +148,6 @@ impl QcContext {
 
     //     ret
     // }
-
-    /// Applies complex [NavFilter] to mutable [QcContext].
-    pub fn nav_filter_mut(&mut self, filter: &QcNavFilter) {
-        // apply nav conditions
-        if let Some(brdc) = &mut self.brdc_navigation {
-            let any_constellation = filter.constellations.is_empty();
-            let broad_sbas = filter.constellations.contains(&Constellation::SBAS);
-
-            let brdc_rec = brdc.record.as_mut_nav().unwrap();
-
-            brdc_rec.retain(|k, data| {
-                if let Some(eph) = data.as_ephemeris() {
-                    match filter.filter {
-                        QcNavFilterType::Healthy => {
-                            if k.sv.constellation.is_sbas() && broad_sbas {
-                                eph.sv_healthy()
-                            } else {
-                                if any_constellation {
-                                    eph.sv_healthy()
-                                } else {
-                                    if filter.constellations.contains(&k.sv.constellation) {
-                                        eph.sv_healthy()
-                                    } else {
-                                        true
-                                    }
-                                }
-                            }
-                        }
-                        QcNavFilterType::Testing => {
-                            if k.sv.constellation.is_sbas() && broad_sbas {
-                                eph.sv_in_testing()
-                            } else {
-                                if any_constellation {
-                                    eph.sv_in_testing()
-                                } else {
-                                    if filter.constellations.contains(&k.sv.constellation) {
-                                        eph.sv_in_testing()
-                                    } else {
-                                        true
-                                    }
-                                }
-                            }
-                        }
-                        QcNavFilterType::Unhealthy => {
-                            if k.sv.constellation.is_sbas() && broad_sbas {
-                                !eph.sv_healthy()
-                            } else {
-                                if any_constellation {
-                                    !eph.sv_healthy()
-                                } else {
-                                    if filter.constellations.contains(&k.sv.constellation) {
-                                        !eph.sv_healthy()
-                                    } else {
-                                        true
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // preserves other frames
-                    true
-                }
-            });
-        }
-    }
 
     /// Update (and possibly upgrade if never used) this [QcContext] for ultra high precision navigation,
     /// using Internet access. The BPC database remains valid for a few weeks. But this should be regularly updated.

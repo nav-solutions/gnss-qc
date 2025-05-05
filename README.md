@@ -10,27 +10,21 @@ GNSS Quality Control
 [![License](https://img.shields.io/badge/license-MPL_2.0-orange?style=for-the-badge&logo=mozilla)](https://github.com/rtk-rs/qc-traits/blob/main/LICENSE)
 
 The GNSS Quality Control (QC) library is a complete scalable and highly configurable
-library that allows the formation of GNSS and Geodesy processing pipelines.
+library that allows the design and deployment GNSS and Geodesy processing pipelines.
 
 The origin of this library, is to answer the need to gather several different data sources,
 as required by GNSS post-processing. Since the spectrum of GNSS applications is broad,
-so is the potential applications of `GNSS-QC`. Amonst several, here are a few we can either think
+so is the potential applications of `GNSS-QC`. Here are a few we can either think
 of or have already been tested and deployed:
 
 * Process RINEX files
 * Process SP3 files (on `sp3` lib feature)
-* Consider what RINEX + SP3 combination has to offer
-* Obtain Radio based orbital projections (on `navigation` lib feature)
-* Obtain SP3 orbital projection (on `navigation` lib feature)
-* Perform SP3 versus radio based residual analysis
-* Compare precise RINEX products between them
-* Compare precise SP3 products between them (on `sp3` lib feature)
-* Precise Clock products analysis
-* Preprocess all supported products, in particular
-  * data filtering
-  * decimation (down sampling)
-  * focus on data of interest
-  * transpose to different TimeScale
+* Orbital projection from radio messages (on `navigation` lib feature)
+* Orbital projection from SP3 laboratory files (on `navigation` lib feature)
+* SP3 / radio residual analysis (on `navigation` lib feature)
+* Precise clock products and analysis
+* radio / precise clock residual analysis
+* Preprocessing (down sampling, filtering, transpositions..)
 * Resolve precise P.V.T (Position, Velocity, Time) solutions (on `navigation` lib feature)
 * Resolve precise CGGTTS solutions (on `navigation` + `cggtts` lib features)
 

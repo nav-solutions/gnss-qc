@@ -1,7 +1,7 @@
-use crate::prelude::Rinex;
+use rinex::prelude::Rinex;
 
 #[cfg(feature = "sp3")]
-use crate::prelude::SP3;
+use sp3::prelude::SP3;
 
 #[derive(Clone)]
 pub enum QcDataWrapper {
@@ -9,17 +9,9 @@ pub enum QcDataWrapper {
     RINEX(Rinex),
 
     #[cfg(feature = "sp3")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     /// [SP3] data
     SP3(SP3),
-}
-
-#[derive(Clone)]
-pub struct QcData {
-    /// First file name loaded for this [QcData] set
-    pub filename: String,
-
-    /// Wrapped data as [QcDataWrapper]
-    pub inner: QcDataWrapper,
 }
 
 impl QcDataWrapper {

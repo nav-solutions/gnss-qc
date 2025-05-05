@@ -1,31 +1,35 @@
 use crate::{
-    context::QcContext,
+    // context::QcContext,
     error::QcError,
-    report::QcRunReport,
-    serializer::{
-        ephemeris::QcEphemerisData,
-        serializer::{QcSerializedDataPoint, QcSerializer},
-    },
+    // report::QcRunReport,
+    // serializer::{
+    //     ephemeris::QcEphemerisData,
+    //     serializer::{QcSerializedDataPoint, QcSerializer},
+    //     signal::QcSignalDataPoint,
+    // },
 };
 
-use tokio::runtime;
+#[cfg(feature = "multi-threading")]
+use tokio::{
+    sync::broadcast::Sender as BroadcastSender,
+    task::spawn_blocking,
+};
 
 use log::debug;
-use std::thread;
 
-use std::future::Future;
+pub mod node;
+pub mod tx_buffer;
 
 pub mod job;
+use job::QcJob;
 
 mod tasklet;
-
-use job::QcJob;
-use tasklet::QcTasklet;
+use tasklet::{observations::QcSignalObservationTask, QcTasklet};
 
 /// [QcPipeline], deployed according to user specs
 /// and containing several tasklets (=algorithm) to be executed.
 pub struct QcPipeline<'a> {
-    /// [QcSerializer] to pull
+    /// [QcSerializer] to pull data from
     serializer: QcSerializer<'a>,
 }
 
@@ -46,28 +50,23 @@ impl QcContext {
 impl<'a> QcPipeline<'a> {
     /// Execute this [QcPipeline] asynchronously, deploying a dedicated tasklet for each job.
     /// Otherwise, prefer the serial / synchronous execution, using the proposed [Iterator].
+    #[cfg(feature = "multi-threading")]
     pub async fn run(&mut self) -> Result<(), QcError> {
+
+        // build
+        debug!("jobs definition..");
         let (tx, rx) = flume::bounded(256);
+        let mut test_observation_task = QcSignalObservationTask::new("Test", rx);
+
+        // spawn
         debug!("deploying");
 
-        // spawn workers
         tokio::task::spawn_blocking(move || {
-            // Grab all data points
-            loop {
-                match rx.recv() {
-                    Ok(data) => match data {
-                        QcSerializedDataPoint::SignalObservation(signal) => {
-                            debug!("got signal={:?}", signal);
-                        }
-                        _ => {}
-                    },
-                    Err(_) => break,
-                }
-            }
-            info!("worker is done");
+            let observation_report = test_observation_task.run();
+            info!("pipeline completed");
         });
 
-        // serialize all data points
+        // forward all data points
         loop {
             match self.serializer.next() {
                 Some(data) => match tx.send(data) {

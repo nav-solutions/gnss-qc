@@ -1,55 +1,14 @@
-use rinex::{
-    navigation::Ephemeris,
-    prelude::{Epoch, SV},
-};
-
 use crate::{
-    prelude::{Orbit, QcContext},
-    serializer::sync::QcSynchronousIterator,
+    context::{QcContext, QcIndexing, QcProductType},
+    serializer::{data::QcSerializedEphemeris, iter::QcAbstractIterator},
 };
 
-use log::trace;
+use super::data::QcEphemerisData;
 
-#[derive(Debug, Clone)]
-pub struct QcEphemerisData {
-    /// Time of clock as [Epoch]
-    pub toc: Epoch,
-
-    /// Time of issue of [Ephemeris] as [Epoch]
-    pub toe: Epoch,
-
-    /// [SV] source
-    pub sv: SV,
-
-    /// [Ephemeris]
-    pub ephemeris: Ephemeris,
-}
-
-impl QcEphemerisData {
-    /// Tries to form [QcEphemerisData] from RINEX [Ephemeris]
-    pub fn from_ephemeris(sv: SV, toc: Epoch, ephemeris: &Ephemeris) -> Option<Self> {
-        let ts = sv.constellation.timescale()?;
-        let toe = ephemeris.toe(ts)?;
-        Some(QcEphemerisData {
-            sv,
-            toe,
-            toc,
-            ephemeris: ephemeris.clone(),
-        })
-    }
-
-    /// Converts [QcEphemerisData] to ANISE [Orbit]
-    fn to_orbit(&self, t: Epoch) -> Option<Orbit> {
-        let orbit = self.ephemeris.kepler2position(self.sv, self.toc, t)?;
-        debug!("{}({}) - keplerian state: {}", t, self.sv, orbit);
-        Some(orbit)
-    }
-}
-
-/// [QcEphemerisSerializer] is used internally when serializing specific data.
-pub struct QcEphemerisSerializer<'a> {
+/// [QcEphemerisIterator] used internally to stream data.
+pub struct QcEphemerisIterator<'a> {
     /// [QcSynchronousIterator]
-    buffered_iter: QcSynchronousIterator<'a, QcEphemerisData>,
+    iter: QcAbstractIterator<'a, QcSerializedEphemeris>,
 }
 
 // impl<'a> OrbitSource for QcEphemerisSerializer<'a> {
@@ -82,38 +41,58 @@ pub struct QcEphemerisSerializer<'a> {
 //     }
 // }
 
-impl<'a> Iterator for QcEphemerisSerializer<'a> {
-    type Item = QcEphemerisData;
+impl<'a> Iterator for QcEphemerisIterator<'a> {
+    type Item = QcSerializedEphemeris;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.buffered_iter.next()
+        self.iter.next()
     }
 }
 
 impl QcContext {
-    /// Obtain [QcEphemerisSerializer] from current navigation compatible [QcContext].
-    pub fn ephemeris_serializer<'a>(&'a self) -> QcEphemerisSerializer<'a> {
-        let buffered_iter = match self.brdc_navigation_data() {
-            Some(brdc) => QcSynchronousIterator::new(Box::new(
-                brdc.nav_ephemeris_frames_iter().filter_map(|(k, v)| {
-                    if let Some(timescale) = k.sv.constellation.timescale() {
-                        let toe = v.toe(timescale)?;
-                        Some(QcEphemerisData {
+    /// Obtain [QcEphemerisIterator] from current navigation compatible [QcContext]
+    /// and desired [QcIndexing] provider.
+    pub fn ephemeris_serializer<'a>(
+        &'a self,
+        indexing: QcIndexing,
+    ) -> Option<QcEphemerisIterator<'a>> {
+        let data_set = self
+            .data
+            .iter()
+            .filter_map(|p| {
+                if p.product_type == QcProductType::BroadcastNavigation && p.indexing == indexing {
+                    Some(p.as_rinex().unwrap())
+                } else {
+                    None
+                }
+            })
+            .reduce(|k, _| k)?;
+
+        let iter = data_set
+            .nav_ephemeris_frames_iter()
+            .filter_map(move |(k, v)| {
+                if let Some(timescale) = k.sv.constellation.timescale() {
+                    let toe = v.toe(timescale)?;
+                    Some(QcSerializedEphemeris {
+                        filename: "TODO".to_string(),
+                        indexing: indexing.clone(),
+                        product_type: QcProductType::BroadcastNavigation,
+                        data: QcEphemerisData {
                             sv: k.sv,
                             toe,
                             toc: k.epoch,
                             ephemeris: v.clone(),
-                        })
-                    } else {
-                        trace!("{}({}) - timescale is not supported", k.epoch, k.sv);
-                        None
-                    }
-                }),
-            )),
-            None => QcSynchronousIterator::null(),
-        };
+                        },
+                    })
+                } else {
+                    trace!("{}({}) - timescale is not supported", k.epoch, k.sv);
+                    None
+                }
+            });
 
-        QcEphemerisSerializer { buffered_iter }
+        Some(QcEphemerisIterator {
+            iter: QcAbstractIterator::new(Box::new(iter)),
+        })
     }
 }
 
@@ -121,7 +100,10 @@ impl QcContext {
 mod test {
     use std::str::FromStr;
 
-    use crate::prelude::{Epoch, QcContext, SV};
+    use crate::{
+        context::QcIndexing,
+        prelude::{Epoch, QcContext, SV},
+    };
 
     #[test]
     fn null_serializer() {
@@ -130,14 +112,24 @@ mod test {
         // load other type of data
         ctx.load_rinex_file("data/MET/V2/abvi0010.15m").unwrap();
 
-        let mut serializer = ctx.ephemeris_serializer();
+        let marker = QcIndexing::GeodeticMarker("ABVI".to_string());
+        assert!(
+            ctx.ephemeris_serializer(marker).is_none(),
+            "should not exist!"
+        );
 
-        let mut points = 0;
-        while let Some(_) = serializer.next() {
-            points += 1;
-        }
+        // load NAV
+        ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+            .unwrap();
 
-        assert_eq!(points, 0, "Serializer should not have proposed anything!");
+        let marker = QcIndexing::GeodeticMarker("ABVI".to_string());
+        assert!(
+            ctx.ephemeris_serializer(marker).is_none(),
+            "should not exist!"
+        );
+
+        let marker = QcIndexing::None;
+        assert!(ctx.ephemeris_serializer(marker).is_some(), "should exist!");
     }
 
     #[test]
@@ -148,7 +140,9 @@ mod test {
         ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
             .unwrap();
 
-        let mut serializer = ctx.ephemeris_serializer();
+        let marker = QcIndexing::None;
+
+        let mut serializer = ctx.ephemeris_serializer(marker).expect("should exist");
 
         let g01 = SV::from_str("G01").unwrap();
 
@@ -224,52 +218,52 @@ mod test {
 
         let mut points = 0;
 
-        while let Some(data) = serializer.next() {
+        while let Some(serialized) = serializer.next() {
             points += 1;
 
-            if data.sv == g01 {
-                if data.toc == t_04_00_00_gpst {
+            if serialized.data.sv == g01 {
+                if serialized.data.toc == t_04_00_00_gpst {
                     g01_found[0] = true;
-                } else if data.toc == t_06_00_00_gpst {
+                } else if serialized.data.toc == t_06_00_00_gpst {
                     g01_found[1] = true;
-                } else if data.toc == t_14_00_00_gpst {
+                } else if serialized.data.toc == t_14_00_00_gpst {
                     g01_found[2] = true;
-                } else if data.toc == t_16_00_00_gpst {
+                } else if serialized.data.toc == t_16_00_00_gpst {
                     g01_found[3] = true;
-                } else if data.toc == t_18_00_00_gpst {
+                } else if serialized.data.toc == t_18_00_00_gpst {
                     g01_found[4] = true;
-                } else if data.toc == t_20_00_00_gpst {
+                } else if serialized.data.toc == t_20_00_00_gpst {
                     g01_found[5] = true;
                 } else {
-                    panic!("found expected G01 data point: {}", data.toc);
+                    panic!("found expected G01 data point: {}", serialized.data.toc);
                 }
-            } else if data.sv == c19 {
-                if data.toc == t_d0_22_00_00_bdt {
+            } else if serialized.data.sv == c19 {
+                if serialized.data.toc == t_d0_22_00_00_bdt {
                     c19_found[0] = true;
-                } else if data.toc == t_d0_23_00_00_bdt {
+                } else if serialized.data.toc == t_d0_23_00_00_bdt {
                     c19_found[1] = true;
-                } else if data.toc == t_d1_00_00_00_bdt {
+                } else if serialized.data.toc == t_d1_00_00_00_bdt {
                     c19_found[2] = true;
-                } else if data.toc == t_d1_01_00_00_bdt {
+                } else if serialized.data.toc == t_d1_01_00_00_bdt {
                     c19_found[3] = true;
-                } else if data.toc == t_d1_02_00_00_bdt {
+                } else if serialized.data.toc == t_d1_02_00_00_bdt {
                     c19_found[4] = true;
-                } else if data.toc == t_d1_03_00_00_bdt {
+                } else if serialized.data.toc == t_d1_03_00_00_bdt {
                     c19_found[5] = true;
-                } else if data.toc == t_d1_04_00_00_bdt {
+                } else if serialized.data.toc == t_d1_04_00_00_bdt {
                     c19_found[6] = true;
-                } else if data.toc == t_d1_10_00_00_bdt {
+                } else if serialized.data.toc == t_d1_10_00_00_bdt {
                     c19_found[7] = true;
-                } else if data.toc == t_d1_11_00_00_bdt {
+                } else if serialized.data.toc == t_d1_11_00_00_bdt {
                     c19_found[8] = true;
-                } else if data.toc == t_d1_12_00_00_bdt {
+                } else if serialized.data.toc == t_d1_12_00_00_bdt {
                     c19_found[9] = true;
-                } else if data.toc == t_d1_13_00_00_bdt {
+                } else if serialized.data.toc == t_d1_13_00_00_bdt {
                     c19_found[10] = true;
-                } else if data.toc == t_d1_14_00_00_bdt {
+                } else if serialized.data.toc == t_d1_14_00_00_bdt {
                     c19_found[11] = true;
                 } else {
-                    panic!("found expected C19 data point: {}", data.toc);
+                    panic!("found expected C19 data point: {}", serialized.data.toc);
                 }
 
                 // } else if data.sv == s23 {
