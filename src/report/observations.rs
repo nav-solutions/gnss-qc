@@ -4,10 +4,11 @@ use std::collections::HashMap;
 use crate::{
     prelude::{Constellation, Epoch, SV},
     report::{sampling::Sampling, temporal_data::TemporalData},
-    serializer::signal::{QcSignalDataPoint, QcSignalObservation},
+    serializer::data::{QcSerializedSignal, QcSignalObservation},
 };
 
-pub struct QcConstellationObservationReport {
+#[derive(Debug, Clone)]
+pub struct QcConstellationObservationsReport {
     /// General sampling condition
     pub sampling: Sampling,
 
@@ -21,37 +22,37 @@ pub struct QcConstellationObservationReport {
     pub doppler: HashMap<(SV, Carrier), TemporalData>,
 }
 
-impl QcConstellationObservationReport {
+impl QcConstellationObservationsReport {
     /// Create new [QcConstellationObservationReport]
-    pub fn new(observation: QcSignalDataPoint) -> Self {
+    pub fn new(signal: QcSerializedSignal) -> Self {
         let mut sampling = Sampling::default();
         let mut doppler = HashMap::with_capacity(4);
         let mut pseudo_range_m = HashMap::with_capacity(4);
         let mut phase_range_m = HashMap::with_capacity(4);
 
-        match observation.observation {
+        match signal.data.observation {
             QcSignalObservation::Doppler(value) => {
                 doppler.insert(
-                    (observation.sv, observation.carrier),
-                    TemporalData::new(observation.epoch, value),
+                    (signal.data.sv, signal.data.carrier),
+                    TemporalData::new(signal.data.epoch, value),
                 );
             }
             QcSignalObservation::PhaseRange(value) => {
                 phase_range_m.insert(
-                    (observation.sv, observation.carrier),
-                    TemporalData::new(observation.epoch, value),
+                    (signal.data.sv, signal.data.carrier),
+                    TemporalData::new(signal.data.epoch, value),
                 );
             }
             QcSignalObservation::PseudoRange(value) => {
                 pseudo_range_m.insert(
-                    (observation.sv, observation.carrier),
-                    TemporalData::new(observation.epoch, value),
+                    (signal.data.sv, signal.data.carrier),
+                    TemporalData::new(signal.data.epoch, value),
                 );
             }
         }
 
-        sampling.first_epoch = observation.epoch;
-        sampling.last_epoch = observation.epoch;
+        sampling.first_epoch = signal.data.epoch;
+        sampling.last_epoch = signal.data.epoch;
         sampling.total_epochs = 1;
 
         Self {
@@ -63,48 +64,52 @@ impl QcConstellationObservationReport {
     }
 
     /// Latch a new [QcSignalDataPoint]
-    pub fn latch_measurement(&mut self, observation: QcSignalDataPoint) {
-        match observation.observation {
+    pub fn add_contribution(&mut self, signal: QcSerializedSignal) {
+        match signal.data.observation {
             QcSignalObservation::Doppler(value) => {
-                if let Some(data) = self.doppler.get_mut(&(observation.sv, observation.carrier)) {
-                    data.push(observation.epoch, value);
+                if let Some(data) = self.doppler.get_mut(&(signal.data.sv, signal.data.carrier)) {
+                    data.push(signal.data.epoch, value);
                 } else {
-                    let data = TemporalData::new(observation.epoch, value);
+                    let data = TemporalData::new(signal.data.epoch, value);
                     self.doppler
-                        .insert((observation.sv, observation.carrier), data);
+                        .insert((signal.data.sv, signal.data.carrier), data);
                 }
             }
             QcSignalObservation::PhaseRange(value) => {
                 if let Some(data) = self
                     .phase_range_m
-                    .get_mut(&(observation.sv, observation.carrier))
+                    .get_mut(&(signal.data.sv, signal.data.carrier))
                 {
-                    data.push(observation.epoch, value);
+                    data.push(signal.data.epoch, value);
                 } else {
-                    let data = TemporalData::new(observation.epoch, value);
+                    let data = TemporalData::new(signal.data.epoch, value);
                     self.phase_range_m
-                        .insert((observation.sv, observation.carrier), data);
+                        .insert((signal.data.sv, signal.data.carrier), data);
                 }
             }
             QcSignalObservation::PseudoRange(value) => {
                 if let Some(data) = self
                     .pseudo_range_m
-                    .get_mut(&(observation.sv, observation.carrier))
+                    .get_mut(&(signal.data.sv, signal.data.carrier))
                 {
-                    data.push(observation.epoch, value);
+                    data.push(signal.data.epoch, value);
                 } else {
-                    let data = TemporalData::new(observation.epoch, value);
+                    let data = TemporalData::new(signal.data.epoch, value);
                     self.pseudo_range_m
-                        .insert((observation.sv, observation.carrier), data);
+                        .insert((signal.data.sv, signal.data.carrier), data);
                 }
             }
         }
     }
 }
 
-pub struct QcSignalsObservationReport {
+#[derive(Default, Debug, Clone)]
+pub struct QcObservationsReport {
     /// Name of this data source
     pub source: String,
+
+    /// Files (contributors)
+    pub files: Vec<String>,
 
     /// Reported time of first Observation
     pub time_of_first_obs: Option<Epoch>,
@@ -113,27 +118,27 @@ pub struct QcSignalsObservationReport {
     pub time_of_last_obs: Option<Epoch>,
 
     /// Report per [Constellation]
-    pub constell_report: HashMap<Constellation, QcConstellationObservationReport>,
+    pub constellations: HashMap<Constellation, QcConstellationObservationsReport>,
 }
 
-impl QcSignalsObservationReport {
-    pub fn new(source: &str) -> Self {
-        Self {
-            time_of_first_obs: None,
-            time_of_last_obs: None,
-            source: source.to_string(),
-            constell_report: HashMap::with_capacity(4),
-        }
-    }
-
+impl QcObservationsReport {
     /// Latch a new [QcSignalDataPoint]
-    pub fn latch_observation(&mut self, observation: QcSignalDataPoint) {
-        if let Some(report) = self.constell_report.get_mut(&observation.sv.constellation) {
-            report.latch_measurement(observation);
+    pub fn add_contribution(&mut self, observation: QcSerializedSignal) {
+        if self.source.len() == 0 {
+            self.source = observation.indexing.to_string();
+        }
+
+        self.files.push(observation.filename.to_string());
+
+        if let Some(page) = self
+            .constellations
+            .get_mut(&observation.data.sv.constellation)
+        {
+            page.add_contribution(observation);
         } else {
-            let constellation = observation.sv.constellation.clone();
-            let page = QcConstellationObservationReport::new(observation);
-            self.constell_report.insert(constellation, page);
+            let constellation = observation.data.sv.constellation.clone();
+            let page = QcConstellationObservationsReport::new(observation);
+            self.constellations.insert(constellation, page);
         }
     }
 }

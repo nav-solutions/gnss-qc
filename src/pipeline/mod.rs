@@ -109,7 +109,8 @@ impl QcRunReporter {
             // retrieve all contributions
             match self.rx.blocking_recv() {
                 Some(item) => {
-                    info!("received from: {}", item.filename);
+                    let mut report = self.report.lock().unwrap();
+                    report.add_signal_contribution(item);
                 }
                 None => break,
             }
@@ -142,7 +143,7 @@ impl QcContext {
 impl<'a> QcPipeline<'a> {
     /// Execute this [QcPipeline] asynchronously, deploying a dedicated tasklet for each job.
     /// Otherwise, prefer the serial / synchronous execution, using the proposed [Iterator].
-    pub async fn run(&mut self) -> Result<(), QcError> {
+    pub async fn run(&mut self) -> Result<QcRunReport, QcError> {
         debug!("channels creation..");
 
         let (brdc_tx, _) = broadcast_channel(16);
@@ -208,7 +209,18 @@ impl<'a> QcPipeline<'a> {
         // will conclude all tasklets
         drop(brdc_tx);
 
-        let mut report = report.lock().unwrap();
+        for thread in pool {
+            thread.await.unwrap();
+        }
+
+        let mut report = Arc::try_unwrap(report)
+            .unwrap_or_else(|_| {
+                panic!("failed to obtained redacted report!");
+            })
+            .into_inner()
+            .unwrap_or_else(|e| {
+                panic!("failed to obtain redacted report! {}", e);
+            });
 
         let now = Epoch::now().unwrap_or_else(|e| {
             error!("failed to report system time: {}", e);
@@ -218,8 +230,7 @@ impl<'a> QcPipeline<'a> {
         report.run_summary.run_duration = now - report.run_summary.datetime;
 
         info!("pipeline executed sucessfully!");
-        info!("redacted: {:#?}", report);
-        Ok(())
+        Ok(report)
     }
 }
 
