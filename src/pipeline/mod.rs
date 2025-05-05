@@ -14,13 +14,16 @@ use std::sync::{Arc, Mutex};
 
 use qc_traits::MaskFilter;
 
-use tokio::sync::{
-    broadcast::{
-        channel as broadcast_channel, error::RecvError, Receiver as BroadcastReceiver,
-        Sender as BroadcastSender,
+use tokio::{
+    sync::{
+        broadcast::{
+            channel as broadcast_channel, error::RecvError, Receiver as BroadcastReceiver,
+            Sender as BroadcastSender,
+        },
+        mpsc::{channel as mpsc_channel, Receiver, Sender},
+        RwLock,
     },
-    mpsc::{channel as mpsc_channel, Receiver, Sender},
-    RwLock,
+    task::spawn_blocking,
 };
 
 use log::debug;
@@ -85,6 +88,7 @@ impl QcObsExtractor {
                 _ => {} // filtered out
             }
         }
+        debug!("{} (obs-task) - completed", self.source_filter);
     }
 }
 
@@ -110,16 +114,7 @@ impl QcRunReporter {
                 None => break,
             }
         }
-
-        // let now = Epoch::now().unwrap_or_else(|e| {
-        //     error!("failed to report system time + run duration");
-        //     Epoch::default()
-        // });
-
-        self.report.lock().unwrap().run_summary.num_jobs = 1;
-        self.report.lock().unwrap().run_summary.run_duration = Duration::from_hours(1.0);
-
-        info!("reporting completed");
+        debug!("run reporting - completed");
     }
 }
 
@@ -155,6 +150,7 @@ impl<'a> QcPipeline<'a> {
 
         // build
         debug!("job definitions..");
+        let mut pool = Vec::new();
 
         let now = Epoch::now().unwrap_or_else(|e| {
             error!("failed to report system time: {}", e);
@@ -170,9 +166,10 @@ impl<'a> QcPipeline<'a> {
 
         let mut report = QcRunReport::default();
 
+        report.run_summary.num_jobs = 1;
         report.run_summary.datetime = now.round(Duration::from_seconds(1.0));
 
-        let mut report = Arc::new(Mutex::new(report));
+        let report = Arc::new(Mutex::new(report));
 
         // Run reporter
         let mut reporter = QcRunReporter {
@@ -184,14 +181,13 @@ impl<'a> QcPipeline<'a> {
         // spawn
         debug!("deployment..");
 
-        let task1 = tokio::task::spawn_blocking(move || {
+        pool.push(tokio::task::spawn_blocking(move || {
             obs_task.run();
-            info!("obs tasklet completed");
-        });
+        }));
 
-        let reporter_tasklet = tokio::task::spawn_blocking(move || {
+        pool.push(tokio::task::spawn_blocking(move || {
             reporter.run();
-        });
+        }));
 
         // serialize all data
         loop {
@@ -209,14 +205,20 @@ impl<'a> QcPipeline<'a> {
             tokio::time::sleep(std::time::Duration::from_micros(100)).await;
         }
 
-        // task1.await.unwrap();
-        // reporter_tasklet.await.unwrap();
+        // will conclude all tasklets
+        drop(brdc_tx);
 
-        let report = report.lock().unwrap();
+        let mut report = report.lock().unwrap();
+
+        let now = Epoch::now().unwrap_or_else(|e| {
+            error!("failed to report system time: {}", e);
+            Epoch::default()
+        });
+
+        report.run_summary.run_duration = now - report.run_summary.datetime;
 
         info!("pipeline executed sucessfully!");
         info!("redacted: {:#?}", report);
-
         Ok(())
     }
 }
