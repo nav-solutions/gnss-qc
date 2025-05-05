@@ -18,12 +18,14 @@ pub struct QcSignalSerializer<'a> {
 impl QcContext {
     /// Obtain [QcSignalSerializer] scoped to [QcIndexing] data source, from current [QcContext].
     pub fn signal_serializer<'a>(&'a self, indexing: QcIndexing) -> Option<QcSignalSerializer<'a>> {
-        let data_set = self
+        let (filename, data_set) = self
             .data
             .iter()
             .filter_map(|p| {
-                if p.product_type == QcProductType::Observation && p.indexing == indexing {
-                    Some(p.as_rinex().unwrap())
+                if p.descriptor.product_type == QcProductType::Observation
+                    && p.descriptor.indexing == indexing
+                {
+                    Some((&p.descriptor.filename, p.as_rinex().unwrap()))
                 } else {
                     None
                 }
@@ -50,7 +52,7 @@ impl QcContext {
 
                     Some(QcSerializedSignal {
                         indexing: indexing.clone(),
-                        filename: "todo".to_string(),
+                        filename: filename.to_string(),
                         product_type: QcProductType::Observation,
                         data: QcSignalData {
                             epoch: k.epoch,

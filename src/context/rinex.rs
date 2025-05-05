@@ -63,15 +63,32 @@ impl QcContext {
         } else {
             // automated
             let indexing = QcIndexing::rinex_indexing(&rinex);
-            info!("{} auto indexed by {}", filename, indexing);
-            indexing
+
+            // little more smartness when it comes to Broadcast Navigation
+            // Although it is not really needed, it will give us the ability
+            // to differentiate potential initial "sources" (sampler) of the navigation messages.
+            // But this requires the filename to follow standard naming conventions.
+            if indexing == QcIndexing::None && product_type == QcProductType::BroadcastNavigation {
+                let production = &rinex.production;
+
+                // Will be marked as agency, but we could use "Custom" as well here
+                let indexing = QcIndexing::Agency(production.name.clone());
+                info!("{} auto indexed by {}", filename, indexing);
+
+                indexing
+            } else {
+                info!("{} auto indexed by {}", filename, indexing);
+                indexing
+            }
         };
 
         // Add entry
         if let Some(data) = self
             .data
             .iter_mut()
-            .filter(|p| p.product_type == product_type && p.indexing == indexing)
+            .filter(|p| {
+                p.descriptor.product_type == product_type && p.descriptor.indexing == indexing
+            })
             .reduce(|p, _| p)
         {
             let entry = data
@@ -118,7 +135,9 @@ impl QcContext {
         self.data
             .iter()
             .filter_map(|p| {
-                if p.product_type == QcProductType::Observation && p.indexing == *indexing {
+                if p.descriptor.product_type == QcProductType::Observation
+                    && p.descriptor.indexing == *indexing
+                {
                     p.as_rinex()
                 } else {
                     None
@@ -133,7 +152,9 @@ impl QcContext {
         self.data
             .iter()
             .filter_map(|p| {
-                if p.product_type == QcProductType::BroadcastNavigation && p.indexing == *indexing {
+                if p.descriptor.product_type == QcProductType::BroadcastNavigation
+                    && p.descriptor.indexing == *indexing
+                {
                     p.as_rinex()
                 } else {
                     None
@@ -148,7 +169,9 @@ impl QcContext {
         self.data
             .iter()
             .filter_map(|p| {
-                if p.product_type == QcProductType::MeteoObservation && p.indexing == *indexing {
+                if p.descriptor.product_type == QcProductType::MeteoObservation
+                    && p.descriptor.indexing == *indexing
+                {
                     p.as_rinex()
                 } else {
                     None

@@ -33,7 +33,9 @@ impl QcContext {
         if let Some(data) = self
             .data
             .iter_mut()
-            .filter(|p| p.product_type == product_type && p.indexing == indexing)
+            .filter(|p| {
+                p.descriptor.product_type == product_type && p.descriptor.indexing == indexing
+            })
             .reduce(|p, _| p)
         {
             let entry = data

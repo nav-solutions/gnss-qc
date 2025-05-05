@@ -3,7 +3,6 @@ use itertools::Itertools;
 
 use crate::prelude::QcConfig;
 
-mod data;
 mod rinex;
 
 #[cfg(feature = "flate2")]
@@ -13,6 +12,8 @@ mod flate2;
 #[cfg(feature = "sp3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
 mod sp3;
+
+pub(crate) mod data;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
@@ -177,7 +178,7 @@ impl QcContext {
 
     /// Obtain an [Iterator] over all [QcProductType]s present in current [QcContext].
     pub fn product_types_iter(&self) -> Box<dyn Iterator<Item = QcProductType> + '_> {
-        Box::new(self.data.iter().map(|k| k.product_type).unique())
+        Box::new(self.data.iter().map(|k| k.descriptor.product_type).unique())
     }
 
     /// Build an updated [QcContext] with [QcConfig] preferences.

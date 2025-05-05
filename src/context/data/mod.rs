@@ -12,16 +12,22 @@ use crate::prelude::Rinex;
 #[cfg(feature = "sp3")]
 use crate::prelude::SP3;
 
-#[derive(Clone)]
-pub struct QcDataEntry {
-    /// [QcProductType]
-    pub product_type: QcProductType,
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QcSourceDescriptor {
+    /// Readable filename
+    pub filename: String,
 
-    /// [QcIndexing] either automatically determined or manually set
+    /// Storage indexing as [QcIndexing]
     pub indexing: QcIndexing,
 
-    /// Origin file name that formed this [QcData]
-    pub filename: String,
+    /// [QcProductType]
+    pub product_type: QcProductType,
+}
+
+#[derive(Clone)]
+pub struct QcDataEntry {
+    /// Descriptor
+    pub descriptor: QcSourceDescriptor,
 
     /// Wrapped data as [QcDataWrapper]
     inner: QcDataWrapper,
@@ -41,9 +47,11 @@ impl QcDataEntry {
         data: Rinex,
     ) -> Self {
         Self {
-            indexing,
-            product_type,
-            filename: filename.to_string(),
+            descriptor: QcSourceDescriptor {
+                indexing,
+                product_type,
+                filename: filename.to_string(),
+            },
             inner: QcDataWrapper::RINEX(data),
         }
     }
@@ -70,10 +78,12 @@ impl QcDataEntry {
         let indexing = QcIndexing::Agency(data.header.agency.clone());
 
         Self {
-            indexing,
-            filename: filename.to_string(),
+            descriptor: QcSourceDescriptor {
+                indexing,
+                filename: filename.to_string(),
+                product_type: QcProductType::PreciseOrbit,
+            },
             inner: QcDataWrapper::SP3(data),
-            product_type: QcProductType::PreciseOrbit,
         }
     }
 

@@ -56,12 +56,14 @@ impl QcContext {
         &'a self,
         indexing: QcIndexing,
     ) -> Option<QcEphemerisIterator<'a>> {
-        let data_set = self
+        let (filename, data_set) = self
             .data
             .iter()
             .filter_map(|p| {
-                if p.product_type == QcProductType::BroadcastNavigation && p.indexing == indexing {
-                    Some(p.as_rinex().unwrap())
+                if p.descriptor.product_type == QcProductType::BroadcastNavigation
+                    && p.descriptor.indexing == indexing
+                {
+                    Some((&p.descriptor.filename, p.as_rinex().unwrap()))
                 } else {
                     None
                 }
@@ -74,8 +76,8 @@ impl QcContext {
                 if let Some(timescale) = k.sv.constellation.timescale() {
                     let toe = v.toe(timescale)?;
                     Some(QcSerializedEphemeris {
-                        filename: "TODO".to_string(),
                         indexing: indexing.clone(),
+                        filename: filename.to_string(),
                         product_type: QcProductType::BroadcastNavigation,
                         data: QcEphemerisData {
                             sv: k.sv,
@@ -103,6 +105,7 @@ mod test {
     use crate::{
         context::QcIndexing,
         prelude::{Epoch, QcContext, SV},
+        tests::init_logger,
     };
 
     #[test]
@@ -129,11 +132,14 @@ mod test {
         );
 
         let marker = QcIndexing::None;
+
         assert!(ctx.ephemeris_serializer(marker).is_some(), "should exist!");
     }
 
     #[test]
     fn serializer() {
+        init_logger();
+
         let mut ctx = QcContext::new();
 
         // load NAV
