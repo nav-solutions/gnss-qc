@@ -44,9 +44,9 @@ impl QcContext {
 
             entry.merge_mut(&sp3)?;
 
-            debug!("SP3 extension {} - indexed by {}", filename, indexing);
+            debug!("SP3 extension \"{}\" - indexed by {}", filename, indexing);
         } else {
-            info!("New SP3 {} - indexed by {}", filename, indexing);
+            info!("New SP3 \"{}\" - indexed by {}", filename, indexing);
 
             self.data.push(QcDataEntry::new_sp3(filename, sp3));
         }

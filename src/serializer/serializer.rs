@@ -1,7 +1,10 @@
 use crate::{
-    context::{data::QcSourceDescriptor, QcContext, QcProductType},
+    context::QcContext,
     prelude::Epoch,
-    serializer::{data::QcSerializedItem, ephemeris::QcEphemerisIterator, state::State},
+    serializer::{
+        data::QcSerializedItem, ephemeris::QcEphemerisIterator, signal::QcSignalIterator,
+        state::State,
+    },
 };
 
 /// [QcSerializer] to serialize entire [QcContext].
@@ -11,32 +14,33 @@ pub struct QcSerializer<'a> {
 
     // /// Latest serialized epoch
     // latest: Option<Epoch>,
+    /// All [QcEphemerisIterator] sources
     ephemeris_sources: Vec<QcEphemerisIterator<'a>>,
 
+    /// All [QcSignalIterator] sources
+    signal_sources: Vec<QcSignalIterator<'a>>,
     // /// Last streamed
     // last_streamed: Option<&'a QcSourceDescriptor>,
-    /// All source descriptors contained
-    descriptors: Vec<(QcSourceDescriptor, bool)>,
 }
 
 impl QcContext {
     /// Obtain a synchronous [QcSerializer] from current [QcContext], ready to serialize the entire context.
     pub fn serializer<'a>(&'a self) -> QcSerializer<'a> {
+        let mut signal_sources = Vec::new();
         let mut ephemeris_sources = Vec::new();
-        let mut descriptors = Vec::with_capacity(4);
 
         for entry in self.data.iter() {
             if let Some(serializer) = self.ephemeris_serializer(entry.descriptor.indexing.clone()) {
                 ephemeris_sources.push(serializer);
+            } else if let Some(serializer) =
+                self.signal_serializer(entry.descriptor.indexing.clone())
+            {
+                signal_sources.push(serializer);
             }
-
-            descriptors.push((entry.descriptor.clone(), false)); // store for later
         }
 
-        debug!("streamer: latched descriptors: {:#?}", descriptors);
-
         QcSerializer {
-            descriptors,
+            signal_sources,
             ephemeris_sources,
             state: Default::default(),
             // last_streamed: None,
@@ -67,21 +71,31 @@ impl<'a> Iterator for QcSerializer<'a> {
                 #[cfg(feature = "navigation")]
                 State::Ephemeris => {
                     // round robin all data sources (until all completed)
-                    for (index, (source, done)) in self.descriptors.iter_mut().enumerate() {
-                        if !*done && source.product_type == QcProductType::BroadcastNavigation {
-                            if let Some(data) = self.ephemeris_sources[index].next() {
+                    for source in self.ephemeris_sources.iter_mut() {
+                        if !source.iter.eos {
+                            if let Some(data) = source.next() {
                                 return Some(QcSerializedItem::Ephemeris(data));
-                            } else {
-                                *done = true;
                             }
                         }
                     }
 
-                    self.state = State::Done;
+                    self.state = State::Signal;
                 }
 
                 #[cfg(not(feature = "navigation"))]
                 State::Ephemeris => {
+                    self.state = State::Signal;
+                }
+
+                State::Signal => {
+                    // round robin all data sources (until all completed)
+                    for source in self.signal_sources.iter_mut() {
+                        if !source.iter.eos {
+                            if let Some(data) = source.next() {
+                                return Some(QcSerializedItem::Signal(data));
+                            }
+                        }
+                    }
                     self.state = State::Done;
                 }
 
@@ -94,10 +108,6 @@ impl<'a> Iterator for QcSerializer<'a> {
                 }
 
                 State::PreciseClock => {
-                    return None;
-                }
-
-                State::Signal => {
                     return None;
                 }
 
@@ -166,6 +176,52 @@ mod test {
 
         // load data
         ctx.load_rinex_file("data/OBS/V3/VLNS0010.22O").unwrap();
+
+        let mut serializer = ctx.serializer();
+
+        let mut points = 0;
+
+        while let Some(_) = serializer.next() {
+            points += 1;
+        }
+
+        assert!(points > 0, "did not propose any ephemeris data points!");
+    }
+
+    #[test]
+    fn dual_signal_sources_serializer() {
+        init_logger();
+        let mut ctx = QcContext::new();
+
+        // load data
+        ctx.load_rinex_file("data/OBS/V3/VLNS0010.22O").unwrap();
+        ctx.load_rinex_file("data/OBS/V3/VLNS0630.22O").unwrap();
+
+        let mut serializer = ctx.serializer();
+
+        let mut points = 0;
+
+        while let Some(_) = serializer.next() {
+            points += 1;
+        }
+
+        assert!(points > 0, "did not propose any ephemeris data points!");
+    }
+
+    #[test]
+    fn dual_signal_dual_eph_serializer() {
+        init_logger();
+        let mut ctx = QcContext::new();
+
+        // load data
+        ctx.load_rinex_file("data/OBS/V3/VLNS0010.22O").unwrap();
+        ctx.load_rinex_file("data/OBS/V3/VLNS0630.22O").unwrap();
+
+        ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+            .unwrap();
+
+        ctx.load_gzip_rinex_file("data/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
+            .unwrap();
 
         let mut serializer = ctx.serializer();
 

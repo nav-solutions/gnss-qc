@@ -8,7 +8,7 @@ use super::data::QcEphemerisData;
 /// [QcEphemerisIterator] used internally to stream data.
 pub struct QcEphemerisIterator<'a> {
     /// [QcSynchronousIterator]
-    iter: QcAbstractIterator<'a, QcSerializedEphemeris>,
+    pub iter: QcAbstractIterator<'a, QcSerializedEphemeris>,
 }
 
 // impl<'a> OrbitSource for QcEphemerisSerializer<'a> {

@@ -1,4 +1,4 @@
-mod data;
+pub mod data;
 pub mod iter;
 pub mod serializer;
 pub mod signal;

@@ -24,9 +24,9 @@ extern crate gnss_rs as gnss;
 // mod analysis;
 mod config;
 mod context;
-// mod pipeline;
+mod pipeline;
 // mod plot;
-// mod report;
+mod report;
 mod serializer;
 
 #[cfg(feature = "navigation")]

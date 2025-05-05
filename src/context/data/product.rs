@@ -54,11 +54,11 @@ impl std::fmt::Display for QcProductType {
             Self::IONEX => write!(f, "IONEX"),
             Self::DORIS => write!(f, "DORIS RINEX"),
             Self::Observation => write!(f, "Observation"),
-            Self::MeteoObservation => write!(f, "Meteo observations"),
             Self::PreciseClock => write!(f, "Clock RINEX"),
-            Self::BroadcastNavigation => write!(f, "Broadcast Navigation (BRDC)"),
+            Self::MeteoObservation => write!(f, "Meteo observations"),
+            Self::BroadcastNavigation => write!(f, "Broadcast Navigation"),
             #[cfg(feature = "sp3")]
-            Self::PreciseOrbit => write!(f, "High Precision Orbit (SP3)"),
+            Self::PreciseOrbit => write!(f, "SP3"),
         }
     }
 }

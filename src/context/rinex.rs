@@ -58,7 +58,6 @@ impl QcContext {
 
         let indexing = if let Some(indexing) = indexing {
             // manual preference
-            info!("{} manually indexed by {}", filename, indexing);
             indexing
         } else {
             // automated
@@ -73,11 +72,8 @@ impl QcContext {
 
                 // Will be marked as agency, but we could use "Custom" as well here
                 let indexing = QcIndexing::Agency(production.name.clone());
-                info!("{} auto indexed by {}", filename, indexing);
-
                 indexing
             } else {
-                info!("{} auto indexed by {}", filename, indexing);
                 indexing
             }
         };
@@ -98,12 +94,12 @@ impl QcContext {
             entry.merge_mut(&rinex)?;
 
             debug!(
-                "{} RINEX extension {} - indexed by {}",
+                "{} RINEX extension \"{}\" - indexed by {}",
                 product_type, filename, indexing
             );
         } else {
             info!(
-                "New {} RINEX {} - indexed by {}",
+                "New {} RINEX \"{}\" - indexed by {}",
                 product_type, filename, indexing
             );
 

@@ -1,20 +1,14 @@
-use crate::{
-    pipeline::job::QcJob,
-    prelude::{Duration, Epoch},
-};
+use crate::prelude::{Duration, Epoch};
 
 /// [QcPipeline] run summary.
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct QcRunSummary {
-    /// Deployment datetime as [Epoch]
+    /// Deployment datetime, as [Epoch]
     pub datetime: Epoch,
 
-    /// Processing [Duration]
+    /// Total processing time, as [Duration]
     pub run_duration: Duration,
 
-    /// Number of executes jobs
+    /// Number of executed jobs
     pub num_jobs: usize,
-
-    /// [QcJob]s that were executed
-    pub jobs: Vec<QcJob>,
 }

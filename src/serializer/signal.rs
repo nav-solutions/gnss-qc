@@ -10,14 +10,14 @@ use rinex::{carrier::Carrier, prelude::Observable};
 
 use super::data::QcSignalData;
 
-pub struct QcSignalSerializer<'a> {
+pub struct QcSignalIterator<'a> {
     /// [QcSynchronousIterator]
-    iter: QcAbstractIterator<'a, QcSerializedSignal>,
+    pub iter: QcAbstractIterator<'a, QcSerializedSignal>,
 }
 
 impl QcContext {
     /// Obtain [QcSignalSerializer] scoped to [QcIndexing] data source, from current [QcContext].
-    pub fn signal_serializer<'a>(&'a self, indexing: QcIndexing) -> Option<QcSignalSerializer<'a>> {
+    pub fn signal_serializer<'a>(&'a self, indexing: QcIndexing) -> Option<QcSignalIterator<'a>> {
         let (filename, data_set) = self
             .data
             .iter()
@@ -73,13 +73,13 @@ impl QcContext {
                 }
             });
 
-        Some(QcSignalSerializer {
+        Some(QcSignalIterator {
             iter: QcAbstractIterator::new(Box::new(iter)),
         })
     }
 }
 
-impl<'a> Iterator for QcSignalSerializer<'a> {
+impl<'a> Iterator for QcSignalIterator<'a> {
     type Item = QcSerializedSignal;
 
     fn next(&mut self) -> Option<Self::Item> {
