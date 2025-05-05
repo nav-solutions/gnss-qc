@@ -61,7 +61,7 @@ impl<'a> Iterator for QcSerializer<'a> {
             //     return ret;
             // }
 
-            debug!("state: {:?}", self.state);
+            // debug!("state: {:?}", self.state);
 
             match self.state {
                 State::Constants => {
@@ -96,6 +96,7 @@ impl<'a> Iterator for QcSerializer<'a> {
                             }
                         }
                     }
+
                     self.state = State::Done;
                 }
 

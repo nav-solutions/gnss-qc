@@ -14,7 +14,7 @@ edition = "2021"
 msrv = "1.81"
 
 [package.metadata.docs.rs]
-features = ["sp3", "flate2", "navigation", "multi-threading"]
+features = ["sp3", "flate2", "navigation"]
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [features]
@@ -22,7 +22,7 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 # Supports SP3 parsing and indexing by default
 # Multithreaded QcPipelines by default
 # Post-processed Navigation not possible by default (heavy job)
-default = ["sp3", "flate2", "navigation", "cggtts", "multi-threading"]
+default = ["sp3", "flate2", "navigation", "cggtts"]
 
 # Support Gzip compressed files natively
 flate2 = [
@@ -34,9 +34,6 @@ flate2 = [
 # When targetting highest precision analysis and solutions, like in PPP,
 # Otherwise, your processing (and possible navigation) only relies on RINEX.
 sp3 = ["dep:sp3"]
-
-# Multi-threaded QcPipeline
-multi-threading = ["dep:tokio", "dep:flume"]
 
 # Unlock Post Processed Navigation.
 # Without this option, you are limited to context setup & analysis (basic processing).
@@ -118,9 +115,7 @@ optional = true
 [dependencies]
 log = "0.4"
 thiserror = "2"
-
-flume = { version = "0.11", optional = true }
-tokio = { version = "1", features = ["full"], optional = true }
+tokio = { version = "1", features = ["full"] }
 
 strum = "0.27"
 strum_macros = "0.26"

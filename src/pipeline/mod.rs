@@ -9,13 +9,18 @@ use crate::{
     },
 };
 
+use hifitime::Duration;
+use std::sync::{Arc, Mutex};
+
 use qc_traits::MaskFilter;
 
 use tokio::sync::{
     broadcast::{
-        channel as broadcast_channel, Receiver as BroadcastReceiver, Sender as BroadcastSender,
+        channel as broadcast_channel, error::RecvError, Receiver as BroadcastReceiver,
+        Sender as BroadcastSender,
     },
     mpsc::{channel as mpsc_channel, Receiver, Sender},
+    RwLock,
 };
 
 use log::debug;
@@ -51,12 +56,12 @@ pub struct QcObsExtractor {
 }
 
 impl QcObsExtractor {
-    pub async fn run(&mut self) {
+    pub fn run(&mut self) {
         loop {
-            match self.rx.recv().await {
+            match self.rx.blocking_recv() {
                 Ok(QcSerializedItem::Signal(signal)) => {
                     if signal.indexing == self.source_filter {
-                        match self.tx.send(signal).await {
+                        match self.tx.blocking_send(signal) {
                             Ok(_) => {}
                             Err(e) => {
                                 error!(
@@ -65,13 +70,17 @@ impl QcObsExtractor {
                                 );
                             }
                         }
-                    } else {
-                        debug!("{}({}) filtered out", signal.indexing, signal.product_type);
                     }
                 }
-                Err(e) => {
-                    error!("{} (obs-task) - recv error {}", self.source_filter, e);
+                Err(RecvError::Closed) => {
+                    // channel is closed, all points forwarded
                     break;
+                }
+                Err(RecvError::Lagged(lost)) => {
+                    error!(
+                        "{} (obs-task) - queue overflow {} messages lost",
+                        self.source_filter, lost
+                    );
                 }
                 _ => {} // filtered out
             }
@@ -87,28 +96,29 @@ pub struct QcRunReporter {
     pub rx: Receiver<QcSerializedSignal>,
 
     /// Report being redacted
-    pub report: QcRunReport,
+    pub report: Arc<Mutex<QcRunReport>>,
 }
 
 impl QcRunReporter {
-    pub async fn run(&mut self) {
+    pub fn run(&mut self) {
         loop {
             // retrieve all contributions
-            match self.rx.recv().await {
+            match self.rx.blocking_recv() {
                 Some(item) => {
-                    info!("received: {}", item.filename);
+                    info!("received from: {}", item.filename);
                 }
                 None => break,
             }
         }
 
-        let now = Epoch::now().unwrap_or_else(|e| {
-            error!("failed to report system time + run duration");
-            Epoch::default()
-        });
+        // let now = Epoch::now().unwrap_or_else(|e| {
+        //     error!("failed to report system time + run duration");
+        //     Epoch::default()
+        // });
 
-        self.report.run_summary.num_jobs = 1;
-        self.report.run_summary.run_duration = now - self.datetime;
+        self.report.lock().unwrap().run_summary.num_jobs = 1;
+        self.report.lock().unwrap().run_summary.run_duration = Duration::from_hours(1.0);
+
         info!("reporting completed");
     }
 }
@@ -158,29 +168,32 @@ impl<'a> QcPipeline<'a> {
             source_filter: QcIndexing::GeodeticMarker("VLNS0630".to_string()),
         };
 
+        let mut report = QcRunReport::default();
+
+        report.run_summary.datetime = now.round(Duration::from_seconds(1.0));
+
+        let mut report = Arc::new(Mutex::new(report));
+
         // Run reporter
         let mut reporter = QcRunReporter {
             rx: path_rx,
             datetime: now,
-            report: Default::default(),
+            report: Arc::clone(&report),
         };
-
-        reporter.report.run_summary.datetime = now;
 
         // spawn
         debug!("deployment..");
 
-        tokio::task::spawn(async move {
-            obs_task.run().await;
-            println!("obs tasklet completed");
+        let task1 = tokio::task::spawn_blocking(move || {
+            obs_task.run();
+            info!("obs tasklet completed");
         });
 
-        tokio::task::spawn(async move {
-            reporter.run().await;
-            println!("DONE");
+        let reporter_tasklet = tokio::task::spawn_blocking(move || {
+            reporter.run();
         });
 
-        // gather report
+        // serialize all data
         loop {
             match self.serializer.next() {
                 Some(data) => match brdc_tx.send(data) {
@@ -193,10 +206,17 @@ impl<'a> QcPipeline<'a> {
                 None => break,
             }
 
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            tokio::time::sleep(std::time::Duration::from_micros(100)).await;
         }
 
+        // task1.await.unwrap();
+        // reporter_tasklet.await.unwrap();
+
+        let report = report.lock().unwrap();
+
         info!("pipeline executed sucessfully!");
+        info!("redacted: {:#?}", report);
+
         Ok(())
     }
 }
@@ -212,9 +232,9 @@ mod test {
 
         let mut ctx = QcContext::new();
 
-        // load data
-        ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
-            .unwrap();
+        // // load data
+        // ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+        //     .unwrap();
 
         ctx.load_rinex_file("data/OBS/V3/VLNS0010.22O").unwrap();
         ctx.load_rinex_file("data/OBS/V3/VLNS0630.22O").unwrap();
