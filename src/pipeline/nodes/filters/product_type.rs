@@ -3,20 +3,20 @@ use crossbeam_channel::{Receiver, Sender};
 use crate::{pipeline::nodes::Node, prelude::QcProductType, serializer::data::QcSerializedItem};
 
 /// [QcProductTypeFilter] drops anything but a single [QcProductType]
-pub struct QcProductTypeFilter {
+pub struct QcProductTypeStreamFilter {
     name: String,
     product_type: QcProductType,
     rx: Receiver<QcSerializedItem>,
     tx: Sender<QcSerializedItem>,
 }
 
-impl QcProductTypeFilter {
+impl QcProductTypeStreamFilter {
     pub fn new(
         name: &str,
         product_type: QcProductType,
         rx: Receiver<QcSerializedItem>,
         tx: Sender<QcSerializedItem>,
-    ) -> QcProductTypeFilter {
+    ) -> Self {
         Self {
             rx,
             tx,
@@ -26,7 +26,7 @@ impl QcProductTypeFilter {
     }
 }
 
-impl Node<QcSerializedItem, QcSerializedItem> for QcProductTypeFilter {
+impl Node<QcSerializedItem, QcSerializedItem> for QcProductTypeStreamFilter {
     fn name(&self) -> &str {
         &self.name
     }

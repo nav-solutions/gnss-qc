@@ -2,21 +2,21 @@ use crossbeam_channel::{Receiver, Sender};
 
 use crate::{pipeline::nodes::Node, prelude::SV, serializer::data::QcSerializedItem};
 
-/// [QcSingleSVStreamer] drops anything but a single [SV]
-pub struct QcSingleSVStreamer {
+/// [QcSVStreamFilter] drops anything but a single [SV]
+pub struct QcSVStreamFilter {
     name: String,
     sv: SV,
     rx: Receiver<QcSerializedItem>,
     tx: Sender<QcSerializedItem>,
 }
 
-impl QcSingleSVStreamer {
+impl QcSVStreamFilter {
     pub fn new(
         name: &str,
         sv: SV,
         rx: Receiver<QcSerializedItem>,
         tx: Sender<QcSerializedItem>,
-    ) -> QcSingleSVStreamer {
+    ) -> QcSVStreamFilter {
         Self {
             rx,
             tx,
@@ -26,7 +26,7 @@ impl QcSingleSVStreamer {
     }
 }
 
-impl Node<QcSerializedItem, QcSerializedItem> for QcSingleSVStreamer {
+impl Node<QcSerializedItem, QcSerializedItem> for QcSVStreamFilter {
     fn name(&self) -> &str {
         &self.name
     }

@@ -2,21 +2,21 @@ use crossbeam_channel::{Receiver, Sender};
 
 use crate::{pipeline::nodes::Node, prelude::Constellation, serializer::data::QcSerializedItem};
 
-/// [QcSingleConstellationStreamer] drops anything but a single constellation
-pub struct QcSingleConstellationStreamer {
+/// [QConstellationStreamFilter] drops anything but a single constellation
+pub struct QConstellationStreamFilter {
     name: String,
     constellation: Constellation,
     rx: Receiver<QcSerializedItem>,
     tx: Sender<QcSerializedItem>,
 }
 
-impl QcSingleConstellationStreamer {
+impl QConstellationStreamFilter {
     pub fn new(
         name: &str,
         constellation: Constellation,
         rx: Receiver<QcSerializedItem>,
         tx: Sender<QcSerializedItem>,
-    ) -> QcSingleConstellationStreamer {
+    ) -> QConstellationStreamFilter {
         Self {
             rx,
             tx,
@@ -26,7 +26,7 @@ impl QcSingleConstellationStreamer {
     }
 }
 
-impl Node<QcSerializedItem, QcSerializedItem> for QcSingleConstellationStreamer {
+impl Node<QcSerializedItem, QcSerializedItem> for QConstellationStreamFilter {
     fn name(&self) -> &str {
         &self.name
     }
