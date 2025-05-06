@@ -82,7 +82,6 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 ##############################
 # Multi-threading
 ##############################
-threadpool = "1.8"
 crossbeam-channel = "0.5"
 
 ##############################
