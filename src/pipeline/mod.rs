@@ -28,7 +28,7 @@
 
 use log::debug;
 
-pub mod node;
+pub mod nodes;
 
 // pub mod tx_buffer;
 

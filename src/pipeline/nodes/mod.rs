@@ -2,12 +2,13 @@ use log::error;
 
 use crossbeam_channel::{Receiver, Sender};
 
-use crate::serializer::data::{QcSerializedEphemeris, QcSerializedItem, QcSerializedSignal};
+mod ephemeris;
+mod filters;
+mod observations;
 
+/// [Node] defines an abstract box with a single input [Receiver] port
+/// and a single output [Sender] port.
 pub trait Node<I, O> {
-    /// Define a new [Node]
-    fn new(name: &str, rx: Receiver<I>, tx: Sender<O>) -> Self;
-
     /// Readable name
     fn name(&self) -> &str;
 
@@ -43,94 +44,14 @@ pub trait Node<I, O> {
     }
 }
 
-/// [QcObservationsStreamer] selects Signal observations within the stream (only)
-pub struct QcObservationsStreamer {
-    name: String,
-    rx: Receiver<QcSerializedItem>,
-    tx: Sender<QcSerializedSignal>,
-}
-
-impl Node<QcSerializedItem, QcSerializedSignal> for QcObservationsStreamer {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn new(
-        name: &str,
-        rx: Receiver<QcSerializedItem>,
-        tx: Sender<QcSerializedSignal>,
-    ) -> QcObservationsStreamer {
-        Self {
-            rx,
-            tx,
-            name: name.to_string(),
-        }
-    }
-
-    fn receiver(&mut self) -> &mut Receiver<QcSerializedItem> {
-        &mut self.rx
-    }
-
-    fn sender(&mut self) -> &mut Sender<QcSerializedSignal> {
-        &mut self.tx
-    }
-
-    fn task(&mut self, input: QcSerializedItem) -> Option<QcSerializedSignal> {
-        match input {
-            QcSerializedItem::Signal(signal) => Some(signal),
-            _ => None,
-        }
-    }
-}
-
-/// [QcEphemerisStreamer] selects Ephemeris frames within the stream (only)
-pub struct QcEphemerisStreamer {
-    name: String,
-    rx: Receiver<QcSerializedItem>,
-    tx: Sender<QcSerializedEphemeris>,
-}
-
-impl Node<QcSerializedItem, QcSerializedEphemeris> for QcEphemerisStreamer {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn new(
-        name: &str,
-        rx: Receiver<QcSerializedItem>,
-        tx: Sender<QcSerializedEphemeris>,
-    ) -> QcEphemerisStreamer {
-        Self {
-            rx,
-            tx,
-            name: name.to_string(),
-        }
-    }
-
-    fn receiver(&mut self) -> &mut Receiver<QcSerializedItem> {
-        &mut self.rx
-    }
-
-    fn sender(&mut self) -> &mut Sender<QcSerializedEphemeris> {
-        &mut self.tx
-    }
-
-    fn task(&mut self, input: QcSerializedItem) -> Option<QcSerializedEphemeris> {
-        match input {
-            QcSerializedItem::Ephemeris(eph) => Some(eph),
-            _ => None,
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
 
-    use super::Node;
-    use super::{QcEphemerisStreamer, QcObservationsStreamer};
-    use crate::context::QcContext;
-    use crate::serializer::serializer::QcSerializer;
-    use crate::tests::init_logger;
+    use crate::{
+        pipeline::nodes::ephemeris::QcEphemerisStreamer,
+        pipeline::nodes::observations::QcObservationsStreamer, pipeline::nodes::Node,
+        prelude::QcContext, tests::init_logger,
+    };
 
     #[test]
     fn pipeline_test() {
