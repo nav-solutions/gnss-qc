@@ -149,7 +149,7 @@ impl QcAnalysisBuilder {
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     pub fn orbit_residuals(&self) -> Self {
         let mut s = self.clone();
-        s.analysis.push(QcAnalysis::SP3Summary);
+        s.analysis.push(QcAnalysis::OrbitResiduals);
         s
     }
 
@@ -157,7 +157,7 @@ impl QcAnalysisBuilder {
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     pub fn sp3_temporal_residuals(&self) -> Self {
         let mut s = self.clone();
-        s.analysis.push(QcAnalysis::SP3Summary);
+        s.analysis.push(QcAnalysis::SP3TemporalResiduals);
         s
     }
 
@@ -180,11 +180,12 @@ impl QcAnalysisBuilder {
 
 use std::collections::HashMap;
 
+use crate::context::data::QcSourceDescriptor;
 use crate::prelude::QcContext;
 
 use crate::report::{ctx_summary::QcContextSummary, QcRunReport};
 
-use crate::serializer::data::QcSerializedItem;
+use crate::serializer::data::{QcSerializedEphemeris, QcSerializedItem};
 
 struct QcRunner<'a> {
     /// List of analysis
@@ -192,6 +193,9 @@ struct QcRunner<'a> {
 
     /// Report being redacted
     report: &'a mut QcRunReport,
+
+    /// Buffered Ephemeris
+    ephemeris_buf: Vec<QcSerializedEphemeris>,
 }
 
 impl<'a> QcRunner<'a> {
@@ -200,44 +204,78 @@ impl<'a> QcRunner<'a> {
         Ok(Self {
             report,
             analysis: builder.build(),
+            ephemeris_buf: Vec::with_capacity(32),
         })
+    }
+
+    pub fn stores_ephemeris(&self) -> bool {
+        for analysis in self.analysis.iter() {
+            if matches!(
+                analysis,
+                QcAnalysis::ClockResiduals
+                    | QcAnalysis::CGGTTS
+                    | QcAnalysis::OrbitResiduals
+                    | QcAnalysis::PVT
+            ) {
+                return true;
+            }
+        }
+        false
     }
 
     pub fn consume(&mut self, item: QcSerializedItem) {
         match item {
-            QcSerializedItem::Ephemeris(ephemeris) => {}
+            QcSerializedItem::Ephemeris(ephemeris) => {
+                if self.stores_ephemeris() {
+                    self.ephemeris_buf.push(ephemeris);
+                }
+            }
+
             QcSerializedItem::RINEXHeader(header) => {
                 // latch new potential contribution
                 if self.analysis.contains(&QcAnalysis::Summary) {
-                    let k = (header.product_type, header.indexing);
+                    let descriptor = QcSourceDescriptor {
+                        indexing: header.indexing,
+                        filename: header.filename,
+                        product_type: header.product_type,
+                    };
 
                     if let Some(summary) = &mut self.report.ctx_summary {
-                        summary.input_products.insert(k, header.filename);
+                        summary.latch_rinex(descriptor, header.data);
                     } else {
-                        // define new section
-                        let mut input_products = HashMap::new();
-                        input_products.insert(k, header.filename);
-                        self.report.ctx_summary = Some(QcContextSummary { input_products });
+                        let mut summary = QcContextSummary::default();
+                        summary.latch_rinex(descriptor, header.data);
                     }
                 }
             }
+
             #[cfg(feature = "sp3")]
             QcSerializedItem::SP3Header(header) => {
                 // latch new potential contribution
                 if self.analysis.contains(&QcAnalysis::Summary) {
-                    let k = (header.product_type, header.indexing);
+                    let descriptor = QcSourceDescriptor {
+                        indexing: header.indexing,
+                        filename: header.filename,
+                        product_type: header.product_type,
+                    };
 
                     if let Some(summary) = &mut self.report.ctx_summary {
-                        summary.input_products.insert(k, header.filename);
+                        summary.latch_sp3(descriptor, header.data);
                     } else {
-                        // define new section
-                        let mut input_products = HashMap::new();
-                        input_products.insert(k, header.filename);
-                        self.report.ctx_summary = Some(QcContextSummary { input_products });
+                        let mut summary = QcContextSummary::default();
+                        summary.latch_sp3(descriptor, header.data);
                     }
                 }
             }
-            QcSerializedItem::Signal(signal) => {}
+
+            QcSerializedItem::Signal(signal) => {
+                if self.analysis.contains(&QcAnalysis::SignalObservations) {
+                    // TODO
+                }
+                if self.analysis.contains(&QcAnalysis::SignalCombinations) {
+                    // TODO
+                }
+            }
         }
     }
 }
@@ -283,7 +321,7 @@ impl QcContext {
         let run_duration = end_time - deploy_time;
         report.run_summary.run_duration = run_duration;
 
-        info!("process concluded: {}", deploy_time);
+        info!("process concluded: {}", end_time);
         debug!("run duration: {}", run_duration);
 
         Ok(report)
@@ -316,14 +354,15 @@ mod test {
         ctx.load_gzip_rinex_file("data/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
             .unwrap();
 
+        ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
+            .unwrap();
+
         let builder = QcAnalysisBuilder::all();
 
         let report = ctx.process(builder).unwrap();
 
         let html = report.render_html().into_string();
-
         let mut fd = File::create("index.html").unwrap();
-
         write!(fd, "{}", html).unwrap();
     }
 }
