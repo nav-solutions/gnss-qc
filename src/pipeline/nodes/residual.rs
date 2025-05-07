@@ -5,34 +5,37 @@ use crate::{
     serializer::data::{QcSerializedEphemeris, QcSerializedItem},
 };
 
-/// [QcEphemerisStreamer] selects Ephemeris frames within the stream (only)
-pub struct QcEphemerisStreamer {
+/// [QcResidualStreamer] streams (A) - (B)
+pub struct QcResidualStreamer {
     name: String,
-    rx: Receiver<QcSerializedItem>,
+    rx_a: Receiver<QcSerializedItem>,
+    rx_b: Receiver<QcSerializedItem>,
     tx: Sender<QcSerializedEphemeris>,
 }
 
-impl QcEphemerisStreamer {
+impl QcResidualStreamer {
     pub fn new(
         name: &str,
-        rx: Receiver<QcSerializedItem>,
+        rx_a: Receiver<QcSerializedItem>,
+        rx_b: Receiver<QcSerializedItem>,
         tx: Sender<QcSerializedEphemeris>,
-    ) -> QcEphemerisStreamer {
+    ) -> QcResidualStreamer {
         Self {
-            rx,
+            rx_a,
+            rx_b,
             tx,
             name: name.to_string(),
         }
     }
 }
 
-impl Node<1, QcSerializedItem, QcSerializedEphemeris> for QcEphemerisStreamer {
+impl Node<2, QcSerializedItem, QcSerializedEphemeris> for QcResidualStreamer {
     fn name(&self) -> &str {
         &self.name
     }
 
     fn receiver(&mut self, _: usize) -> &mut Receiver<QcSerializedItem> {
-        &mut self.rx
+        &mut self.rx_a
     }
 
     fn sender(&mut self) -> &mut Sender<QcSerializedEphemeris> {

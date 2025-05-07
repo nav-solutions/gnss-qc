@@ -26,12 +26,12 @@ impl QConstellationStreamFilter {
     }
 }
 
-impl Node<QcSerializedItem, QcSerializedItem> for QConstellationStreamFilter {
+impl Node<1, QcSerializedItem, QcSerializedItem> for QConstellationStreamFilter {
     fn name(&self) -> &str {
         &self.name
     }
 
-    fn receiver(&mut self) -> &mut Receiver<QcSerializedItem> {
+    fn receiver(&mut self, _: usize) -> &mut Receiver<QcSerializedItem> {
         &mut self.rx
     }
 

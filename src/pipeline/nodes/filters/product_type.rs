@@ -26,12 +26,12 @@ impl QcProductTypeStreamFilter {
     }
 }
 
-impl Node<QcSerializedItem, QcSerializedItem> for QcProductTypeStreamFilter {
+impl Node<1, QcSerializedItem, QcSerializedItem> for QcProductTypeStreamFilter {
     fn name(&self) -> &str {
         &self.name
     }
 
-    fn receiver(&mut self) -> &mut Receiver<QcSerializedItem> {
+    fn receiver(&mut self, _: usize) -> &mut Receiver<QcSerializedItem> {
         &mut self.rx
     }
 

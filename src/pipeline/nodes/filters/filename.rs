@@ -1,4 +1,3 @@
-
 use crossbeam_channel::{Receiver, Sender};
 
 use crate::{pipeline::nodes::Node, prelude::QcProductType, serializer::data::QcSerializedItem};
@@ -27,12 +26,12 @@ impl QcFilenameStreamFilter {
     }
 }
 
-impl Node<QcSerializedItem, QcSerializedItem> for QcFilenameStreamFilter {
+impl Node<1, QcSerializedItem, QcSerializedItem> for QcFilenameStreamFilter {
     fn name(&self) -> &str {
         &self.name
     }
 
-    fn receiver(&mut self) -> &mut Receiver<QcSerializedItem> {
+    fn receiver(&mut self, _: usize) -> &mut Receiver<QcSerializedItem> {
         &mut self.rx
     }
 
