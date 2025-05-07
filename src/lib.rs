@@ -21,10 +21,10 @@ extern crate log;
 extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 
-// mod analysis;
+pub(crate) mod analysis;
 mod config;
 mod context;
-mod pipeline;
+// mod pipeline;
 // mod plot;
 // mod html;
 mod report;

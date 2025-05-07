@@ -1,5 +1,5 @@
 mod node;
 mod topology;
 
-pub use node::Node;
-pub use topology::Topology;
+pub use node::*;
+pub use topology::*;

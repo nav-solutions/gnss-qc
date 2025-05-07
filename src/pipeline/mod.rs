@@ -1,11 +1,13 @@
+use errors::TopologyError;
+use topology::Topology;
+
+use crate::serializer::data::{QcSerializedData, QcSerializedItem};
+
 pub mod errors;
 mod ports;
 mod scheduler;
 mod topology;
 mod types;
-
-use ports::QcElementPort;
-use topology::Node;
 
 // pub trait ScheduledElement {
 //     /// True if this [QcPipelineElement] has input data ready to be consumed
@@ -29,52 +31,79 @@ use topology::Node;
 // // let mut obs_streamer =
 // //     QcObservationsStreamer::new("obs-streamer", entrypoints_rx.clone(), obs_tx);
 
-use crate::serializer::data::QcSerializedItem;
-use crossbeam_channel::{Receiver, Sender};
-use types::QcDataType;
 
-pub struct QcPipelineSource {
-    /// Input [QcDataType]
-    input_dtype: QcDataType,
+use crossbeam_channel::Receiver;
 
-    /// Input port
-    rx: Receiver<QcSerializedItem>,
-
-    /// Output [QcDataType]
-    output_dtype: QcDataType,
-}
-
-pub struct QcPipelineElement {
-    /// Input [QcDataType]
-    input_dtype: QcDataType,
-
-    /// Output [QcDataType]
-    output_dtype: QcDataType,
-}
-
-/// [QcPipeline]
 pub struct QcPipeline {
-    source: QcPipelineSource,
-    elements: Vec<QcPipelineElement>,
+    pub topology: Topology, 
+    pub serializer_rx: Receiver<QcSerializedItem>,
 }
 
 impl QcPipeline {
     /// Deploy & execute this [QcPipeline]
-    pub fn run(&mut self) {
-        loop {}
+    pub fn run(&mut self) -> Result<(), TopologyError> {
+        
+        let source = self.topology.get_source_node()
+            .ok_or(TopologyError::UndefinedSourceEntryPoint)?;
+
+        loop {
+            // block on data source
+            match self.serializer_rx.recv() {
+                Ok(value) => {
+
+                    source.push(value);
+                    // do some work
+                    // for node in self.topology.nodes.iter() {
+                    //     if node.can_process() {
+                    //         node.process();
+                    //     }
+                    // }
+
+                },
+                Err(_) => {
+                    // a message could not be received because the channel is disconnected.
+                    break;
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
-// #[cfg(test)]
-// mod test {
+#[cfg(test)]
+mod test {
 
-//     use super::{QcDataType, topology::Topology, QcPipeline};
+
+
+}
+//     use super::QcPipeline;
 
 //     #[test]
-//     fn pipeline_designer() {
-
+//     fn simple_pipeline_test() {
 //         let topology = Topology::new()
-//             .add_source_node("src_1", QcDataType::QcEphemerisData)
-//             .add_node(node)
+//             .entrypoint("eph-source", QcDataType::QcEphemerisData)
+//             .node(
+//                 "eph-processor#1",
+//                 "eph-source",
+//                 QcDataType::QcEphemerisData,
+//                 QcDataType::QcEphemerisData,
+//             )
+//             .unwrap();
+
+//         let pipeline = QcPipeline {
+//             topology,
+//         };
+
+//         let (fake_tx, fake_rx) = crossbeam_channel::bounded(128);
+
+//         let pipeline = topology.wire(fake_rx)
+//             .unwrap();
+
+//         loop {
+//             for node in pipeline.elements.iter() {
+
+//             }
+//         }
 //     }
 // }

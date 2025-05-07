@@ -1,44 +1,80 @@
-use crate::{
-    pipeline::{
-        errors::TopologyError, types::QcDataType, QcPipeline, QcPipelineElement, QcPipelineSource,
-    },
-    serializer::data::QcSerializedItem,
-};
+use crate::{pipeline::types::QcDataType, serializer::data::QcSerializedItem};
 
-use crossbeam_channel::Receiver;
 
-/// [Node] describes an element of the [Topology] that are not wired yet.
-#[derive(Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum NodeKind {
+    QcEphemerisUnwrapper,
+    QcObservationsUnwrapper,
+    QcObservationsScaler,
+}
+
+#[derive(Debug, Clone)]
 pub struct Node {
-    /// Readable name (unique) for this [Node]
+    /// [NodeKind]
+    kind: NodeKind,
+
+    /// [Node] name
     pub name: String,
 
-    /// Name of this [Node]'s parent.
-    /// Sinks do not have parents.
-    pub parent_name: Option<String>,
-
-    /// Input [QcDataType]
-    pub input_type: QcDataType,
-
-    /// Output [QcDataType]
-    pub output_type: QcDataType,
+    /// Possible parent name
+    pub parent: Option<String>,
 }
 
 impl Node {
-    /// Define a new [Topology] [Node]
-    pub fn new(name: &str, input_type: QcDataType, output_type: QcDataType) -> Self {
-        Self {
-            name: name.to_string(),
-            input_type,
-            output_type,
-            parent_name: None,
+
+    pub fn can_process(&self) -> bool {
+        true
+    }
+
+    pub fn process(&mut self, sample: QcSerializedItem) -> Option<QcSerializedItem> {
+        match self.kind {
+            NodeKind::QcEphemerisUnwrapper => match sample {
+                QcSerializedItem::Qc
+            },
+            NodeKind::QcObservationsScaler => {
+
+            },
+            NodeKind::QcObservationsUnwrapper => {
+
+            },
         }
     }
 
-    /// Define that this [Node] has a parent
+    pub fn can_connect(&self, rhs: &Self) -> bool {
+        match self.kind {
+            NodeKind::QcObservationsUnwrapper => match rhs.kind {
+                NodeKind::QcObservationsScaler => true,
+                _ => false,
+            },
+            NodeKind::QcObservationsScaler => match rhs.kind {
+                NodeKind::QcObservationsScaler => true,
+                _ => false,
+            },
+            NodeKind::QcEphemerisUnwrapper => match rhs.kind {
+                _ => false,
+            },
+        }
+    }
+
     pub fn with_parent(&self, name: &str) -> Self {
         let mut s = self.clone();
-        s.parent_name = Some(name.to_string());
+        s.parent = Some(name.to_string());
         s
+    }
+
+    pub fn observations_unwrapper(name: &str) -> Self {
+        Self {
+            parent: None,
+            name: name.to_string(),
+            kind: NodeKind::QcObservationsUnwrapper,
+        }
+    }
+
+    pub fn observations_scaler(name: &str) -> Self {
+        Self {
+            parent: None,
+            name: name.to_string(),
+            kind: NodeKind::QcObservationsScaler,
+        }
     }
 }

@@ -1,13 +1,13 @@
 //! Qc analysis report
 pub mod sampling;
+use crate::prelude::Epoch;
 
 mod summary;
+
 use summary::QcRunSummary;
 
 mod observations;
 use observations::QcObservationsReport;
-
-use crate::serializer::data::QcSerializedSignal;
 
 pub mod temporal_data;
 
@@ -26,13 +26,16 @@ pub struct QcRunReport {
     pub run_summary: QcRunSummary,
 
     /// Reported observations
-    pub observations: QcObservationsReport,
+    pub observations: Option<QcObservationsReport>,
 }
 
 impl QcRunReport {
-    /// Add new report contribution
-    pub(crate) fn add_signal_contribution(&mut self, data: QcSerializedSignal) {
-        // Contributes to observations (obviously)
-        self.observations.add_contribution(data);
+    pub(crate) fn new(deploy_time: Epoch, num_jobs: usize) -> Self {
+        let mut s = Self::default();
+
+        s.run_summary.datetime = deploy_time;
+        s.run_summary.num_jobs = num_jobs;
+
+        s
     }
 }
