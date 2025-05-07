@@ -1,4 +1,4 @@
-use crate::pipeline::errors::TopologyError;
+use crate::pipeline::{errors::TopologyError, types::QcDataType};
 
 /// [Node] describes an element of the [Topology] that are not wired yet.
 #[derive(Clone)]
@@ -9,6 +9,31 @@ struct Node {
     /// Name of this [Node]'s parent.
     /// Sinks do not have parents.
     pub parent_name: Option<String>,
+
+    /// Input [QcDataType]
+    pub input_type: QcDataType,
+
+    /// Output [QcDataType]
+    pub output_type: QcDataType,
+}
+
+impl Node {
+    /// Define a new [Topology] [Node]
+    pub fn new(name: &str, input_type: QcDataType, output_type: QcDataType) -> Self {
+        Self {
+            name: name.to_string(),
+            input_type,
+            output_type,
+            parent_name: None,
+        }
+    }
+
+    /// Define that this [Node] has a parent
+    pub fn with_parent(&self, name: &str) -> Self {
+        let mut s = self.clone();
+        s.parent_name = Some(name.to_string());
+        s
+    }
 }
 
 /// [Topology] defines a Pipeline topology, but it is not wired yet.
@@ -25,15 +50,36 @@ impl Topology {
     }
 
     /// Add a source [Node] to this [Topology]
-    pub fn add_source_node(&self, name: &str) -> Self {
+    pub fn add_source_node(&self, name: &str, dtype: QcDataType) -> Self {
         let mut s = self.clone();
 
         s.nodes.push(Node {
             name: name.to_string(),
             parent_name: None,
+            input_type: QcDataType::QcWrappedData,
+            output_type: dtype,
         });
 
         s
+    }
+
+    pub fn add_node(&self, node: Node) -> Result<Self, TopologyError> {
+        let parent = node
+            .parent_name
+            .as_ref()
+            .ok_or(TopologyError::UndefinedParentName)?;
+
+        if !self.node_exists(parent) {
+            return Err(TopologyError::ParentDoesNotExist(parent.to_string()));
+        }
+
+        if self.node_exists(&node.name) {
+            return Err(TopologyError::NodeAlreadyExists(node.name.to_string()));
+        }
+
+        let mut s = self.clone();
+        s.nodes.push(node);
+        Ok(s)
     }
 
     /// Verify this topology is correct, using basic verifications
@@ -92,25 +138,6 @@ impl Topology {
         false
     }
 
-    pub fn add_node(&self, node: Node) -> Result<Self, TopologyError> {
-        let parent = node
-            .parent_name
-            .as_ref()
-            .ok_or(TopologyError::UndefinedParentName)?;
-
-        if !self.node_exists(parent) {
-            return Err(TopologyError::ParentDoesNotExist(parent.to_string()));
-        }
-
-        if self.node_exists(&node.name) {
-            return Err(TopologyError::NodeAlreadyExists(node.name.to_string()));
-        }
-
-        let mut s = self.clone();
-        s.nodes.push(node);
-        Ok(s)
-    }
-
     /// Returns total number of nodes, including sink
     pub fn total_nodes(&self) -> usize {
         self.nodes.iter().count()
@@ -157,7 +184,7 @@ impl Topology {
 #[cfg(test)]
 mod test {
 
-    use crate::pipeline::topology::*;
+    use crate::pipeline::{topology::*, types::QcDataType};
 
     #[test]
     fn topology_designer_1() {
@@ -171,50 +198,60 @@ mod test {
 
         assert_eq!(topology.total_nodes(), 0);
 
-        let topology = topology.add_source_node("src_1");
+        let topology = topology.add_source_node("src_1", QcDataType::QcEphemerisData);
 
         assert_eq!(topology.total_nodes(), 1);
 
-        let node_1 = Node {
-            name: "node_1".to_string(),
-            parent_name: Some("src_1".to_string()),
-        };
+        let node_1 = Node::new(
+            "node_1",
+            QcDataType::QcEphemerisData,
+            QcDataType::QcEphemerisData,
+        )
+        .with_parent("src_1");
 
         let topology = topology.add_node(node_1).unwrap();
 
         assert_eq!(topology.total_nodes(), 2);
 
-        let node_2 = Node {
-            name: "node_2".to_string(),
-            parent_name: Some("src_1".to_string()),
-        };
+        let node_2 = Node::new(
+            "node_2",
+            QcDataType::QcEphemerisData,
+            QcDataType::QcEphemerisData,
+        )
+        .with_parent("src_1");
 
         let topology = topology.add_node(node_2).unwrap();
 
         assert_eq!(topology.total_nodes(), 3);
 
-        let node_1_1 = Node {
-            name: "node_1_1".to_string(),
-            parent_name: Some("node_1".to_string()),
-        };
+        let node_1_1 = Node::new(
+            "node_1_1",
+            QcDataType::QcEphemerisData,
+            QcDataType::QcEphemerisData,
+        )
+        .with_parent("node_1");
 
         let topology = topology.add_node(node_1_1).unwrap();
 
         assert_eq!(topology.total_nodes(), 4);
 
-        let node_2_1 = Node {
-            name: "node_2_1".to_string(),
-            parent_name: Some("node_2".to_string()),
-        };
+        let node_2_1 = Node::new(
+            "node_2_1",
+            QcDataType::QcEphemerisData,
+            QcDataType::QcEphemerisData,
+        )
+        .with_parent("node_2");
 
         let topology = topology.add_node(node_2_1).unwrap();
 
         assert_eq!(topology.total_nodes(), 5);
 
-        let node_2_1_1 = Node {
-            name: "node_2_1_1".to_string(),
-            parent_name: Some("node_2_1".to_string()),
-        };
+        let node_2_1_1 = Node::new(
+            "node_2_1_1",
+            QcDataType::QcEphemerisData,
+            QcDataType::QcEphemerisData,
+        )
+        .with_parent("node_2_1");
 
         let topology = topology.add_node(node_2_1_1).unwrap();
 

@@ -2,18 +2,18 @@ use crate::pipeline::errors::PipelineError;
 
 /// All types of data we manipulate within the pipeline
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub enum QcPipelineTypes {
-    /// [QcPipelineTypes::QcWrappedData] streamed by QcContextSerializer
+pub enum QcDataType {
+    /// [QcDataTypes::QcWrappedData] streamed by QcContextSerializer
     QcWrappedData,
-    
-    /// [QcPipelineTypes::QcObservationData]
+
+    /// [QcDataTypes::QcObservationData]
     QcObservationData,
 
-    /// [QcPipelineTypes::QcEphemerisData]
+    /// [QcDataTypes::QcEphemerisData]
     QcEphemerisData,
 }
 
-impl std::fmt::Display for QcPipelineTypes {
+impl std::fmt::Display for QcDataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::QcWrappedData => write!(f, "wrapped"),
@@ -23,7 +23,7 @@ impl std::fmt::Display for QcPipelineTypes {
     }
 }
 
-impl std::fmt::LowerHex for QcPipelineTypes {
+impl std::fmt::LowerHex for QcDataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::QcWrappedData => write!(f, "wrapped"),
@@ -33,7 +33,7 @@ impl std::fmt::LowerHex for QcPipelineTypes {
     }
 }
 
-impl std::str::FromStr for QcPipelineTypes {
+impl std::str::FromStr for QcDataType {
     type Err = PipelineError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -43,7 +43,7 @@ impl std::str::FromStr for QcPipelineTypes {
             "wrapped" => Ok(Self::QcWrappedData),
             "eph" | "ephemeris" => Ok(Self::QcEphemerisData),
             "obs" | "observation" | "observations" => Ok(Self::QcObservationData),
-            _ => Err(PipelineError::InvalidDataType), 
+            _ => Err(PipelineError::InvalidDataType),
         }
     }
 }
@@ -51,21 +51,20 @@ impl std::str::FromStr for QcPipelineTypes {
 #[cfg(test)]
 mod test {
 
+    use super::QcDataType;
     use std::str::FromStr;
-    use super::QcPipelineTypes;
 
     #[test]
     fn data_types_parsing() {
         for (dtype, expected) in [
-            ("wrapped", QcPipelineTypes::QcWrappedData),
-            ("obs", QcPipelineTypes::QcObservationData),
-            ("observation", QcPipelineTypes::QcObservationData),
-            ("observations", QcPipelineTypes::QcObservationData),
-            ("eph", QcPipelineTypes::QcEphemerisData),
-            ("ephemeris", QcPipelineTypes::QcEphemerisData),
+            ("wrapped", QcDataType::QcWrappedData),
+            ("obs", QcDataType::QcObservationData),
+            ("observation", QcDataType::QcObservationData),
+            ("observations", QcDataType::QcObservationData),
+            ("eph", QcDataType::QcEphemerisData),
+            ("ephemeris", QcDataType::QcEphemerisData),
         ] {
-            let parsed = QcPipelineTypes::from_str(dtype)
-                .unwrap();
+            let parsed = QcDataType::from_str(dtype).unwrap();
 
             assert_eq!(parsed, expected);
         }

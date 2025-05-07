@@ -1,11 +1,9 @@
-mod topology;
-mod ports;
-mod types;
 pub mod errors;
+mod ports;
+mod topology;
+mod types;
 
 use ports::QcElementPort;
-
-use crossbeam_channel::{Receiver, Sender};
 
 // pub trait ScheduledElement {
 //     /// True if this [QcPipelineElement] has input data ready to be consumed

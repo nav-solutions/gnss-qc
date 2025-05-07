@@ -97,7 +97,6 @@ impl QcContext {
                 "{} RINEX extension \"{}\" - indexed by {}",
                 product_type, filename, indexing
             );
-
         } else {
             info!(
                 "New {} RINEX \"{}\" - indexed by {}",

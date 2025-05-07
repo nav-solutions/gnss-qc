@@ -1,13 +1,10 @@
-use crate::pipeline::{
-    types::QcPipelineTypes,
-    errors::PipelineError,
-};
+use crate::pipeline::{errors::PipelineError, types::QcDataType};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum QcElementPortDirection {
     /// [QcElementPortDirection::Input] port
     Input,
-    
+
     /// [QcElementPortDirection::Output] port
     Output,
 }
@@ -27,35 +24,35 @@ impl std::str::FromStr for QcElementPortDirection {
 }
 
 pub struct QcElementPort {
-    port_type: QcPipelineTypes,
-    port_direction: QcElementPortDirection,
+    data_type: QcDataType,
+    direction: QcElementPortDirection,
 }
 
 impl QcElementPort {
     pub fn can_connect(&self, rhs: &Self) -> bool {
-        self.port_type == rhs.port_type && self.port_direction != rhs.port_direction
+        self.data_type == rhs.data_type && self.direction != rhs.direction
     }
 
     /// Creates a new RX [QcElementPort]
-    pub fn rx_port(port_type: QcPipelineTypes) -> Self {
+    pub fn rx_port(dtype: QcDataType) -> Self {
         Self {
-            port_type,
-            port_direction: QcElementPortDirection::Input,
+            data_type: dtype,
+            direction: QcElementPortDirection::Input,
         }
     }
 
     /// Creates a new TX [QcElementPort]
-    pub fn tx_port(port_type: QcPipelineTypes) -> Self {
+    pub fn tx_port(dtype: QcDataType) -> Self {
         Self {
-            port_type,
-            port_direction: QcElementPortDirection::Output,
+            data_type: dtype,
+            direction: QcElementPortDirection::Output,
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    
+
     use super::*;
     use std::str::FromStr;
 
@@ -67,8 +64,7 @@ mod test {
             ("out", QcElementPortDirection::Output),
             ("output", QcElementPortDirection::Output),
         ] {
-            let parsed = QcElementPortDirection::from_str(dtype)
-                .unwrap();
+            let parsed = QcElementPortDirection::from_str(dtype).unwrap();
 
             assert_eq!(parsed, expected);
         }
@@ -76,18 +72,17 @@ mod test {
 
     #[test]
     fn port_connections() {
-        let tx_port_a = QcElementPort::tx_port(QcPipelineTypes::QcEphemerisData);
-        let rx_port_a = QcElementPort::rx_port(QcPipelineTypes::QcEphemerisData);
+        let tx_port_a = QcElementPort::tx_port(QcDataType::QcEphemerisData);
+        let rx_port_a = QcElementPort::rx_port(QcDataType::QcEphemerisData);
 
         assert!(tx_port_a.can_connect(&rx_port_a));
         assert!(rx_port_a.can_connect(&tx_port_a)); // reciprocal
 
-
-        let tx_port_b = QcElementPort::tx_port(QcPipelineTypes::QcEphemerisData);
+        let tx_port_b = QcElementPort::tx_port(QcDataType::QcEphemerisData);
         assert!(!tx_port_a.can_connect(&tx_port_b));
         assert!(!tx_port_b.can_connect(&tx_port_a)); // reciprocal
 
-        let rx_port_b = QcElementPort::tx_port(QcPipelineTypes::QcObservationData);
+        let rx_port_b = QcElementPort::tx_port(QcDataType::QcObservationData);
         assert!(!tx_port_a.can_connect(&rx_port_b));
         assert!(!rx_port_b.can_connect(&tx_port_a)); // reciprocal
     }
