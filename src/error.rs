@@ -11,6 +11,9 @@ use sp3::Error as SP3Error;
 /// Context Error
 #[derive(Debug, Error)]
 pub enum QcError {
+    #[error("deployment error: failed to determine system time")]
+    SystemTimeError,
+
     #[error("non supported file format")]
     NonSupportedFileFormat,
 

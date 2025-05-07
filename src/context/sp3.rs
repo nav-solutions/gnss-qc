@@ -61,4 +61,20 @@ impl QcContext {
         let sp3 = SP3::from_file(&path)?;
         self.load_sp3(path, sp3)
     }
+
+    /// Obtain an [Iterator] over all SP3 products that were loaded
+    pub fn sp3_filenames_iter(&self) -> Box<dyn Iterator<Item = String> + '_> {
+        Box::new(self.data.iter().filter_map(|p| {
+            if p.descriptor.product_type == QcProductType::PreciseOrbit {
+                Some(p.descriptor.filename.clone())
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// Returns total number of SP3 [QcProductType]s that were loaded
+    pub fn total_sp3_files(&self) -> usize {
+        self.sp3_filenames_iter().count()
+    }
 }

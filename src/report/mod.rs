@@ -1,10 +1,13 @@
 //! Qc analysis report
 pub mod sampling;
-use crate::prelude::Epoch;
+
+use crate::{analysis::QcAnalysisBuilder, prelude::Epoch};
 
 mod summary;
-
 use summary::QcRunSummary;
+
+pub(crate) mod ctx_summary;
+use ctx_summary::QcContextSummary;
 
 mod observations;
 use observations::QcObservationsReport;
@@ -25,16 +28,19 @@ pub struct QcRunReport {
     /// [QcRunSummary]
     pub run_summary: QcRunSummary,
 
+    /// [QcContextSummary]
+    pub ctx_summary: Option<QcContextSummary>,
+
     /// Reported observations
     pub observations: Option<QcObservationsReport>,
 }
 
 impl QcRunReport {
-    pub(crate) fn new(deploy_time: Epoch, num_jobs: usize) -> Self {
+    pub(crate) fn new(deploy_time: Epoch, analysis: &QcAnalysisBuilder) -> Self {
         let mut s = Self::default();
 
         s.run_summary.datetime = deploy_time;
-        s.run_summary.num_jobs = num_jobs;
+        s.run_summary.analysis = analysis.build();
 
         s
     }

@@ -9,31 +9,23 @@ GNSS Quality Control
 [![MRSV](https://img.shields.io/badge/MSRV-1.81.0-orange?style=for-the-badge)](https://github.com/rust-lang/rust/releases/tag/1.81.0)
 [![License](https://img.shields.io/badge/license-MPL_2.0-orange?style=for-the-badge&logo=mozilla)](https://github.com/rtk-rs/qc-traits/blob/main/LICENSE)
 
-The GNSS Quality Control (QC) library is a complete scalable and highly configurable
-library that allows the design and deployment GNSS and Geodesy processing pipelines.
+The GNSS Quality Control (QC) library is a flexible library to process
+GNSS data and perform data control and verifications.
 
 The origin of this library, is to answer the need to gather several different data sources,
 as required by GNSS post-processing. Since the spectrum of GNSS applications is broad,
-so is the potential applications of `GNSS-QC`. Here are a few we can either think
-of or have already been tested and deployed:
+so is the potential applications of `GNSS-QC`. The workflow is divided in two steps
 
-* Process RINEX files
-* Process SP3 files (on `sp3` lib feature)
-* Orbital projection from radio messages (on `navigation` lib feature)
-* Orbital projection from SP3 laboratory files (on `navigation` lib feature)
-* SP3 / radio residual analysis (on `navigation` lib feature)
-* Precise clock products and analysis
-* radio / precise clock residual analysis
-* Preprocessing (down sampling, filtering, transpositions..)
-* Resolve precise P.V.T (Position, Velocity, Time) solutions (on `navigation` lib feature)
-* Resolve precise CGGTTS solutions (on `navigation` + `cggtts` lib features)
+- Parse and stack the data, forming a `QcContext`. It offers smart data indexing
+- Process the context by requesting one or several analysis: obtain a `QcRunReport`.
 
-To offer all of this, `GNSS-QC` relies on core principles and building blocks:
-- Core parsers (RINEX, SP3 by `RTK-rs`)
-- The Iterator ecosystem offered by Rust
-- The scalable multithreading ecosystem offered by Rust
-- Temporal support offered by the `Nyx-Space`
-- Navigation support, offered by the `Nyx-Space` framework
+Amongst all analysis we support, we can mention:
+
+- RINEX observation analysis
+- SP3 spatial and temporal residual analysis
+- Precise clock analysis
+- Position, Velocity Time (P.V.T) solutions solving (on `navigation` feature)
+* CGGTTS solutions solving (on `navigation` + `cggtts` feature)
 
 Licensing
 =========

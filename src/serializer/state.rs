@@ -4,6 +4,12 @@ pub enum State {
     /// Serialize all atemporal data constants
     Constants,
 
+    /// Stream all header information
+    RINEXHeaders,
+
+    /// Stream all header information
+    SP3Header,
+
     /// Serialize a new Ephemeris frame.
     Ephemeris,
 

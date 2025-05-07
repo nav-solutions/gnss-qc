@@ -1,6 +1,6 @@
 use crate::{prelude::Markup, report::QcRunReport};
 
-use maud::{html, PreEscaped, DOCTYPE};
+use maud::{html, PreEscaped, Render, DOCTYPE};
 
 mod css;
 mod javascript;
@@ -30,11 +30,19 @@ impl QcRunReport {
 
                 body {
                     nav id="sidebar" {
+
                         h1 {
                             "GNSS-QC Report"
                         }
-                        a class="active" data-target="summary" {
-                            "Summary"
+
+                        a class="active" data-target="run-report" {
+                            "Run Report"
+                        }
+
+                        @ if self.ctx_summary.is_some() {
+                            a data-target="summary" {
+                                "Summary"
+                            }
                         }
 
                         a data-target="documentation" {
@@ -60,9 +68,23 @@ impl QcRunReport {
                     }
 
                     div class="content" {
-                        section id="summary" class="section active" {
+                        section id="run-report" class="section active" {
                             h2 {
-                                "Summary"
+                                "Run Report"
+                            }
+                            p {
+                                (self.run_summary.render())
+                            }
+                        }
+
+                        @ if let Some(summary) = &self.ctx_summary {
+                            section id="summary" class="section" {
+                                h2 {
+                                    "Summary"
+                                }
+                                p {
+                                    (summary.render())
+                                }
                             }
                         }
 

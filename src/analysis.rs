@@ -9,6 +9,8 @@ pub(crate) enum QcAnalysis {
     ClockSummary,
     RoverSummary,
     BaseSummary,
+    SignalCombinations,
+    MultiPathBias,
 
     #[cfg(feature = "sp3")]
     SP3Summary,
@@ -26,6 +28,33 @@ pub(crate) enum QcAnalysis {
     CGGTTS,
 }
 
+impl std::fmt::Display for QcAnalysis {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sampling => write!(f, "Sampling Analysis"),
+            Self::SignalCombinations => write!(f, "Signal Combinations"),
+            Self::SignalObservations => write!(f, "Signal Observations"),
+            Self::BaseSummary => write!(f, "RTK Base(s) summary"),
+            Self::ClockResiduals => write!(f, "Clock Residuals"),
+            Self::ClockSummary => write!(f, "Clock Summary"),
+            Self::MeteoObservations => write!(f, "Meteo Observations"),
+            Self::MultiPathBias => write!(f, "Multipath"),
+            Self::RoverSummary => write!(f, "Rover(s) summary"),
+            Self::Summary => write!(f, "Summary report"),
+            #[cfg(feature = "sp3")]
+            Self::SP3TemporalResiduals => write!(f, "SP3 Clock Residuals"),
+            #[cfg(feature = "sp3")]
+            Self::SP3Summary => write!(f, "SP3 Summary"),
+            #[cfg(feature = "sp3")]
+            Self::OrbitResiduals => write!(f, "Orbital Residuals"),
+            #[cfg(feature = "navigation")]
+            Self::PVT => write!(f, "P.V.T Solutions"),
+            #[cfg(all(feature = "navigation", feature = "cggtts"))]
+            Self::CGGTTS => write!(f, "CGGTTS Solutions"),
+        }
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct QcAnalysisBuilder {
     analysis: Vec<QcAnalysis>,
@@ -33,8 +62,9 @@ pub struct QcAnalysisBuilder {
 
 impl QcAnalysisBuilder {
     /// Execute all supported analysis (at the expense of more processing time)
-    pub fn all(&self) -> Self {
+    pub fn all() -> Self {
         let s = Self::default()
+            .summary_report()
             .summaries()
             .sampling()
             .observations()
@@ -63,6 +93,14 @@ impl QcAnalysisBuilder {
         self.analysis.clone()
     }
 
+    /// The summary report will report input products that were encountered.
+    pub fn summary_report(&self) -> Self {
+        let mut s = self.clone();
+        s.analysis.push(QcAnalysis::Summary);
+        s
+    }
+
+    /// Activate summary reports of all supported types
     pub fn summaries(&self) -> Self {
         let mut s = self.clone();
         s.analysis.push(QcAnalysis::RoverSummary);
@@ -140,26 +178,73 @@ impl QcAnalysisBuilder {
     }
 }
 
+use std::collections::HashMap;
+
 use crate::prelude::QcContext;
-use crate::report::QcRunReport;
+
+use crate::report::{ctx_summary::QcContextSummary, QcRunReport};
+
 use crate::serializer::data::QcSerializedItem;
 
-struct QcRunner {
+struct QcRunner<'a> {
+    /// List of analysis
     analysis: Vec<QcAnalysis>,
+
+    /// Report being redacted
+    report: &'a mut QcRunReport,
 }
 
-impl QcRunner {
-    pub fn new(builder: QcAnalysisBuilder) -> Self {
-        Self {
+impl<'a> QcRunner<'a> {
+    /// Deploy the [QcRunner]
+    pub fn new(builder: &QcAnalysisBuilder, report: &'a mut QcRunReport) -> Result<Self, QcError> {
+        Ok(Self {
+            report,
             analysis: builder.build(),
-        }
+        })
     }
 
-    pub fn consume(&mut self, sample: QcSerializedItem) {}
+    pub fn consume(&mut self, item: QcSerializedItem) {
+        match item {
+            QcSerializedItem::Ephemeris(ephemeris) => {}
+            QcSerializedItem::RINEXHeader(header) => {
+                // latch new potential contribution
+                if self.analysis.contains(&QcAnalysis::Summary) {
+                    let k = (header.product_type, header.indexing);
+
+                    if let Some(summary) = &mut self.report.ctx_summary {
+                        summary.input_products.insert(k, header.filename);
+                    } else {
+                        // define new section
+                        let mut input_products = HashMap::new();
+                        input_products.insert(k, header.filename);
+                        self.report.ctx_summary = Some(QcContextSummary { input_products });
+                    }
+                }
+            }
+            #[cfg(feature = "sp3")]
+            QcSerializedItem::SP3Header(header) => {
+                // latch new potential contribution
+                if self.analysis.contains(&QcAnalysis::Summary) {
+                    let k = (header.product_type, header.indexing);
+
+                    if let Some(summary) = &mut self.report.ctx_summary {
+                        summary.input_products.insert(k, header.filename);
+                    } else {
+                        // define new section
+                        let mut input_products = HashMap::new();
+                        input_products.insert(k, header.filename);
+                        self.report.ctx_summary = Some(QcContextSummary { input_products });
+                    }
+                }
+            }
+            QcSerializedItem::Signal(signal) => {}
+        }
+    }
 }
 
 use crate::error::QcError;
-use crate::prelude::Epoch;
+
+use hifitime::prelude::{Epoch, Unit};
 
 impl QcContext {
     /// Process this [QcContext] running the following analysis specs.
@@ -169,22 +254,76 @@ impl QcContext {
     /// ## Output
     /// - synthesized: [QcRunReport] that you can then render in the desired format.
     pub fn process(&self, analysis: QcAnalysisBuilder) -> Result<QcRunReport, QcError> {
-        let analysis = analysis.build();
-
-        let deploy_time = Epoch::now().unwrap_or_else(|e| {
-            panic!("Failed to determine system time: {}", e);
-        });
-
-        let mut report = QcRunReport::new(deploy_time, &analysis);
-        let mut runner = QcRunner::new(analysis);
-
         let mut serializer = self.serializer();
 
-        // pull data & consume
+        let deploy_time = Epoch::now()
+            .map_err(|e| {
+                error!("Failed to determine system time: {}", e);
+                QcError::SystemTimeError
+            })?
+            .round(1.0 * Unit::Second);
+
+        info!("process starting: {}", deploy_time);
+
+        let mut report = QcRunReport::new(deploy_time, &analysis);
+
+        let mut runner = QcRunner::new(&analysis, &mut report)?;
+
+        // pull & consume data
         while let Some(sample) = serializer.next() {
             runner.consume(sample);
         }
 
+        let end_time = Epoch::now()
+            .unwrap_or_else(|e| {
+                panic!("Failed to determine system time: {}", e);
+            })
+            .round(1.0 * Unit::Second);
+
+        let run_duration = end_time - deploy_time;
+        report.run_summary.run_duration = run_duration;
+
+        info!("process concluded: {}", deploy_time);
+        debug!("run duration: {}", run_duration);
+
         Ok(report)
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use std::fs::File;
+    use std::io::Write;
+
+    use crate::{prelude::QcContext, tests::init_logger};
+
+    use super::QcAnalysisBuilder;
+
+    #[test]
+    fn process_full_run() {
+        init_logger();
+
+        let mut ctx = QcContext::new();
+
+        // load data
+        ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+            .unwrap();
+
+        ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            .unwrap();
+
+        ctx.load_gzip_rinex_file("data/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            .unwrap();
+
+        let builder = QcAnalysisBuilder::all();
+
+        let report = ctx.process(builder).unwrap();
+
+        let html = report.render_html().into_string();
+
+        let mut fd = File::create("index.html").unwrap();
+
+        write!(fd, "{}", html).unwrap();
     }
 }

@@ -1,26 +1,41 @@
 use crate::{
     context::QcContext,
-    prelude::Epoch,
     serializer::{
-        data::QcSerializedItem, ephemeris::QcEphemerisIterator, signal::QcSignalIterator,
+        data::{QcSerializedItem, QcSerializedRINEXHeader},
+        ephemeris::QcEphemerisIterator,
+        signal::QcSignalIterator,
         state::State,
     },
 };
 
+#[cfg(feature = "sp3")]
+use crate::serializer::data::QcSerializedSP3Header;
+
 /// [QcSerializer] to serialize entire [QcContext].
 pub struct QcSerializer<'a> {
+    /// Reference to [QcContext] being iterated
+    ctx: &'a QcContext,
+
     /// Current [State] of the [QcSerializer]
     state: State,
 
-    // /// Latest serialized epoch
-    // latest: Option<Epoch>,
+    /// Total number of RINEX files
+    total_rinex_files: usize,
+
+    /// RINEX headers we have streamed
+    rinex_headers: Vec<String>,
+
+    /// Total number of SP3 files
+    total_sp3_files: usize,
+
+    /// SP3 headers we have streamed
+    sp3_headers: Vec<String>,
+
     /// All [QcEphemerisIterator] sources
     ephemeris_sources: Vec<QcEphemerisIterator<'a>>,
 
     /// All [QcSignalIterator] sources
     signal_sources: Vec<QcSignalIterator<'a>>,
-    // /// Last streamed
-    // last_streamed: Option<&'a QcSourceDescriptor>,
 }
 
 impl QcContext {
@@ -39,12 +54,26 @@ impl QcContext {
             }
         }
 
+        let total_rinex_files = self.total_rinex_files();
+
+        #[cfg(not(feature = "sp3"))]
+        let total_sp3_files = 0;
+
+        #[cfg(feature = "sp3")]
+        let total_sp3_files = self.total_sp3_files();
+
+        debug!("total rinex files: {}", total_rinex_files);
+        debug!("total sp3 files: {}", total_sp3_files);
+
         QcSerializer {
+            ctx: self,
             signal_sources,
             ephemeris_sources,
+            total_sp3_files,
+            total_rinex_files,
             state: Default::default(),
-            // last_streamed: None,
-            // latest: Default::default(),
+            sp3_headers: Default::default(),
+            rinex_headers: Default::default(),
         }
     }
 }
@@ -65,7 +94,73 @@ impl<'a> Iterator for QcSerializer<'a> {
 
             match self.state {
                 State::Constants => {
+                    self.state = State::RINEXHeaders;
+                }
+
+                State::RINEXHeaders => {
+                    for entry in self.ctx.data.iter() {
+                        if let Some(rinex) = entry.as_rinex() {
+                            if !self.rinex_headers.contains(&entry.descriptor.filename) {
+                                debug!(
+                                    "streaming header ={} {}/{}",
+                                    entry.descriptor.filename,
+                                    self.rinex_headers.len(),
+                                    self.total_rinex_files
+                                );
+
+                                self.rinex_headers.push(entry.descriptor.filename.clone());
+
+                                let serialized = QcSerializedRINEXHeader {
+                                    data: rinex.header.clone(),
+                                    indexing: entry.descriptor.indexing.clone(),
+                                    product_type: entry.descriptor.product_type,
+                                    filename: entry.descriptor.filename.clone(),
+                                };
+
+                                return Some(QcSerializedItem::RINEXHeader(serialized));
+                            }
+                        }
+                    }
+
+                    if self.rinex_headers.len() == self.total_rinex_files {
+                        self.state = State::SP3Header;
+                    }
+                }
+
+                #[cfg(not(feature = "sp3"))]
+                State::SP3Header => {
                     self.state = State::Ephemeris;
+                }
+
+                #[cfg(feature = "sp3")]
+                State::SP3Header => {
+                    for entry in self.ctx.data.iter() {
+                        if let Some(sp3) = entry.as_sp3() {
+                            if !self.sp3_headers.contains(&entry.descriptor.filename) {
+                                debug!(
+                                    "streaming header ={} {}/{}",
+                                    entry.descriptor.filename,
+                                    self.sp3_headers.len(),
+                                    self.total_sp3_files,
+                                );
+
+                                self.sp3_headers.push(entry.descriptor.filename.clone());
+
+                                let serialized = QcSerializedSP3Header {
+                                    data: sp3.header.clone(),
+                                    indexing: entry.descriptor.indexing.clone(),
+                                    product_type: entry.descriptor.product_type,
+                                    filename: entry.descriptor.filename.clone(),
+                                };
+
+                                return Some(QcSerializedItem::SP3Header(serialized));
+                            }
+                        }
+                    }
+
+                    if self.sp3_headers.len() == self.total_sp3_files {
+                        self.state = State::Ephemeris;
+                    }
                 }
 
                 #[cfg(feature = "navigation")]
@@ -104,6 +199,12 @@ impl<'a> Iterator for QcSerializer<'a> {
                     return None;
                 }
 
+                #[cfg(feature = "sp3")]
+                State::PreciseOrbit => {
+                    return None;
+                }
+
+                #[cfg(not(feature = "sp3"))]
                 State::PreciseOrbit => {
                     return None;
                 }

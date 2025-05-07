@@ -121,8 +121,29 @@ impl QcContext {
     }
 
     /// Obtain an [Iterator] over all RINEX [QcProductType]s present in current [QcContext].
-    pub fn rinex_product_types_iter(&self) -> Box<dyn Iterator<Item = QcProductType> + '_> {
+    pub fn rinex_products_iter(&self) -> Box<dyn Iterator<Item = QcProductType> + '_> {
         Box::new(self.product_types_iter().filter(|p| p.is_rinex_product()))
+    }
+
+    /// Returns total number of RINEX [QcProductType]s that were loaded
+    pub fn total_rinex_products(&self) -> usize {
+        self.rinex_products_iter().count()
+    }
+
+    /// Obtain an [Iterator] over all RINEX files that were loaded
+    pub fn rinex_filenames_iter(&self) -> Box<dyn Iterator<Item = String> + '_> {
+        Box::new(self.data.iter().filter_map(|p| {
+            if p.descriptor.product_type != QcProductType::PreciseOrbit {
+                Some(p.descriptor.filename.clone())
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// Returns total number of SP3 [QcProductType]s that were loaded
+    pub fn total_rinex_files(&self) -> usize {
+        self.rinex_filenames_iter().count()
     }
 
     /// Returns reference to internal Observation RINEX data, if present in current [QcContext]
