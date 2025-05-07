@@ -1,9 +1,11 @@
 pub mod errors;
 mod ports;
+mod scheduler;
 mod topology;
 mod types;
 
 use ports::QcElementPort;
+use topology::Node;
 
 // pub trait ScheduledElement {
 //     /// True if this [QcPipelineElement] has input data ready to be consumed
@@ -12,12 +14,6 @@ use ports::QcElementPort;
 //     /// Process input data (consume)
 //     fn process(&mut self);
 // }
-
-/// [QcPipelineElement] describes an element of the topology
-/// that is wired to a source and possibly a child.
-pub struct QcPipelineElement {
-    rx_port: QcElementPort,
-}
 
 // pub struct QcPipeline<I: Send> {
 //     elements: Vec<QcPipelineElement<I>>,
@@ -32,3 +28,53 @@ pub struct QcPipelineElement {
 
 // // let mut obs_streamer =
 // //     QcObservationsStreamer::new("obs-streamer", entrypoints_rx.clone(), obs_tx);
+
+use crate::serializer::data::QcSerializedItem;
+use crossbeam_channel::{Receiver, Sender};
+use types::QcDataType;
+
+pub struct QcPipelineSource {
+    /// Input [QcDataType]
+    input_dtype: QcDataType,
+
+    /// Input port
+    rx: Receiver<QcSerializedItem>,
+
+    /// Output [QcDataType]
+    output_dtype: QcDataType,
+}
+
+pub struct QcPipelineElement {
+    /// Input [QcDataType]
+    input_dtype: QcDataType,
+
+    /// Output [QcDataType]
+    output_dtype: QcDataType,
+}
+
+/// [QcPipeline]
+pub struct QcPipeline {
+    source: QcPipelineSource,
+    elements: Vec<QcPipelineElement>,
+}
+
+impl QcPipeline {
+    /// Deploy & execute this [QcPipeline]
+    pub fn run(&mut self) {
+        loop {}
+    }
+}
+
+// #[cfg(test)]
+// mod test {
+
+//     use super::{QcDataType, topology::Topology, QcPipeline};
+
+//     #[test]
+//     fn pipeline_designer() {
+
+//         let topology = Topology::new()
+//             .add_source_node("src_1", QcDataType::QcEphemerisData)
+//             .add_node(node)
+//     }
+// }
