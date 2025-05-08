@@ -2,13 +2,12 @@
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum QcAnalysis {
     Summary,
+    RTKSummary,
     ClockResiduals,
     SignalObservations,
     MeteoObservations,
     Sampling,
     ClockSummary,
-    RoverSummary,
-    BaseSummary,
     SignalCombinations,
     MultiPathBias,
 
@@ -41,16 +40,15 @@ pub enum PvtSolutions {
 impl std::fmt::Display for QcAnalysis {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Summary => write!(f, "Summary Report"),
+            Self::RTKSummary => write!(f, "RTK Summary Report"),
             Self::Sampling => write!(f, "Sampling Analysis"),
             Self::SignalCombinations => write!(f, "Signal Combinations"),
             Self::SignalObservations => write!(f, "Signal Observations"),
-            Self::BaseSummary => write!(f, "RTK Base(s) summary"),
             Self::ClockResiduals => write!(f, "Clock Residuals"),
             Self::ClockSummary => write!(f, "Clock Summary"),
             Self::MeteoObservations => write!(f, "Meteo Observations"),
             Self::MultiPathBias => write!(f, "Multipath"),
-            Self::RoverSummary => write!(f, "Rover(s) summary"),
-            Self::Summary => write!(f, "Summary report"),
             #[cfg(feature = "sp3")]
             Self::SP3TemporalResiduals => write!(f, "SP3 Clock Residuals"),
             #[cfg(feature = "sp3")]
@@ -114,9 +112,8 @@ impl QcAnalysisBuilder {
     /// Activate summary reports of all supported types
     pub fn summaries(&self) -> Self {
         let mut s = self.clone();
-        s.analysis.push(QcAnalysis::RoverSummary);
         s.analysis.push(QcAnalysis::ClockSummary);
-        s.analysis.push(QcAnalysis::BaseSummary);
+        s.analysis.push(QcAnalysis::RTKSummary);
 
         #[cfg(feature = "sp3")]
         s.analysis.push(QcAnalysis::SP3Summary);

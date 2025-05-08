@@ -12,6 +12,9 @@ use summaries::QcContextSummary;
 mod observations;
 use observations::QcObservationsReport;
 
+pub(crate) mod rtk;
+use rtk::QcRTKSummary;
+
 pub mod temporal_data;
 
 pub(crate) mod orbit_proj;
@@ -37,6 +40,9 @@ pub struct QcRunReport {
 
     /// Reported observations
     pub observations: Option<QcObservationsReport>,
+
+    /// RTK Summary (if any)
+    pub rtk_summary: Option<QcRTKSummary>,
 
     /// Possible SP3 Orbits proj
     #[cfg_attr(docsrs, doc(cfg(all(feature = "navigation", feature = "sp3"))))]

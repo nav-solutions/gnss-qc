@@ -47,12 +47,19 @@ impl QcRunReport {
                             }
                         }
 
+                        @ if self.rtk_summary.is_some() {
+                            a data-target="rtk-summary" {
+                                span {
+                                    "RTK Summary"
+                                }
+                            }
+                        }
+
                         @ if self.sp3_orbits_proj.is_some() {
                             a data-target="sp3-orbit-proj" {
                                 span {
                                     "SP3 Orbit Projections"
                                 }
-                                i data-lucide="satellite" {}
                             }
                         }
 
@@ -96,6 +103,17 @@ impl QcRunReport {
                                 p {
                                     (summary.render())
                                 }
+                            }
+                        }
+
+                        @ if let Some(summary) = &self.rtk_summary {
+                            section id="rtk-summary" class="section" {
+                                h2 {
+                                    "RTK Summary"
+                                }
+                                // p {
+                                //     (summary.render())
+                                // }
                             }
                         }
 

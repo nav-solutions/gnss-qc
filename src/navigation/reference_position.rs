@@ -61,13 +61,13 @@ impl Render for QcReferencePosition {
 
                         }
                         td {
-                            (format!("{:.6}", self.ecef_m.0))
+                            (format!("{:.6}", self.ecef_m.0 * 1e-3))
                         }
                         td {
-                            (format!("{:.6}", self.ecef_m.1))
+                            (format!("{:.6}", self.ecef_m.1 * 1e-3))
                         }
                         td {
-                            (format!("{:.6}", self.ecef_m.2))
+                            (format!("{:.6}", self.ecef_m.2 * 1e-3))
                         }
                     }
                 }

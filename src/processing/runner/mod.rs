@@ -2,7 +2,9 @@ use crate::{
     context::data::QcSourceDescriptor,
     error::QcError,
     processing::analysis::{QcAnalysis, QcAnalysisBuilder},
-    report::{orbit_proj::QcOrbitProjections, summaries::QcContextSummary, QcRunReport},
+    report::{
+        orbit_proj::QcOrbitProjections, rtk::QcRTKSummary, summaries::QcContextSummary, QcRunReport,
+    },
     serializer::data::{QcSerializedItem, QcSerializedPreciseState},
 };
 
@@ -25,7 +27,9 @@ pub struct QcRunner<'a> {
     /// [QcRunReport] being redacted
     report: &'a mut QcRunReport,
 
+    summary: bool,
     stores_signals: bool,
+    rtk_summary: bool,
 
     #[cfg(feature = "navigation")]
     has_pvt_solver: bool,
@@ -53,6 +57,8 @@ impl<'a> QcRunner<'a> {
     pub fn new(builder: &QcAnalysisBuilder, report: &'a mut QcRunReport) -> Result<Self, QcError> {
         let analysis = builder.build();
 
+        let mut summary = false;
+        let mut rtk_summary = false;
         let mut stores_signals = false;
 
         #[cfg(feature = "sp3")]
@@ -77,6 +83,14 @@ impl<'a> QcRunner<'a> {
                 stores_signals = true;
             }
 
+            if matches!(analysis, QcAnalysis::Summary) {
+                summary = true;
+            }
+
+            if matches!(analysis, QcAnalysis::RTKSummary) {
+                rtk_summary = true;
+            }
+
             #[cfg(feature = "navigation")]
             if matches!(analysis, QcAnalysis::OrbitResiduals) {
                 stores_ephemeris = true;
@@ -98,7 +112,9 @@ impl<'a> QcRunner<'a> {
         }
 
         Ok(Self {
+            summary,
             stores_signals,
+            rtk_summary,
 
             #[cfg(feature = "navigation")]
             stores_ephemeris,
@@ -133,20 +149,29 @@ impl<'a> QcRunner<'a> {
                 }
             }
 
-            QcSerializedItem::RINEXHeader(header) => {
-                // latch new potential contribution
-                if self.analysis.contains(&QcAnalysis::Summary) {
+            QcSerializedItem::RINEXHeader(item) => {
+                if self.rtk_summary {
+                    if let Some(summary) = &mut self.report.rtk_summary {
+                        summary.latch_rover_header(item.clone());
+                    } else {
+                        let mut summary = QcRTKSummary::default();
+                        summary.latch_base_header(item.clone());
+                        self.report.rtk_summary = Some(summary);
+                    }
+                }
+
+                if self.summary {
                     let descriptor = QcSourceDescriptor {
-                        indexing: header.indexing,
-                        filename: header.filename,
-                        product_type: header.product_type,
+                        indexing: item.indexing,
+                        filename: item.filename,
+                        product_type: item.product_type,
                     };
 
                     if let Some(summary) = &mut self.report.summary {
-                        summary.latch_rinex(descriptor, header.data);
+                        summary.latch_rinex(descriptor, item.data);
                     } else {
                         let mut summary = QcContextSummary::default();
-                        summary.latch_rinex(descriptor, header.data);
+                        summary.latch_rinex(descriptor, item.data);
                         self.report.summary = Some(summary);
                     }
                 }
