@@ -1,9 +1,10 @@
-use crate::{prelude::Markup, report::QcRunReport};
+use crate::report::QcRunReport;
 
-use maud::{html, PreEscaped, Render, DOCTYPE};
+use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 
 mod css;
 mod javascript;
+mod summary;
 
 impl QcRunReport {
     /// Render this [QcRunReport] to HTML
@@ -39,7 +40,7 @@ impl QcRunReport {
                             "Run Report"
                         }
 
-                        @ if self.ctx_summary.is_some() {
+                        @ if self.summary.is_some() {
                             a data-target="summary" {
                                 "Summary"
                             }
@@ -77,7 +78,7 @@ impl QcRunReport {
                             }
                         }
 
-                        @ if let Some(summary) = &self.ctx_summary {
+                        @ if let Some(summary) = &self.summary {
                             section id="summary" class="section" {
                                 h2 {
                                     "Summary"

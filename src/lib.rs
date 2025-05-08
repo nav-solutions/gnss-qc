@@ -21,12 +21,12 @@ extern crate log;
 extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 
-pub(crate) mod analysis;
 mod config;
 mod context;
 // mod pipeline;
 // mod plot;
 // mod html;
+mod processing;
 mod report;
 mod serializer;
 
@@ -71,7 +71,7 @@ pub mod prelude {
     #[cfg(feature = "navigation")]
     pub use crate::{
         config::QcOrbitPreference,
-        navigation::{QcNavFilter, QcNavFilterType, ReferenceEcefPosition},
+        navigation::{QcNavFilter, QcNavFilterType, QcReferencePosition},
     };
 
     #[cfg(feature = "navigation")]

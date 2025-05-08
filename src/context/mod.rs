@@ -1,5 +1,6 @@
 //! GNSS processing context definition.
 use itertools::Itertools;
+use std::collections::HashMap;
 
 use crate::prelude::QcConfig;
 
@@ -30,10 +31,10 @@ use crate::prelude::{Almanac, Frame};
 use crate::prelude::{QcPreferedIndexing, QcProductType};
 
 // local exports
-pub(crate) use data::QcDataEntry;
+pub(crate) use data::QcDataWrapper;
 
 // pub export
-pub use data::{QcIndexing, QcProductType};
+pub use data::{QcIndexing, QcProductType, QcSourceDescriptor};
 
 /// [QcContext] is a general structure capable to store most common GNSS data.   
 /// It is dedicated to post processing workflows, precise timing or atmosphere analysis.
@@ -142,7 +143,7 @@ pub struct QcContext {
     pub configuration: QcConfig,
 
     /// [QcDataEntry] storage
-    pub(crate) data: Vec<QcDataEntry>,
+    pub(crate) data: HashMap<QcSourceDescriptor, QcDataWrapper>,
 }
 
 impl QcContext {
@@ -178,7 +179,7 @@ impl QcContext {
 
     /// Obtain an [Iterator] over all [QcProductType]s present in current [QcContext].
     pub fn product_types_iter(&self) -> Box<dyn Iterator<Item = QcProductType> + '_> {
-        Box::new(self.data.iter().map(|k| k.descriptor.product_type).unique())
+        Box::new(self.data.iter().map(|(k, _)| k.product_type).unique())
     }
 
     /// Build an updated [QcContext] with [QcConfig] preferences.

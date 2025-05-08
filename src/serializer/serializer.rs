@@ -44,12 +44,10 @@ impl QcContext {
         let mut signal_sources = Vec::new();
         let mut ephemeris_sources = Vec::new();
 
-        for entry in self.data.iter() {
-            if let Some(serializer) = self.ephemeris_serializer(entry.descriptor.indexing.clone()) {
+        for (desc, _) in self.data.iter() {
+            if let Some(serializer) = self.ephemeris_serializer(desc.indexing.clone()) {
                 ephemeris_sources.push(serializer);
-            } else if let Some(serializer) =
-                self.signal_serializer(entry.descriptor.indexing.clone())
-            {
+            } else if let Some(serializer) = self.signal_serializer(desc.indexing.clone()) {
                 signal_sources.push(serializer);
             }
         }
@@ -98,23 +96,23 @@ impl<'a> Iterator for QcSerializer<'a> {
                 }
 
                 State::RINEXHeaders => {
-                    for entry in self.ctx.data.iter() {
-                        if let Some(rinex) = entry.as_rinex() {
-                            if !self.rinex_headers.contains(&entry.descriptor.filename) {
+                    for (desc, data) in self.ctx.data.iter() {
+                        if let Some(rinex) = data.as_rinex() {
+                            if !self.rinex_headers.contains(&desc.filename) {
                                 debug!(
                                     "streaming header ={} {}/{}",
-                                    entry.descriptor.filename,
+                                    desc.filename,
                                     self.rinex_headers.len(),
                                     self.total_rinex_files
                                 );
 
-                                self.rinex_headers.push(entry.descriptor.filename.clone());
+                                self.rinex_headers.push(desc.filename.clone());
 
                                 let serialized = QcSerializedRINEXHeader {
                                     data: rinex.header.clone(),
-                                    indexing: entry.descriptor.indexing.clone(),
-                                    product_type: entry.descriptor.product_type,
-                                    filename: entry.descriptor.filename.clone(),
+                                    indexing: desc.indexing.clone(),
+                                    product_type: desc.product_type,
+                                    filename: desc.filename.clone(),
                                 };
 
                                 return Some(QcSerializedItem::RINEXHeader(serialized));
@@ -134,23 +132,23 @@ impl<'a> Iterator for QcSerializer<'a> {
 
                 #[cfg(feature = "sp3")]
                 State::SP3Header => {
-                    for entry in self.ctx.data.iter() {
-                        if let Some(sp3) = entry.as_sp3() {
-                            if !self.sp3_headers.contains(&entry.descriptor.filename) {
+                    for (desc, data) in self.ctx.data.iter() {
+                        if let Some(sp3) = data.as_sp3() {
+                            if !self.sp3_headers.contains(&desc.filename) {
                                 debug!(
                                     "streaming header ={} {}/{}",
-                                    entry.descriptor.filename,
+                                    desc.filename,
                                     self.sp3_headers.len(),
                                     self.total_sp3_files,
                                 );
 
-                                self.sp3_headers.push(entry.descriptor.filename.clone());
+                                self.sp3_headers.push(desc.filename.clone());
 
                                 let serialized = QcSerializedSP3Header {
                                     data: sp3.header.clone(),
-                                    indexing: entry.descriptor.indexing.clone(),
-                                    product_type: entry.descriptor.product_type,
-                                    filename: entry.descriptor.filename.clone(),
+                                    indexing: desc.indexing.clone(),
+                                    product_type: desc.product_type,
+                                    filename: desc.filename.clone(),
                                 };
 
                                 return Some(QcSerializedItem::SP3Header(serialized));

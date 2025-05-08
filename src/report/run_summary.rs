@@ -1,6 +1,6 @@
 use crate::{
-    analysis::QcAnalysis,
     prelude::{Duration, Epoch},
+    processing::analysis::QcAnalysis,
 };
 
 /// [QcPipeline] run summary.
@@ -12,7 +12,7 @@ pub struct QcRunSummary {
     /// Total processing time, as [Duration]
     pub run_duration: Duration,
 
-    /// Total tasks that were run
+    /// Analysis that were selected
     pub analysis: Vec<QcAnalysis>,
 }
 

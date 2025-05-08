@@ -1,10 +1,8 @@
 use crate::{
-    context::{QcContext, QcDataEntry, QcProductType},
+    context::{QcContext, QcDataWrapper, QcProductType, QcSourceDescriptor},
     error::QcError,
     prelude::SP3,
 };
-
-use qc_traits::Merge;
 
 use std::path::Path;
 
@@ -30,26 +28,15 @@ impl QcContext {
         let indexing = QcIndexing::Agency(sp3.header.agency.clone());
 
         // Add entry
-        if let Some(data) = self
-            .data
-            .iter_mut()
-            .filter(|p| {
-                p.descriptor.product_type == product_type && p.descriptor.indexing == indexing
-            })
-            .reduce(|p, _| p)
-        {
-            let entry = data
-                .as_mut_sp3()
-                .expect("internal failure: rinex data access");
+        info!("New SP3 \"{}\" - indexed by {}", filename, indexing);
 
-            entry.merge_mut(&sp3)?;
+        let descriptor = QcSourceDescriptor {
+            filename: filename.to_string(),
+            indexing,
+            product_type,
+        };
 
-            debug!("SP3 extension \"{}\" - indexed by {}", filename, indexing);
-        } else {
-            info!("New SP3 \"{}\" - indexed by {}", filename, indexing);
-
-            self.data.push(QcDataEntry::new_sp3(filename, sp3));
-        }
+        self.data.insert(descriptor, QcDataWrapper::SP3(sp3));
         Ok(())
     }
 
@@ -64,9 +51,9 @@ impl QcContext {
 
     /// Obtain an [Iterator] over all SP3 products that were loaded
     pub fn sp3_filenames_iter(&self) -> Box<dyn Iterator<Item = String> + '_> {
-        Box::new(self.data.iter().filter_map(|p| {
-            if p.descriptor.product_type == QcProductType::PreciseOrbit {
-                Some(p.descriptor.filename.clone())
+        Box::new(self.data.iter().filter_map(|(k, _)| {
+            if k.product_type == QcProductType::PreciseOrbit {
+                Some(k.filename.clone())
             } else {
                 None
             }

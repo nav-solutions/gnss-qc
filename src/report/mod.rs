@@ -1,13 +1,13 @@
 //! Qc analysis report
 pub mod sampling;
 
-use crate::{analysis::QcAnalysisBuilder, prelude::Epoch};
+use crate::{prelude::Epoch, processing::analysis::QcAnalysisBuilder};
 
-mod summary;
-use summary::QcRunSummary;
+mod run_summary;
+use run_summary::QcRunSummary;
 
-pub(crate) mod ctx_summary;
-use ctx_summary::QcContextSummary;
+pub(crate) mod summaries;
+use summaries::QcContextSummary;
 
 mod observations;
 use observations::QcObservationsReport;
@@ -29,7 +29,7 @@ pub struct QcRunReport {
     pub run_summary: QcRunSummary,
 
     /// [QcContextSummary]
-    pub ctx_summary: Option<QcContextSummary>,
+    pub summary: Option<QcContextSummary>,
 
     /// Reported observations
     pub observations: Option<QcObservationsReport>,

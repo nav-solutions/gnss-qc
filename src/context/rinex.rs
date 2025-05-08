@@ -1,10 +1,8 @@
 use std::path::Path;
 
-use qc_traits::Merge;
-
 use crate::{
     config::QcPreferedIndexing,
-    context::{QcContext, QcDataEntry, QcIndexing, QcProductType},
+    context::{QcContext, QcDataWrapper, QcIndexing, QcProductType, QcSourceDescriptor},
     prelude::{QcError, Rinex},
 };
 
@@ -79,38 +77,18 @@ impl QcContext {
         };
 
         // Add entry
-        if let Some(data) = self
-            .data
-            .iter_mut()
-            .filter(|p| {
-                p.descriptor.product_type == product_type && p.descriptor.indexing == indexing
-            })
-            .reduce(|p, _| p)
-        {
-            let entry = data
-                .as_mut_rinex()
-                .expect("internal failure: rinex data access");
+        info!(
+            "New {} RINEX \"{}\" - indexed by {}",
+            product_type, filename, indexing
+        );
 
-            entry.merge_mut(&rinex)?;
+        let descriptor = QcSourceDescriptor {
+            product_type,
+            indexing,
+            filename: filename.to_string(),
+        };
 
-            debug!(
-                "{} RINEX extension \"{}\" - indexed by {}",
-                product_type, filename, indexing
-            );
-        } else {
-            info!(
-                "New {} RINEX \"{}\" - indexed by {}",
-                product_type, filename, indexing
-            );
-
-            self.data.push(QcDataEntry::new_rinex(
-                filename,
-                product_type,
-                indexing,
-                rinex,
-            ));
-        }
-
+        self.data.insert(descriptor, QcDataWrapper::RINEX(rinex));
         Ok(())
     }
 
@@ -132,9 +110,9 @@ impl QcContext {
 
     /// Obtain an [Iterator] over all RINEX files that were loaded
     pub fn rinex_filenames_iter(&self) -> Box<dyn Iterator<Item = String> + '_> {
-        Box::new(self.data.iter().filter_map(|p| {
-            if p.descriptor.product_type != QcProductType::PreciseOrbit {
-                Some(p.descriptor.filename.clone())
+        Box::new(self.data.iter().filter_map(|(k, _)| {
+            if k.product_type.is_rinex_product() {
+                Some(k.filename.clone())
             } else {
                 None
             }
@@ -151,11 +129,9 @@ impl QcContext {
     pub fn rinex_observation_data(&self, indexing: &QcIndexing) -> Option<&Rinex> {
         self.data
             .iter()
-            .filter_map(|p| {
-                if p.descriptor.product_type == QcProductType::Observation
-                    && p.descriptor.indexing == *indexing
-                {
-                    p.as_rinex()
+            .filter_map(|(k, v)| {
+                if k.product_type == QcProductType::Observation && k.indexing == *indexing {
+                    v.as_rinex()
                 } else {
                     None
                 }
@@ -168,11 +144,9 @@ impl QcContext {
     pub fn rinex_navigation_data(&self, indexing: &QcIndexing) -> Option<&Rinex> {
         self.data
             .iter()
-            .filter_map(|p| {
-                if p.descriptor.product_type == QcProductType::BroadcastNavigation
-                    && p.descriptor.indexing == *indexing
-                {
-                    p.as_rinex()
+            .filter_map(|(k, v)| {
+                if k.product_type == QcProductType::BroadcastNavigation && k.indexing == *indexing {
+                    v.as_rinex()
                 } else {
                     None
                 }
@@ -185,11 +159,9 @@ impl QcContext {
     pub fn rinex_meteo_data(&self, indexing: &QcIndexing) -> Option<&Rinex> {
         self.data
             .iter()
-            .filter_map(|p| {
-                if p.descriptor.product_type == QcProductType::MeteoObservation
-                    && p.descriptor.indexing == *indexing
-                {
-                    p.as_rinex()
+            .filter_map(|(k, v)| {
+                if k.product_type == QcProductType::MeteoObservation && k.indexing == *indexing {
+                    v.as_rinex()
                 } else {
                     None
                 }

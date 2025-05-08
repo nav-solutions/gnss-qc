@@ -59,11 +59,9 @@ impl QcContext {
         let (filename, data_set) = self
             .data
             .iter()
-            .filter_map(|p| {
-                if p.descriptor.product_type == QcProductType::BroadcastNavigation
-                    && p.descriptor.indexing == indexing
-                {
-                    Some((&p.descriptor.filename, p.as_rinex().unwrap()))
+            .filter_map(|(k, v)| {
+                if k.product_type == QcProductType::BroadcastNavigation && k.indexing == indexing {
+                    Some((&k.filename, v.as_rinex().unwrap()))
                 } else {
                     None
                 }
