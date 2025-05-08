@@ -4,6 +4,7 @@ use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 
 mod css;
 mod javascript;
+mod orbit_proj;
 mod summary;
 
 impl QcRunReport {
@@ -46,6 +47,15 @@ impl QcRunReport {
                             }
                         }
 
+                        @ if self.sp3_orbits_proj.is_some() {
+                            a data-target="sp3-orbit-proj" {
+                                span {
+                                    "SP3 Orbit Projections"
+                                }
+                                i data-lucide="satellite" {}
+                            }
+                        }
+
                         a data-target="documentation" {
                             span {
                                 "Documentation "
@@ -85,6 +95,17 @@ impl QcRunReport {
                                 }
                                 p {
                                     (summary.render())
+                                }
+                            }
+                        }
+
+                        @ if let Some(orbit_proj) = &self.sp3_orbits_proj {
+                            section id="sp3-orbit-proj" class="section" {
+                                h2 {
+                                    "SP3 Orbit Projections"
+                                }
+                                p {
+                                    (orbit_proj.render())
                                 }
                             }
                         }

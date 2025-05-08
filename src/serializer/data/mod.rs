@@ -13,6 +13,12 @@ use rinex::prelude::Header as RINEXHeader;
 #[cfg(feature = "sp3")]
 use sp3::prelude::Header as SP3Header;
 
+#[cfg(feature = "sp3")]
+mod sp3_data;
+
+#[cfg(feature = "sp3")]
+pub use sp3_data::QcPreciseState;
+
 #[derive(Clone)]
 pub struct QcSerializedData<T: Clone> {
     /// origin filename
@@ -37,6 +43,9 @@ pub type QcSerializedRINEXHeader = QcSerializedData<RINEXHeader>;
 #[cfg(feature = "sp3")]
 pub type QcSerializedSP3Header = QcSerializedData<SP3Header>;
 
+#[cfg(feature = "sp3")]
+pub type QcSerializedPreciseState = QcSerializedData<QcPreciseState>;
+
 #[derive(Clone)]
 pub enum QcSerializedItem {
     /// [QcSerializedRINEXHeader]
@@ -51,4 +60,8 @@ pub enum QcSerializedItem {
 
     /// [QcEphemerisData]
     Ephemeris(QcSerializedEphemeris),
+
+    #[cfg(feature = "sp3")]
+    /// [QcSerializedPreciseState]
+    PreciseState(QcSerializedPreciseState),
 }

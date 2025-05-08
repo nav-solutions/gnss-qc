@@ -14,6 +14,10 @@ use observations::QcObservationsReport;
 
 pub mod temporal_data;
 
+pub(crate) mod orbit_proj;
+
+use orbit_proj::QcOrbitProjections;
+
 #[cfg(feature = "html")]
 #[cfg_attr(docsrs, doc(cfg(feature = "html")))]
 mod html;
@@ -23,7 +27,7 @@ mod html;
 
 /// [QcRunReport] is synthesized on [QcPipeline] completion.
 /// It can then be rendered in several formats.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct QcRunReport {
     /// [QcRunSummary]
     pub run_summary: QcRunSummary,
@@ -33,6 +37,10 @@ pub struct QcRunReport {
 
     /// Reported observations
     pub observations: Option<QcObservationsReport>,
+
+    /// Possible SP3 Orbits proj
+    #[cfg_attr(docsrs, doc(cfg(all(feature = "navigation", feature = "sp3"))))]
+    pub sp3_orbits_proj: Option<QcOrbitProjections>,
 }
 
 impl QcRunReport {

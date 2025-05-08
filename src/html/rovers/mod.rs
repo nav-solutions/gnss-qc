@@ -42,34 +42,6 @@ impl Report {
 
         Self { rovers, selector }
     }
-
-    fn javascript(&self) -> &str {
-        "
-        const rover_sel = document.getElementById('rovers-selector');
-
-        // rover listener
-        rover_sel.addEventListener('change', (event) => {
-            console.log('selected rover: ' + event.target.value);
-
-            const rovers = document.getElementsByClassName('data rover');
-            console.log('found: ' + rovers.length);
-
-            if (event.target.value == 'All' || event.target.value == 'Both') {
-                for (let i = 0;  i < rovers.length; i++) {
-                    rovers[i].style.display = 'block';
-                }
-            } else {
-                for (let i = 0;  i < rovers.length; i++) {
-                    if (rovers[i].id == event.target.value) {
-                        rovers[i].style.display = 'block';
-                    } else {
-                        rovers[i].style.display = 'none';
-                    }
-                }
-            }
-        });
-        "
-    }
 }
 
 impl Render for Report {

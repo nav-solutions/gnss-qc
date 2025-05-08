@@ -63,6 +63,32 @@ mod test {
     use crate::{prelude::QcContext, tests::init_logger};
 
     use super::QcAnalysisBuilder;
+    #[test]
+    fn process_light_full_run_no_sp3() {
+        init_logger();
+
+        let mut ctx = QcContext::new();
+
+        // load data
+        ctx.load_rinex_file("data/OBS/V3/LARM0010.22O").unwrap();
+
+        ctx.load_rinex_file("data/OBS/V3/LARM0630.22O").unwrap();
+
+        ctx.load_rinex_file("data/OBS/V3/VLNS0010.22O").unwrap();
+
+        ctx.load_rinex_file("data/OBS/V3/VLNS0630.22O").unwrap();
+
+        ctx.load_gzip_rinex_file("data/MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz")
+            .unwrap();
+
+        let builder = QcAnalysisBuilder::all();
+
+        let report = ctx.process(builder).unwrap();
+
+        let html = report.render_html().into_string();
+        let mut fd = File::create("index.html").unwrap();
+        write!(fd, "{}", html).unwrap();
+    }
 
     #[test]
     fn process_light_full_run() {

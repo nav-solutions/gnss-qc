@@ -11,6 +11,9 @@ use crate::{
 #[cfg(feature = "sp3")]
 use crate::serializer::data::QcSerializedSP3Header;
 
+#[cfg(feature = "sp3")]
+use crate::serializer::sp3::QcPreciseStateIterator;
+
 /// [QcSerializer] to serialize entire [QcContext].
 pub struct QcSerializer<'a> {
     /// Reference to [QcContext] being iterated
@@ -34,6 +37,9 @@ pub struct QcSerializer<'a> {
     /// All [QcEphemerisIterator] sources
     ephemeris_sources: Vec<QcEphemerisIterator<'a>>,
 
+    /// All [QcPreciseStateIterator] sources
+    precise_state_sources: Vec<QcPreciseStateIterator<'a>>,
+
     /// All [QcSignalIterator] sources
     signal_sources: Vec<QcSignalIterator<'a>>,
 }
@@ -44,11 +50,19 @@ impl QcContext {
         let mut signal_sources = Vec::new();
         let mut ephemeris_sources = Vec::new();
 
+        #[cfg(feature = "sp3")]
+        let mut precise_state_sources = Vec::new();
+
         for (desc, _) in self.data.iter() {
             if let Some(serializer) = self.ephemeris_serializer(desc.indexing.clone()) {
                 ephemeris_sources.push(serializer);
             } else if let Some(serializer) = self.signal_serializer(desc.indexing.clone()) {
                 signal_sources.push(serializer);
+            }
+
+            #[cfg(feature = "sp3")]
+            if let Some(serializer) = self.precise_states_serializer(desc.indexing.clone()) {
+                precise_state_sources.push(serializer);
             }
         }
 
@@ -67,6 +81,7 @@ impl QcContext {
             ctx: self,
             signal_sources,
             ephemeris_sources,
+            precise_state_sources,
             total_sp3_files,
             total_rinex_files,
             state: Default::default(),
@@ -80,14 +95,7 @@ impl<'a> Iterator for QcSerializer<'a> {
     type Item = QcSerializedItem;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Try to pull new symbol
-        // let mut ret = Option::<QcSerializedItem>::None;
-
         loop {
-            // if ret.is_some() {
-            //     return ret;
-            // }
-
             // debug!("state: {:?}", self.state);
 
             match self.state {
@@ -161,6 +169,11 @@ impl<'a> Iterator for QcSerializer<'a> {
                     }
                 }
 
+                #[cfg(not(feature = "navigation"))]
+                State::Ephemeris => {
+                    self.state = State::Meteo;
+                }
+
                 #[cfg(feature = "navigation")]
                 State::Ephemeris => {
                     // round robin all data sources (until all completed)
@@ -172,11 +185,33 @@ impl<'a> Iterator for QcSerializer<'a> {
                         }
                     }
 
-                    self.state = State::Signal;
+                    self.state = State::Meteo;
                 }
 
-                #[cfg(not(feature = "navigation"))]
-                State::Ephemeris => {
+                State::Meteo => {
+                    self.state = State::PreciseOrbit;
+                }
+
+                #[cfg(feature = "sp3")]
+                State::PreciseOrbit => {
+                    // round robin all data sources (until all completed)
+                    for source in self.precise_state_sources.iter_mut() {
+                        if !source.iter.eos {
+                            if let Some(data) = source.next() {
+                                return Some(QcSerializedItem::PreciseState(data));
+                            }
+                        }
+                    }
+
+                    self.state = State::PreciseClock;
+                }
+
+                #[cfg(not(feature = "sp3"))]
+                State::PreciseOrbit => {
+                    self.state = State::PreciseClock;
+                }
+
+                State::PreciseClock => {
                     self.state = State::Signal;
                 }
 
@@ -191,24 +226,6 @@ impl<'a> Iterator for QcSerializer<'a> {
                     }
 
                     self.state = State::Done;
-                }
-
-                State::Meteo => {
-                    return None;
-                }
-
-                #[cfg(feature = "sp3")]
-                State::PreciseOrbit => {
-                    return None;
-                }
-
-                #[cfg(not(feature = "sp3"))]
-                State::PreciseOrbit => {
-                    return None;
-                }
-
-                State::PreciseClock => {
-                    return None;
                 }
 
                 State::Done => {

@@ -1,18 +1,18 @@
 use crate::{
     context::{QcContext, QcIndexing, QcProductType},
-    serializer::{data::QcSerializedEphemeris, iter::QcAbstractIterator},
+    serializer::{data::QcPreciseState, iter::QcAbstractIterator},
 };
 
-use super::data::QcEphemerisData;
+use super::data::QcSerializedPreciseState;
 
-/// [QcEphemerisIterator] used internally to stream data.
-pub struct QcEphemerisIterator<'a> {
-    /// [QcSynchronousIterator]
-    pub iter: QcAbstractIterator<'a, QcSerializedEphemeris>,
+/// [QcPreciseStateIterator] used internally to stream data.
+pub struct QcPreciseStateIterator<'a> {
+    /// [QcAbstractIterator]
+    pub iter: QcAbstractIterator<'a, QcSerializedPreciseState>,
 }
 
-impl<'a> Iterator for QcEphemerisIterator<'a> {
-    type Item = QcSerializedEphemeris;
+impl<'a> Iterator for QcPreciseStateIterator<'a> {
+    type Item = QcSerializedPreciseState;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
@@ -20,47 +20,41 @@ impl<'a> Iterator for QcEphemerisIterator<'a> {
 }
 
 impl QcContext {
-    /// Obtain [QcEphemerisIterator] from current navigation compatible [QcContext]
+    /// Obtain [QcPreciseStateIterator] from current SP3 compatible [QcContext]
     /// and desired [QcIndexing] provider.
-    pub fn ephemeris_serializer<'a>(
+    pub fn precise_states_serializer<'a>(
         &'a self,
         indexing: QcIndexing,
-    ) -> Option<QcEphemerisIterator<'a>> {
+    ) -> Option<QcPreciseStateIterator<'a>> {
         let (filename, data_set) = self
             .data
             .iter()
             .filter_map(|(k, v)| {
-                if k.product_type == QcProductType::BroadcastNavigation && k.indexing == indexing {
-                    Some((&k.filename, v.as_rinex().unwrap()))
+                if k.product_type == QcProductType::PreciseOrbit && k.indexing == indexing {
+                    Some((&k.filename, v.as_sp3().unwrap()))
                 } else {
                     None
                 }
             })
             .reduce(|k, _| k)?;
 
-        let iter = data_set
-            .nav_ephemeris_frames_iter()
-            .filter_map(move |(k, v)| {
-                if let Some(timescale) = k.sv.constellation.timescale() {
-                    let toe = v.toe(timescale)?;
-                    Some(QcSerializedEphemeris {
+        let iter =
+            data_set
+                .satellites_position_km_iter()
+                .filter_map(move |(epoch, sv, position_km)| {
+                    Some(QcSerializedPreciseState {
                         indexing: indexing.clone(),
                         filename: filename.to_string(),
                         product_type: QcProductType::BroadcastNavigation,
-                        data: QcEphemerisData {
-                            sv: k.sv,
-                            toe,
-                            toc: k.epoch,
-                            ephemeris: v.clone(),
+                        data: QcPreciseState {
+                            sv,
+                            epoch,
+                            position_km,
                         },
                     })
-                } else {
-                    trace!("{}({}) - timescale is not supported", k.epoch, k.sv);
-                    None
-                }
-            });
+                });
 
-        Some(QcEphemerisIterator {
+        Some(QcPreciseStateIterator {
             iter: QcAbstractIterator::new(Box::new(iter)),
         })
     }
