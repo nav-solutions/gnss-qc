@@ -102,7 +102,7 @@ impl<'a> Iterator for QcSerializer<'a> {
                                 debug!(
                                     "streaming header ={} {}/{}",
                                     desc.filename,
-                                    self.rinex_headers.len(),
+                                    self.rinex_headers.len() + 1,
                                     self.total_rinex_files
                                 );
 
@@ -138,7 +138,7 @@ impl<'a> Iterator for QcSerializer<'a> {
                                 debug!(
                                     "streaming header ={} {}/{}",
                                     desc.filename,
-                                    self.sp3_headers.len(),
+                                    self.sp3_headers.len() + 1,
                                     self.total_sp3_files,
                                 );
 

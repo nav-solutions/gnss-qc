@@ -3,8 +3,14 @@ use crate::{
     error::QcError,
     processing::analysis::{QcAnalysis, QcAnalysisBuilder},
     report::{summaries::QcContextSummary, QcRunReport},
-    serializer::data::{QcSerializedEphemeris, QcSerializedItem},
+    serializer::data::QcSerializedItem,
 };
+
+#[cfg(feature = "navigation")]
+mod ephemeris_buf;
+
+#[cfg(feature = "navigation")]
+use ephemeris_buf::EphemerisBuffer;
 
 pub struct QcRunner<'a> {
     /// List of [QcAnalysis]
@@ -13,8 +19,9 @@ pub struct QcRunner<'a> {
     /// [QcRunReport] being redacted
     report: &'a mut QcRunReport,
 
-    /// Buffered Ephemeris
-    ephemeris_buf: Vec<QcSerializedEphemeris>,
+    /// [EphemerisBuffer]
+    #[cfg(feature = "navigation")]
+    ephemeris_buf: EphemerisBuffer,
 }
 
 impl<'a> QcRunner<'a> {
@@ -23,7 +30,9 @@ impl<'a> QcRunner<'a> {
         Ok(Self {
             report,
             analysis: builder.build(),
-            ephemeris_buf: Vec::with_capacity(32),
+
+            #[cfg(feature = "navigation")]
+            ephemeris_buf: EphemerisBuffer::new(),
         })
     }
 
@@ -44,6 +53,7 @@ impl<'a> QcRunner<'a> {
         self.analysis.contains(&QcAnalysis::SignalCombinations)
     }
 
+    #[cfg(feature = "navigation")]
     pub fn stores_ephemeris(&self) -> bool {
         if self.has_pvt_solver() {
             return true;
@@ -73,9 +83,11 @@ impl<'a> QcRunner<'a> {
 
     pub fn consume(&mut self, item: QcSerializedItem) {
         match item {
-            QcSerializedItem::Ephemeris(ephemeris) => {
+            QcSerializedItem::Ephemeris(item) =>
+            {
+                #[cfg(feature = "navigation")]
                 if self.stores_ephemeris() {
-                    self.ephemeris_buf.push(ephemeris);
+                    self.ephemeris_buf.latch(item);
                 }
             }
 
@@ -118,12 +130,17 @@ impl<'a> QcRunner<'a> {
                 }
             }
 
-            QcSerializedItem::Signal(signal) => {
+            QcSerializedItem::Signal(item) => {
                 if self.analysis.contains(&QcAnalysis::SignalObservations) {
                     // TODO
                 }
                 if self.analysis.contains(&QcAnalysis::SignalCombinations) {
                     // TODO
+                }
+
+                #[cfg(feature = "navigation")]
+                if self.stores_ephemeris() {
+                    self.ephemeris_buf.update(item.data.epoch);
                 }
             }
         }

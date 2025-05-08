@@ -46,7 +46,11 @@ impl QcRINEXFileSummary {
             },
 
             v3_time_corrections: if header.rinex_type == RinexType::NavigationData {
-                Default::default()
+                if let Some(nav) = &header.nav {
+                    nav.time_offsets.iter().map(|k| (k.lhs, k.rhs)).collect()
+                } else {
+                    Default::default()
+                }
             } else {
                 Default::default()
             },
