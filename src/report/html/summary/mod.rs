@@ -1,7 +1,12 @@
-use crate::report::QcContextSummary;
 use itertools::Itertools;
-
 use maud::{html, Markup, PreEscaped, Render};
+
+use crate::report::summaries::{QcContextSummary, QcFileSummary};
+
+mod rinex_sum;
+
+#[cfg(feature = "sp3")]
+mod sp3_sum;
 
 impl QcContextSummary {
     pub(crate) fn javascript() -> String {
@@ -65,46 +70,59 @@ impl Render for QcContextSummary {
                         }
                     }
 
-                    @ for category in self.summaries.keys().map(|desc| desc.product_type).unique().sorted() {
-                        @ for indexing in self.summaries.keys().map(|desc| &desc.indexing).unique().sorted() {
-                            @ for  desc in self.summaries.keys() {
-                                @ if desc.product_type == category {
-                                    @ if desc.indexing == *indexing {
-                                        tr {
-                                            td onclick=(&format!("selectFileSummary('{}')", desc.filename)) {
-                                                (category)
-                                            }
-                                            td onclick=(&format!("selectFileSummary('{}')", desc.filename)) {
-                                                (indexing)
-                                            }
-                                            td onclick=(&format!("selectFileSummary('{}')", desc.filename)) {
-                                                (desc.filename)
-                                            }
-                                        }
-                                    }
-                                }
+                    @ for descriptor in self.summaries.keys().sorted() {
+                        tr {
+                            td onclick=(&format!("selectFileSummary('{}')", descriptor.filename)) {
+                                (descriptor.product_type)
+                            }
+                            td onclick=(&format!("selectFileSummary('{}')", descriptor.filename)) {
+                                (descriptor.indexing)
+                            }
+                            td onclick=(&format!("selectFileSummary('{}')", descriptor.filename)) {
+                                (descriptor.filename)
                             }
                         }
                     }
                 }
             }
 
-            @ for (index, descriptor) in self.summaries.keys().sorted().rev().enumerate() {
+            @ for (index, descriptor) in self.summaries.keys().sorted().enumerate() {
                 @ if index == 0 {
                     div id=(&format!("{}-sum", descriptor.filename)) class="file-summary" style="display: block" {
-                        h2 {
-                            (descriptor.filename)
+                        @ if let Some(summary) = self.summaries.get(&descriptor) {
+                            h2 {
+                                (descriptor.filename)
+                            }
+                            p {
+                                (summary.render())
+                            }
                         }
                     }
                 } @ else {
                     div id=(&format!("{}-sum", descriptor.filename)) class="file-summary" style="display: none" {
-                        h2 {
-                            (descriptor.filename)
+                        @ if let Some(summary) = self.summaries.get(&descriptor) {
+                            h2 {
+                                (descriptor.filename)
+                            }
+                            p {
+                                (summary.render())
+                            }
                         }
                     }
                 }
             }
 
+        }
+    }
+}
+
+impl Render for QcFileSummary {
+    fn render(&self) -> Markup {
+        html! {
+            @ match self {
+                Self::RINEX(file) => (file.render()),
+                Self::SP3(file) => (file.render()),
+            }
         }
     }
 }

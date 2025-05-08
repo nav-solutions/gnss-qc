@@ -16,7 +16,7 @@ pub struct QcRINEXFileSummary {
     pub timescale: Option<TimeScale>,
 
     /// Reference Position (if any)
-    pub reference_position_ecef_m: Option<QcReferencePosition>,
+    pub reference_position: Option<QcReferencePosition>,
 
     /// Receiver info (if any)
     pub receiver: Option<Receiver>,
@@ -39,9 +39,7 @@ impl QcRINEXFileSummary {
             receiver: header.rcvr.clone(),
             geodetic_marker: header.geodetic_marker.clone(),
 
-            reference_position_ecef_m: if let Some((x_ecef_m, y_ecef_m, z_ecef_m)) =
-                header.rx_position
-            {
+            reference_position: if let Some((x_ecef_m, y_ecef_m, z_ecef_m)) = header.rx_position {
                 Some(QcReferencePosition::new((x_ecef_m, y_ecef_m, z_ecef_m)))
             } else {
                 None
@@ -73,15 +71,5 @@ impl QcRINEXFileSummary {
                 RinexType::NavigationData | RinexType::AntennaData | RinexType::DORIS => None,
             },
         }
-    }
-}
-
-#[cfg(feature = "html")]
-use maud::{html, Markup, Render};
-
-#[cfg(feature = "html")]
-impl Render for QcRINEXFileSummary {
-    fn render(&self) -> Markup {
-        html! {}
     }
 }

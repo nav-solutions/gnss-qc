@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use crate::context::data::QcSourceDescriptor;
 
-mod rinex_sum;
+pub(crate) mod rinex_sum;
 use rinex_sum::QcRINEXFileSummary;
 
 use rinex::prelude::Header as RINEXHeader;
 
 #[cfg(feature = "sp3")]
-mod sp3_sum;
+pub(crate) mod sp3_sum;
 
 #[cfg(feature = "sp3")]
 use sp3_sum::QcSP3FileSummary;
