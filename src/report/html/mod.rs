@@ -5,6 +5,7 @@ use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 mod css;
 mod javascript;
 mod orbit_proj;
+mod rtk;
 mod summary;
 
 impl QcRunReport {
@@ -111,9 +112,9 @@ impl QcRunReport {
                                 h2 {
                                     "RTK Summary"
                                 }
-                                // p {
-                                //     (summary.render())
-                                // }
+                                p {
+                                    (summary.render())
+                                }
                             }
                         }
 

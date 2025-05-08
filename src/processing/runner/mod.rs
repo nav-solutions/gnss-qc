@@ -152,7 +152,7 @@ impl<'a> QcRunner<'a> {
             QcSerializedItem::RINEXHeader(item) => {
                 if self.rtk_summary {
                     if let Some(summary) = &mut self.report.rtk_summary {
-                        summary.latch_rover_header(item.clone());
+                        summary.latch_base_header(item.clone());
                     } else {
                         let mut summary = QcRTKSummary::default();
                         summary.latch_base_header(item.clone());
