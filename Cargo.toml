@@ -82,7 +82,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 ##############################
 # Multi-threading
 ##############################
-crossbeam-channel = "0.5"
+# crossbeam-channel = "0.5"
 
 ##############################
 # Nyx-space framework
