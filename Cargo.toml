@@ -58,7 +58,7 @@ embed_ephem = [
 
 [dependencies.rinex]
 git = "https://github.com/rtk-rs/rinex"
-branch = "main"
+rev = "d4bac64ba7f03ec2665e440cef11dba5ef1a38e7"
 features = [
     "qc", 
     "processing", 
@@ -74,32 +74,28 @@ features = [
 
 [dependencies.sp3]
 git = "https://github.com/rtk-rs/sp3"
-branch = "main"
+rev = "140a25ba8640d272cc9ad822db6447d6fe175d88"
+optional = true
 features = [
     "qc", 
     "processing", 
     "serde"
 ]
-optional = true
 
 [dependencies]
 thiserror = "2"
-
+maud = "0.26"
+plotly = "0.12"
 strum = "0.27"
 strum_macros = "0.26"
 itertools = "0.14.0"
+log = { version = "0.4", optional = true }
+gnss-rs = { version = "2.4.0", features = ["serde"] }
+gnss-qc-traits = { version = "0.2.0", features = ["processing"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
-hifitime = { git = "https://github.com/nyx-space/hifitime", branch = "master", features = ["serde", "std"] }
-anise = { git = "https://github.com/nyx-space/anise", branch = "dep/hifitime-github", optional = true }
-
-log = { version = "0.4", optional = true }
-
-gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
-gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", branch = "main", features = ["processing"] }
-
-maud = "0.26"
-plotly = "0.12"
+hifitime = { version = "4.1.0", features = ["serde", "std"] }
+anise = { git = "https://github.com/nyx-space/anise", branch = "dep/hifitime_4_1_0", optional = true }
 
 [dev-dependencies]
 serde_json = "1"
