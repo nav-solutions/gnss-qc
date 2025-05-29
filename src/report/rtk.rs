@@ -4,14 +4,17 @@ use crate::{prelude::QcReferencePosition, serializer::data::QcSerializedRINEXHea
 
 #[derive(Clone, Default)]
 pub struct QcRTKSummary {
-    /// Defined Rorvers
+    /// Rovers network.
     pub rovers: HashMap<String, Option<QcReferencePosition>>,
 
-    /// Define Bases
+    /// Bases network.
     pub bases: HashMap<String, Option<QcReferencePosition>>,
 
-    /// Baselines
-    pub baselines: HashMap<(String, String), f64>,
+    /// Baselines: projected distance (km) between all bases and reovers in the Network.
+    pub baseline_distances_km: HashMap<(String, String), f64>,
+
+    /// Projected distance (km) between all bases in Network.
+    pub base_network_distances_km: HashMap<(String, String), f64>,
 }
 
 impl QcRTKSummary {
@@ -29,7 +32,8 @@ impl QcRTKSummary {
                 map
             },
             bases: Default::default(),
-            baselines: Default::default(),
+            baseline_distances_km: Default::default(),
+            base_network_distances_km: Default::default(),
         }
     }
 
@@ -47,7 +51,8 @@ impl QcRTKSummary {
                 map
             },
             rovers: Default::default(),
-            baselines: Default::default(),
+            baseline_distances_km: Default::default(),
+            base_network_distances_km: Default::default(),
         }
     }
 
@@ -63,7 +68,7 @@ impl QcRTKSummary {
             for (base_name, base_pos) in self.bases.iter() {
                 if let Some(base_position) = base_pos {
                     let dist = 0.0;
-                    self.baselines
+                    self.baseline_distances_km
                         .insert((base_name.clone(), item.indexing.to_string()), dist);
                 }
             }
@@ -83,8 +88,17 @@ impl QcRTKSummary {
             for (rover_name, rover_pos) in self.rovers.iter() {
                 if let Some(rover_position) = rover_pos {
                     let dist = 0.0;
-                    self.baselines
+                    self.baseline_distances_km
                         .insert((item.indexing.to_string(), rover_name.clone()), dist);
+                }
+            }
+
+            // add new |base-base| projection
+            for (base_name, base_pos) in self.bases.iter() {
+                if let Some(base_position) = base_pos {
+                    let dist = 0.0;
+                    self.base_network_distances_km
+                        .insert((item.indexing.to_string(), base_name.clone()), 0.0);
                 }
             }
         } else {

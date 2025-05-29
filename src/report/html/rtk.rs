@@ -22,46 +22,54 @@ impl Render for QcRTKSummary {
                 table class="table is-bordered" {
                     tr {
                         th {
-                            "Rovers"
+                            "Base Network Baselines Projection (km)"
                         }
-                    }
-                    @ for rover in self.rovers.keys().sorted() {
-                        tr {
-                            td {}
-                            td {
-                                (rover)
-                            }
-                        }
-                    }
-                    tr {
-                        th {
-                            "Bases"
-                        }
-                    }
-                    @ for base in self.bases.keys().sorted() {
-                        tr {
-                            td {}
+
+                        @ for base in self.base_network_distances_km.keys().map(|(base_i, _)| base_i).unique().sorted() {
                             td {
                                 (base)
                             }
                         }
-                    }
-                    tr {
-                        th {
-                            "Baselines (km)"
+
+                        @ for (i, base_i) in self.base_network_distances_km.keys().map(|(base_i, _)| base_i).unique().sorted().enumerate() {
+                            tr {
+                                td {
+                                    (base_i)
+                                }
+
+                               @ for (j, base_j) in self.base_network_distances_km.keys().map(|(_, base_j)| base_i).unique().sorted().enumerate() {
+                                td {
+                                    ("0.0")
+                                }
+                               }
+                            }
                         }
                     }
-                    @ for (rover, base) in self.baselines.keys().sorted() {
-                        @ if let Some(baseline) = self.baselines.get(&(rover.clone(), base.clone())) {
+
+                    tr {
+                        th {
+                            "Rover/Base Baselines Projections (km)"
+                        }
+
+                        @ for (ith_base, base) in self.baseline_distances_km.keys().map(|(base, _)| base).unique().sorted().enumerate() {
+                            td {
+                                (base)
+                            }
+                        }
+
+                        @ for (ith_rover, rover) in self.baseline_distances_km.keys().map(|(_, rover)| rover).unique().sorted().enumerate() {
                             tr {
-                                th {
-                                    (format!("{}/{}", rover, base))
-                                }
                                 td {
-                                    (format!("{}", baseline *1e-3))
+                                    (rover)
+                                }
+                                @ for (ith_base, base) in self.baseline_distances_km.keys().map(|(base, _)| base).unique().sorted().enumerate() {
+                                    td {
+                                        (base)
+                                    }
                                 }
                             }
                         }
+
                     }
                 }
             }

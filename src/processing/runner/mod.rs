@@ -1,5 +1,5 @@
 use crate::{
-    context::data::QcSourceDescriptor,
+    context::{data::QcSourceDescriptor, QcProductType},
     error::QcError,
     processing::analysis::{QcAnalysis, QcAnalysisBuilder},
     report::{
@@ -150,7 +150,7 @@ impl<'a> QcRunner<'a> {
             }
 
             QcSerializedItem::RINEXHeader(item) => {
-                if self.rtk_summary {
+                if self.rtk_summary && item.product_type == QcProductType::Observation {
                     if let Some(summary) = &mut self.report.rtk_summary {
                         summary.latch_base_header(item.clone());
                     } else {
