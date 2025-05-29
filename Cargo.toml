@@ -1,6 +1,6 @@
 [package]
 name = "gnss-qc"
-version = "0.1.0"
+version = "0.2.0"
 license = "MPL-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "GNSS data Quality Control"
@@ -11,7 +11,7 @@ categories = ["science", "science::geo"]
 edition = "2021"
 
 [package.metadata]
-msrv = "1.81"
+msrv = "1.82"
 
 [package.metadata.docs.rs]
 features = ["sp3", "flate2", "navigation"]
@@ -68,41 +68,64 @@ cggtts = [
 html = [
     "dep:maud",
     "dep:plotly",
+
+[dependencies.rinex]
+git = "https://github.com/rtk-rs/rinex"
+version = "0.18"
+features = [
+    "qc", 
+    "processing", 
+    "obs", 
+    "nav", 
+    "ut1", 
+    "meteo", 
+    "clock", 
+    "ionex", 
+    "antex", 
+    "serde",
+]
+
+[dependencies.sp3]
+git = "https://github.com/rtk-rs/sp3"
+version = "1.2"
+optional = true
+features = [
+    "qc", 
+    "processing", 
+    "serde"
+]
+
+[dependencies.gnss-rtk]
+git = "https://github.com/rtk-rs/gnss-rtk"
+rev = "main"
+optional = true
+features = [
+    "serde",
+    "scheduler",
+    "tracker",
+]
+
+[dependencies.cggtts]
+git = "https://github.com/rtk-rs/cggtts"
+rev = "main"
+optional = true
+features = [
+    "serde"
 ]
 
 [dependencies]
 log = "0.4"
 thiserror = "2"
-
+maud = "0.26"
+plotly = "0.12"
 strum = "0.27"
 strum_macros = "0.26"
 itertools = "0.14.0"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-
-##############################
-# Multi-threading
-##############################
-# crossbeam-channel = "0.5"
-
-##############################
-# Nyx-space framework
-##############################
-hifitime = { git = "https://github.com/nyx-space/hifitime", branch = "master", features = ["serde", "std"] }
-anise = { git = "https://github.com/nyx-space/anise", branch = "dep/hifitime-github", optional = true }
-
-##############################
-# RTK-rs framework
-##############################
-gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
-sp3 = { git = "https://github.com/rtk-rs/sp3", branch = "main", features = ["qc", "processing", "serde"], optional = true }
-gnss-qc-traits = { git = "https://github.com/rtk-rs/qc-traits", branch = "main", features = ["processing"] }
-gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"], optional = true }
-cggtts = { git = "https://github.com/rtk-rs/cggtts", branch = "main", features = ["serde", "scheduler", "tracker"], optional = true }
-rinex = { git = "https://github.com/rtk-rs/rinex", branch = "main", features = ["qc", "processing", "obs", "nav", "ut1", "meteo", "clock", "ionex", "antex", "serde"] }
-
-##############################
-# HTML Rendering
-##############################
+anise = { version = "0.6", optional = true }
+hifitime = { version = "4.1", features = ["serde", "std"] }
+gnss-rs = { version = "2.4", features = ["serde"] }
+gnss-qc-traits = { version = "0.2", features = ["processing"] }
 maud = { version = "0.26", optional = true }
 plotly = { version = "0.12", optional = true }
 
