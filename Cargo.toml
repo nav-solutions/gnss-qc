@@ -93,9 +93,8 @@ log = { version = "0.4", optional = true }
 gnss-rs = { version = "2.4.0", features = ["serde"] }
 gnss-qc-traits = { version = "0.2.0", features = ["processing"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-
-hifitime = { version = "4.1.0", features = ["serde", "std"] }
-anise = { git = "https://github.com/nyx-space/anise", branch = "dep/hifitime_4_1_0", optional = true }
+anise = { version = "0.6", optional = true }
+hifitime = { version = "4.1", features = ["serde", "std"] }
 
 [dev-dependencies]
 serde_json = "1"
