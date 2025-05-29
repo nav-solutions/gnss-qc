@@ -5,6 +5,7 @@ use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 mod css;
 mod javascript;
 mod orbit_proj;
+pub(crate) mod plot;
 mod rtk;
 mod summary;
 
@@ -124,7 +125,8 @@ impl QcRunReport {
                                     "SP3 Orbit Projections"
                                 }
                                 p {
-                                    (orbit_proj.render())
+                                    @ let html_rendition = orbit_proj.to_html();
+                                    (html_rendition.render())
                                 }
                             }
                         }

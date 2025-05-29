@@ -1,13 +1,50 @@
+use crate::report::html::plot::Plot;
 use itertools::Itertools;
 use maud::{html, Markup, Render};
+use std::collections::HashMap;
 
-#[cfg(feature = "navigation")]
 use maud::PreEscaped;
 
-use crate::report::orbit_proj::{QcConstellationOrbitProj, QcOrbitProjections};
+use crate::report::orbit_proj::{
+    QcConstellationOrbitProj, QcOrbitProjections, QcOrbitProjectionsKey,
+};
+
+pub struct QcHtmlOrbitProjections {
+    plots: HashMap<QcOrbitProjectionsKey, Plot>,
+}
+
+impl Render for QcHtmlOrbitProjections {
+    fn render(&self) -> Markup {
+        html! {
+            div class="styled-table" {
+                table class="table is-bordered" {
+                }
+            }
+        }
+    }
+}
 
 impl QcOrbitProjections {
-    #[cfg(feature = "navigation")]
+    #[cfg(feature = "html")]
+    pub fn to_html(&self) -> QcHtmlOrbitProjections {
+        QcHtmlOrbitProjections {
+            plots: {
+                let mut map = HashMap::<QcOrbitProjectionsKey, Plot>::new();
+                for (k, v) in self.projections.iter() {
+                    let mut plot = Plot::timedomain_plot(
+                        &format!("{}-{}-orbit-proj", k.indexing, k.constellation),
+                        "Orbit Projection",
+                        "coordinates (km)",
+                        true,
+                    );
+
+                    map.insert(k.clone(), plot);
+                }
+                map
+            },
+        }
+    }
+
     pub(crate) fn javascript() -> String {
         "
         const agency_form = document.getElementById('orbit-proj-agencies');
@@ -123,14 +160,18 @@ impl Render for QcOrbitProjections {
                 }
 
                 @ for (index, key) in self.projections.keys().sorted().enumerate() {
-                    @ if let Some(proj) = self.projections.get(&key) {
-                        @ if index == 0 {
-                            div id=(&format!("{}-{}", key.indexing, key.constellation)) style="display: block"  {
-                                (proj.render())
-                            }
-                        } @ else {
-                            div id=(&format!("{}-{}", key.indexing, key.constellation)) style="display: none" {
-                                (proj.render())
+                    tr {
+                        td {
+                            @ if let Some(proj) = self.projections.get(&key) {
+                                @ if index == 0 {
+                                    div id=(&format!("{}-{}", key.indexing, key.constellation)) style="display: block"  {
+                                        (proj.render())
+                                    }
+                                } @ else {
+                                    div id=(&format!("{}-{}", key.indexing, key.constellation)) style="display: none" {
+                                        (proj.render())
+                                    }
+                                }
                             }
                         }
                     }

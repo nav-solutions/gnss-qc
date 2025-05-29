@@ -1,10 +1,21 @@
 use itertools::Itertools;
 use maud::{html, Markup, Render};
 
-use crate::report::QcRTKSummary;
+use crate::report::{html::plot::Plot, QcRTKSummary};
+
+use plotly::layout::MapboxStyle;
 
 impl Render for QcRTKSummary {
     fn render(&self) -> Markup {
+        let baselines_proj = Plot::world_map(
+            "rtk-summary-baselines-proj",
+            "Baselines projection",
+            MapboxStyle::OpenStreetMap,
+            (0.0, 0.0),
+            1,
+            true,
+        );
+
         html! {
 
             div class="styled-table" {

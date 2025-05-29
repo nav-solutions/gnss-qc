@@ -93,6 +93,7 @@ impl Plot {
     pub fn add_trace(&mut self, t: Box<dyn Trace>) {
         self.plotly.add_trace(t);
     }
+
     /// Define custom controls for [Self]
     pub fn add_custom_controls(&mut self, buttons: Vec<Button>) {
         let layout = self.plotly.layout();
@@ -101,6 +102,7 @@ impl Plot {
             .update_menus(vec![UpdateMenu::new().y(0.8).buttons(buttons)]);
         self.plotly.set_layout(layout);
     }
+
     /// Builds new standardized 1D Time domain plot
     pub fn timedomain_plot(
         plot_id: &str,
@@ -145,6 +147,7 @@ impl Plot {
             plot_id: plot_id.to_string(),
         }
     }
+
     /// Builds new 3D plot
     pub fn plot_3d(
         plot_id: &str,
