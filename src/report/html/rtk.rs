@@ -3,73 +3,103 @@ use maud::{html, Markup, Render};
 
 use crate::report::{html::plot::Plot, QcRTKSummary};
 
-use plotly::layout::MapboxStyle;
+use plotly::{
+    common::{color::NamedColor, MarkerSymbol},
+    layout::MapboxStyle,
+};
 
 impl Render for QcRTKSummary {
     fn render(&self) -> Markup {
-        let baselines_proj = Plot::world_map(
+        let mut center_ddeg = (0.0, 0.0);
+        let mut traces = vec![];
+
+        // draw all base stations
+        for (base_label, position) in self.bases.iter() {
+            if let Some(position) = position {
+                match position.to_earth_geodetic_degrees_km() {
+                    Ok((lat_ddeg, long_ddeg, _)) => {
+                        let tr = Plot::mapbox(
+                            vec![lat_ddeg],
+                            vec![long_ddeg],
+                            base_label,
+                            3,
+                            MarkerSymbol::Circle,
+                            Some(NamedColor::Black),
+                            1.0,
+                            true,
+                        );
+
+                        center_ddeg = (lat_ddeg, long_ddeg);
+                        traces.push(tr);
+                    }
+                    Err(e) => {
+                        println!("error={}", e);
+                    }
+                }
+            }
+        }
+
+        // draw all rovers
+        for (rover_label, position) in self.rovers.iter() {
+            if let Some(position) = position {
+                match position.to_earth_geodetic_degrees_km() {
+                    Ok((lat_ddeg, long_ddeg, _)) => {
+                        let tr = Plot::mapbox(
+                            vec![lat_ddeg],
+                            vec![long_ddeg],
+                            rover_label,
+                            3,
+                            MarkerSymbol::Circle,
+                            Some(NamedColor::Black),
+                            1.0,
+                            true,
+                        );
+
+                        center_ddeg = (lat_ddeg, long_ddeg);
+                        traces.push(tr);
+                    }
+                    Err(e) => {
+                        println!("error={}", e);
+                    }
+                }
+            }
+        }
+
+        // add base_i-base_j baselines
+        for (base_i, base_j) in self.base_network_distances_km.keys().unique().sorted() {}
+
+        let mut map = Plot::world_map(
             "rtk-summary-baselines-proj",
             "Baselines projection",
             MapboxStyle::OpenStreetMap,
-            (0.0, 0.0),
-            1,
+            center_ddeg,
+            18,
             true,
         );
 
-        html! {
+        for trace in traces {
+            panic!("test");
+            map.add_trace(trace);
+        }
 
+        html! {
             div class="styled-table" {
                 table class="table is-bordered" {
                     tr {
                         th {
-                            "Base Network Baselines Projection (km)"
+                            "Base Network Distances (km)"
                         }
 
-                        @ for base in self.base_network_distances_km.keys().map(|(base_i, _)| base_i).unique().sorted() {
-                            td {
-                                (base)
-                            }
-                        }
-
-                        @ for (i, base_i) in self.base_network_distances_km.keys().map(|(base_i, _)| base_i).unique().sorted().enumerate() {
+                        @ for (base_i, base_j) in self.base_network_distances_km.keys().unique().sorted() {
                             tr {
                                 td {
-                                    (base_i)
+                                    (format!("{}/{}", base_i, base_j))
                                 }
-
-                               @ for (j, base_j) in self.base_network_distances_km.keys().map(|(_, base_j)| base_i).unique().sorted().enumerate() {
-                                td {
-                                    ("0.0")
-                                }
-                               }
                             }
                         }
                     }
-
                     tr {
-                        th {
-                            "Rover/Base Baselines Projections (km)"
-                        }
-
-                        @ for (ith_base, base) in self.baseline_distances_km.keys().map(|(base, _)| base).unique().sorted().enumerate() {
-                            td {
-                                (base)
-                            }
-                        }
-
-                        @ for (ith_rover, rover) in self.baseline_distances_km.keys().map(|(_, rover)| rover).unique().sorted().enumerate() {
-                            tr {
-                                td {
-                                    (rover)
-                                }
-                                @ for (ith_base, base) in self.baseline_distances_km.keys().map(|(base, _)| base).unique().sorted().enumerate() {
-                                    td {
-                                        (base)
-                                    }
-                                }
-                            }
-                        }
-
+                        (map)
                     }
                 }
             }

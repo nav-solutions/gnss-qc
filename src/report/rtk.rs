@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, thread::park_timeout_ms};
+
+use anise::time;
 
 use crate::{prelude::QcReferencePosition, serializer::data::QcSerializedRINEXHeader};
 
@@ -23,12 +25,21 @@ impl QcRTKSummary {
         Self {
             rovers: {
                 let mut map = HashMap::new();
+
                 if let Some(position) = item.data.rx_position {
-                    let position = QcReferencePosition::new(position);
-                    map.insert(item.indexing.to_string(), Some(position));
-                } else {
+                    if let Some(obs) = item.data.obs {
+                        if let Some(time_of_first_obs) = obs.timeof_first_obs {
+                            let position = QcReferencePosition::new(position, time_of_first_obs);
+
+                            map.insert(item.indexing.to_string(), Some(position));
+                        }
+                    }
+                }
+
+                if map.is_empty() {
                     map.insert(item.indexing.to_string(), None);
                 }
+
                 map
             },
             bases: Default::default(),
@@ -42,12 +53,20 @@ impl QcRTKSummary {
         Self {
             bases: {
                 let mut map = HashMap::new();
+
                 if let Some(position) = item.data.rx_position {
-                    let position = QcReferencePosition::new(position);
-                    map.insert(item.indexing.to_string(), Some(position));
-                } else {
+                    if let Some(obs) = item.data.obs {
+                        if let Some(time_of_first_obs) = obs.timeof_first_obs {
+                            let position = QcReferencePosition::new(position, time_of_first_obs);
+                            map.insert(item.indexing.to_string(), Some(position));
+                        }
+                    }
+                }
+
+                if map.is_empty() {
                     map.insert(item.indexing.to_string(), None);
                 }
+
                 map
             },
             rovers: Default::default(),
@@ -59,17 +78,21 @@ impl QcRTKSummary {
     /// Latch a new ROVER [QcSerializedRINEXHeader].
     pub fn latch_rover_header(&mut self, item: QcSerializedRINEXHeader) {
         if let Some(position) = item.data.rx_position {
-            let position = QcReferencePosition::new(position);
+            if let Some(obs) = item.data.obs {
+                if let Some(time_of_first_obs) = obs.timeof_first_obs {
+                    let position = QcReferencePosition::new(position, time_of_first_obs);
 
-            self.rovers
-                .insert(item.indexing.to_string(), Some(position));
+                    self.rovers
+                        .insert(item.indexing.to_string(), Some(position));
 
-            // add new baseline combinations
-            for (base_name, base_pos) in self.bases.iter() {
-                if let Some(base_position) = base_pos {
-                    let dist = 0.0;
-                    self.baseline_distances_km
-                        .insert((base_name.clone(), item.indexing.to_string()), dist);
+                    // add new baseline combinations
+                    for (base_name, base_pos) in self.bases.iter() {
+                        if let Some(base_position) = base_pos {
+                            let dist = 0.0;
+                            self.baseline_distances_km
+                                .insert((base_name.clone(), item.indexing.to_string()), dist);
+                        }
+                    }
                 }
             }
         } else {
@@ -79,30 +102,40 @@ impl QcRTKSummary {
 
     /// Latch a new BASE [QcSerializedRINEXHeader].
     pub fn latch_base_header(&mut self, item: QcSerializedRINEXHeader) {
+        let base_name = item.indexing.to_string();
+
         if let Some(position) = item.data.rx_position {
-            let position = QcReferencePosition::new(position);
+            if let Some(obs) = item.data.obs {
+                if let Some(time_of_first_obs) = obs.timeof_first_obs {
+                    let position = QcReferencePosition::new(position, time_of_first_obs);
 
-            self.bases.insert(item.indexing.to_string(), Some(position));
+                    self.bases.insert(item.indexing.to_string(), Some(position));
 
-            // add new baseline combinations
-            for (rover_name, rover_pos) in self.rovers.iter() {
-                if let Some(rover_position) = rover_pos {
-                    let dist = 0.0;
-                    self.baseline_distances_km
-                        .insert((item.indexing.to_string(), rover_name.clone()), dist);
-                }
-            }
+                    // add new baseline combination
+                    for (rover_name, rover_pos) in self.rovers.iter() {
+                        if let Some(rover_position) = rover_pos {
+                            let dist = 0.0;
 
-            // add new |base-base| projection
-            for (base_name, base_pos) in self.bases.iter() {
-                if let Some(base_position) = base_pos {
-                    let dist = 0.0;
-                    self.base_network_distances_km
-                        .insert((item.indexing.to_string(), base_name.clone()), 0.0);
+                            self.baseline_distances_km
+                                .insert((item.indexing.to_string(), rover_name.clone()), dist);
+                        }
+                    }
+
+                    // add new |base - base| projection
+                    for (name, base_pos) in self.bases.iter() {
+                        if name != &base_name {
+                            if let Some(base_position) = base_pos {
+                                let dist = 0.0;
+
+                                self.base_network_distances_km
+                                    .insert((name.to_string(), base_name.clone()), 0.0);
+                            }
+                        }
+                    }
                 }
             }
         } else {
-            self.bases.insert(item.indexing.to_string(), None);
+            self.bases.insert(base_name, None);
         }
     }
 }

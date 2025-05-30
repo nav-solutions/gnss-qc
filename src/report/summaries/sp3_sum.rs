@@ -18,10 +18,19 @@ pub struct QcSP3FileSummary {
     /// Orbit type
     pub orbit_type: String,
 
+    /// True if velocities are being reported
     pub has_sv_velocities: bool,
+
+    /// Trye if clock states are being reported
     pub has_sv_clock_offsets: bool,
+
+    /// True if clock drift is being reported
     pub has_sv_clock_drift: bool,
+
+    /// True if at least one clock event is reported
     pub has_sv_clock_event: bool,
+
+    /// True if at least one maneuver is reported
     pub has_sv_maneuver: bool,
 }
 

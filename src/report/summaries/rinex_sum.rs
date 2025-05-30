@@ -40,7 +40,18 @@ impl QcRINEXFileSummary {
             geodetic_marker: header.geodetic_marker.clone(),
 
             reference_position: if let Some((x_ecef_m, y_ecef_m, z_ecef_m)) = header.rx_position {
-                Some(QcReferencePosition::new((x_ecef_m, y_ecef_m, z_ecef_m)))
+                if let Some(obs) = &header.obs {
+                    if let Some(time_of_first_obs) = obs.timeof_first_obs {
+                        Some(QcReferencePosition::new(
+                            (x_ecef_m, y_ecef_m, z_ecef_m),
+                            time_of_first_obs,
+                        ))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             } else {
                 None
             },

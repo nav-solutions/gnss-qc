@@ -70,7 +70,7 @@ impl QcContext {
     fn anise_pck11_pca() -> MetaFile {
         MetaFile {
             crc32: Some(0x8213b6e9),
-            uri: String::from("http://public-data.nyxspace.com/anise/v0.5/pck11.pca"),
+            uri: String::from("http://public-data.nyxspace.com/anise/v0.6/pck11.pca"),
         }
     }
 

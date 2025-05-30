@@ -2,6 +2,7 @@ use rinex::carrier::Carrier;
 use std::collections::HashMap;
 
 use crate::{
+    context::QcIndexing,
     prelude::{Constellation, Epoch, SV},
     report::{sampling::Sampling, temporal_data::TemporalData},
     serializer::data::{QcSerializedSignal, QcSignalObservation},
@@ -105,40 +106,45 @@ impl QcConstellationObservationsReport {
 
 #[derive(Default, Debug, Clone)]
 pub struct QcObservationsReport {
-    /// Name of this data source
-    pub source: String,
-
-    /// Files (contributors)
-    pub files: Vec<String>,
-
-    /// Reported time of first Observation
+    /// Reported time of first Observation.
     pub time_of_first_obs: Option<Epoch>,
 
-    /// Reported time of last Observation
+    /// Reported time of last Observation.
     pub time_of_last_obs: Option<Epoch>,
 
-    /// Report per [Constellation]
-    pub constellations: HashMap<Constellation, QcConstellationObservationsReport>,
+    /// Report Data
+    pub data: HashMap<(QcIndexing, Constellation), QcConstellationObservationsReport>,
 }
 
 impl QcObservationsReport {
     /// Latch a new [QcSignalDataPoint]
     pub fn add_contribution(&mut self, observation: QcSerializedSignal) {
-        if self.source.len() == 0 {
-            self.source = observation.indexing.to_string();
+        let key = (
+            observation.indexing.clone(),
+            observation.data.sv.constellation.clone(),
+        );
+
+        if let Some(time_of_first_obs) = &mut self.time_of_first_obs {
+            if observation.data.epoch < *time_of_first_obs {
+                *time_of_first_obs = observation.data.epoch;
+            }
+        } else {
+            self.time_of_first_obs = Some(observation.data.epoch);
         }
 
-        self.files.push(observation.filename.to_string());
+        if let Some(time_of_last_obs) = &mut self.time_of_last_obs {
+            if observation.data.epoch > *time_of_last_obs {
+                *time_of_last_obs = observation.data.epoch;
+            }
+        } else {
+            self.time_of_last_obs = Some(observation.data.epoch);
+        }
 
-        if let Some(page) = self
-            .constellations
-            .get_mut(&observation.data.sv.constellation)
-        {
+        if let Some(page) = self.data.get_mut(&key) {
             page.add_contribution(observation);
         } else {
-            let constellation = observation.data.sv.constellation.clone();
             let page = QcConstellationObservationsReport::new(observation);
-            self.constellations.insert(constellation, page);
+            self.data.insert(key.clone(), page);
         }
     }
 }

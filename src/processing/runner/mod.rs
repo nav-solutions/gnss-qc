@@ -3,7 +3,8 @@ use crate::{
     error::QcError,
     processing::analysis::{QcAnalysis, QcAnalysisBuilder},
     report::{
-        orbit_proj::QcOrbitProjections, rtk::QcRTKSummary, summaries::QcContextSummary, QcRunReport,
+        observations::QcObservationsReport, orbit_proj::QcOrbitProjections, rtk::QcRTKSummary,
+        summaries::QcContextSummary, QcRunReport,
     },
     serializer::data::{QcSerializedItem, QcSerializedPreciseState},
 };
@@ -205,16 +206,19 @@ impl<'a> QcRunner<'a> {
             }
 
             QcSerializedItem::Signal(item) => {
-                if self.analysis.contains(&QcAnalysis::SignalObservations) {
-                    // TODO
-                }
-                if self.analysis.contains(&QcAnalysis::SignalCombinations) {
-                    // TODO
+                if self.stores_signals {
+                    if let Some(observations) = &mut self.report.observations {
+                        observations.add_contribution(item);
+                    } else {
+                        let mut observation = QcObservationsReport::default();
+                        observation.add_contribution(item);
+                        self.report.observations = Some(observation);
+                    }
                 }
 
                 #[cfg(feature = "navigation")]
                 if self.stores_ephemeris {
-                    self.ephemeris_buf.update(item.data.epoch);
+                    // self.ephemeris_buf.update(item.data.epoch);
                 }
             }
         }

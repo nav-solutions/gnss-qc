@@ -4,6 +4,7 @@ use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 
 mod css;
 mod javascript;
+mod observations;
 mod orbit_proj;
 pub(crate) mod plot;
 mod rtk;
@@ -53,6 +54,14 @@ impl QcRunReport {
                             a data-target="rtk-summary" {
                                 span {
                                     "RTK Summary"
+                                }
+                            }
+                        }
+
+                        @ if self.observations.is_some() {
+                            a data-target="observations" {
+                                span {
+                                    "Observations"
                                 }
                             }
                         }
@@ -127,6 +136,16 @@ impl QcRunReport {
                                 p {
                                     @ let html_rendition = orbit_proj.to_html();
                                     (html_rendition.render())
+                                }
+                            }
+                        }
+                        @ if let Some(observations) = &self.observations {
+                            section id="observations" class="section" {
+                                h2 {
+                                    "Observations"
+                                }
+                                p {
+                                    (observations.render())
                                 }
                             }
                         }

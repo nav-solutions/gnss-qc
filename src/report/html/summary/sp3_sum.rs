@@ -25,18 +25,18 @@ impl Render for QcSP3FileSummary {
                     }
                     tr {
                         th {
-                            "Reference Frame"
-                        }
-                        td {
-                            (self.frame)
-                        }
-                    }
-                    tr {
-                        th {
                             "Timescale"
                         }
                         td {
                             (self.timescale)
+                        }
+                    }
+                    tr {
+                        th {
+                            "Reference Frame"
+                        }
+                        td {
+                            (self.frame)
                         }
                     }
                     tr {

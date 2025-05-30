@@ -9,7 +9,7 @@ use run_summary::QcRunSummary;
 pub(crate) mod summaries;
 use summaries::QcContextSummary;
 
-mod observations;
+pub(crate) mod observations;
 use observations::QcObservationsReport;
 
 pub(crate) mod rtk;
