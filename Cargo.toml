@@ -1,6 +1,6 @@
 [package]
 name = "gnss-qc"
-version = "0.2.0"
+version = "0.3.0"
 license = "MPL-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "GNSS data Quality Control"
@@ -58,7 +58,7 @@ embed_ephem = [
 
 [dependencies.rinex]
 git = "https://github.com/rtk-rs/rinex"
-version = "0.18"
+version = "0.19"
 features = [
     "qc", 
     "processing", 
