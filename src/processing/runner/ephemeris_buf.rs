@@ -12,10 +12,8 @@ impl EphemerisBuffer {
     }
 
     pub fn update(&mut self, latest: Epoch) {
-        self.inner.retain(|item| {
-            let (sv, toe) = (item.data.sv, item.data.toe);
-            item.data.ephemeris.is_valid(sv, latest, toe)
-        });
+        self.inner
+            .retain(|item| item.data.ephemeris.is_valid(item.data.sv, latest));
     }
 
     pub fn latch(&mut self, item: QcSerializedEphemeris) {

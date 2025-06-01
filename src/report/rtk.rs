@@ -1,11 +1,15 @@
-use std::{collections::HashMap, thread::park_timeout_ms};
+use std::collections::HashMap;
 
-use anise::time;
+use crate::{
+    prelude::{Frame, QcReferencePosition},
+    serializer::data::QcSerializedRINEXHeader,
+};
 
-use crate::{prelude::QcReferencePosition, serializer::data::QcSerializedRINEXHeader};
-
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct QcRTKSummary {
+    /// Reference [Frame]
+    frame: Frame,
+
     /// Rovers network.
     pub rovers: HashMap<String, Option<QcReferencePosition>>,
 
@@ -20,16 +24,29 @@ pub struct QcRTKSummary {
 }
 
 impl QcRTKSummary {
-    /// Initializes a [QcRTKSummary] from ROVER [QcSerializedRINEXHeader].
-    pub fn from_rover_header(item: QcSerializedRINEXHeader) -> Self {
+    /// Build a new [QcRTKSummary]
+    pub fn new(frame: Frame) -> Self {
         Self {
+            frame,
+            bases: Default::default(),
+            rovers: Default::default(),
+            baseline_distances_km: Default::default(),
+            base_network_distances_km: Default::default(),
+        }
+    }
+
+    /// Initializes a [QcRTKSummary] from ROVER [QcSerializedRINEXHeader].
+    pub fn from_rover_header(item: QcSerializedRINEXHeader, frame: Frame) -> Self {
+        Self {
+            frame,
             rovers: {
                 let mut map = HashMap::new();
 
                 if let Some(position) = item.data.rx_position {
                     if let Some(obs) = item.data.obs {
                         if let Some(time_of_first_obs) = obs.timeof_first_obs {
-                            let position = QcReferencePosition::new(position, time_of_first_obs);
+                            let position =
+                                QcReferencePosition::new(position, time_of_first_obs, frame);
 
                             map.insert(item.indexing.to_string(), Some(position));
                         }
@@ -49,15 +66,17 @@ impl QcRTKSummary {
     }
 
     /// Initializes a [QcRTKSummary] from BASE [QcSerializedRINEXHeader].
-    pub fn from_base_header(item: QcSerializedRINEXHeader) -> Self {
+    pub fn from_base_header(item: QcSerializedRINEXHeader, frame: Frame) -> Self {
         Self {
+            frame,
             bases: {
                 let mut map = HashMap::new();
 
                 if let Some(position) = item.data.rx_position {
                     if let Some(obs) = item.data.obs {
                         if let Some(time_of_first_obs) = obs.timeof_first_obs {
-                            let position = QcReferencePosition::new(position, time_of_first_obs);
+                            let position =
+                                QcReferencePosition::new(position, time_of_first_obs, frame);
                             map.insert(item.indexing.to_string(), Some(position));
                         }
                     }
@@ -80,7 +99,8 @@ impl QcRTKSummary {
         if let Some(position) = item.data.rx_position {
             if let Some(obs) = item.data.obs {
                 if let Some(time_of_first_obs) = obs.timeof_first_obs {
-                    let position = QcReferencePosition::new(position, time_of_first_obs);
+                    let position =
+                        QcReferencePosition::new(position, time_of_first_obs, self.frame);
 
                     self.rovers
                         .insert(item.indexing.to_string(), Some(position));
@@ -107,7 +127,8 @@ impl QcRTKSummary {
         if let Some(position) = item.data.rx_position {
             if let Some(obs) = item.data.obs {
                 if let Some(time_of_first_obs) = obs.timeof_first_obs {
-                    let position = QcReferencePosition::new(position, time_of_first_obs);
+                    let position =
+                        QcReferencePosition::new(position, time_of_first_obs, self.frame);
 
                     self.bases.insert(item.indexing.to_string(), Some(position));
 

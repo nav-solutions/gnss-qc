@@ -1,10 +1,6 @@
 use crate::prelude::{Epoch, Frame, Orbit};
 
-use anise::{
-    astro::PhysicsResult,
-    constants::frames::{EARTH_ITRF93, EARTH_J2000, IAU_EARTH_FRAME},
-    math::Vector6,
-};
+use anise::{astro::PhysicsResult, math::Vector6};
 
 #[derive(Debug, Copy, Clone)]
 pub struct QcReferencePosition {
@@ -19,7 +15,7 @@ impl std::fmt::Display for QcReferencePosition {
 
 impl QcReferencePosition {
     // Define new [QcReferencePosition] from ECEF coordinates
-    pub fn new(ecef_m: (f64, f64, f64), epoch: Epoch) -> Self {
+    pub fn new(ecef_m: (f64, f64, f64), epoch: Epoch, frame_ecef: Frame) -> Self {
         // const GM_M3_S2: f64 = 3.986004418E14;
 
         let pos_vel = Vector6::new(
@@ -31,7 +27,7 @@ impl QcReferencePosition {
             0.0,
         );
 
-        let orbit = Orbit::from_cartesian_pos_vel(pos_vel, epoch, EARTH_J2000);
+        let orbit = Orbit::from_cartesian_pos_vel(pos_vel, epoch, frame_ecef);
 
         Self { orbit }
     }
@@ -46,18 +42,6 @@ impl QcReferencePosition {
     pub fn from_orbit(orbit: &Orbit) -> Self {
         Self { orbit: *orbit }
     }
-
-    // /// Express this [QcReferencePosition] as an [Orbit]
-    // #[cfg(feature = "navigation")]
-    // pub fn to_orbit(&self, t: Epoch, frame: Frame) -> Orbit {
-    //     let (x_km, y_km, z_km) = (
-    //         self.ecef_m.0 * 1.0E-3,
-    //         self.ecef_m.1 * 1.0E-3,
-    //         self.ecef_m.2 * 1.0E-3,
-    //     );
-
-    //     Orbit::from_position(x_km, y_km, z_km, t, frame)
-    // }
 }
 
 #[cfg(feature = "html")]

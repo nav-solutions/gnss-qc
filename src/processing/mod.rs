@@ -31,7 +31,7 @@ impl QcContext {
 
         let mut report = QcRunReport::new(deploy_time, &analysis);
 
-        let mut runner = QcRunner::new(&analysis, &mut report)?;
+        let mut runner = QcRunner::new(&analysis, &mut report, self.earth_cef)?;
 
         // pull & consume data
         while let Some(sample) = serializer.next() {

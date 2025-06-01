@@ -10,6 +10,9 @@ use crate::{
 };
 
 #[cfg(feature = "navigation")]
+use crate::prelude::Frame;
+
+#[cfg(feature = "navigation")]
 mod ephemeris_buf;
 
 #[cfg(feature = "navigation")]
@@ -31,6 +34,10 @@ pub struct QcRunner<'a> {
     summary: bool,
     stores_signals: bool,
     rtk_summary: bool,
+
+    /// Reference [Frame]
+    #[cfg(feature = "navigation")]
+    frame: Frame,
 
     #[cfg(feature = "navigation")]
     has_pvt_solver: bool,
@@ -55,7 +62,11 @@ pub struct QcRunner<'a> {
 
 impl<'a> QcRunner<'a> {
     /// Deploy the [QcRunner]
-    pub fn new(builder: &QcAnalysisBuilder, report: &'a mut QcRunReport) -> Result<Self, QcError> {
+    pub fn new(
+        builder: &QcAnalysisBuilder,
+        report: &'a mut QcRunReport,
+        frame: Frame,
+    ) -> Result<Self, QcError> {
         let analysis = builder.build();
 
         let mut summary = false;
@@ -118,6 +129,9 @@ impl<'a> QcRunner<'a> {
             rtk_summary,
 
             #[cfg(feature = "navigation")]
+            frame,
+
+            #[cfg(feature = "navigation")]
             stores_ephemeris,
 
             #[cfg(feature = "navigation")]
@@ -155,7 +169,7 @@ impl<'a> QcRunner<'a> {
                     if let Some(summary) = &mut self.report.rtk_summary {
                         summary.latch_base_header(item.clone());
                     } else {
-                        let mut summary = QcRTKSummary::default();
+                        let mut summary = QcRTKSummary::new(self.frame);
                         summary.latch_base_header(item.clone());
                         self.report.rtk_summary = Some(summary);
                     }
@@ -171,7 +185,7 @@ impl<'a> QcRunner<'a> {
                     if let Some(summary) = &mut self.report.summary {
                         summary.latch_rinex(descriptor, item.data);
                     } else {
-                        let mut summary = QcContextSummary::default();
+                        let mut summary = QcContextSummary::new(self.frame);
                         summary.latch_rinex(descriptor, item.data);
                         self.report.summary = Some(summary);
                     }
@@ -191,7 +205,7 @@ impl<'a> QcRunner<'a> {
                     if let Some(summary) = &mut self.report.summary {
                         summary.latch_sp3(descriptor, header.data);
                     } else {
-                        let mut summary = QcContextSummary::default();
+                        let mut summary = QcContextSummary::new(self.frame);
                         summary.latch_sp3(descriptor, header.data);
                         self.report.summary = Some(summary);
                     }

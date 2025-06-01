@@ -16,26 +16,44 @@ use sp3_sum::QcSP3FileSummary;
 #[cfg(feature = "sp3")]
 use sp3::prelude::Header as SP3Header;
 
+#[cfg(feature = "navigation")]
+use crate::prelude::Frame;
+
 /// [QcContextSummary] summary.
 #[derive(Debug, Clone)]
 pub enum QcFileSummary {
+    /// [QcRINEXFileSummary]
     RINEX(QcRINEXFileSummary),
+
+    /// [QcSP3FileSummary]
     #[cfg(feature = "sp3")]
     SP3(QcSP3FileSummary),
 }
 
 /// [QcContextSummary] summary.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct QcContextSummary {
+    /// ECEF [Frame]
+    frame: Frame,
+
     /// One small report per entry
     pub summaries: HashMap<QcSourceDescriptor, QcFileSummary>,
 }
 
 impl QcContextSummary {
+    /// Initialize a new [QcContextSummary]
+    pub fn new(frame: Frame) -> Self {
+        Self {
+            frame,
+            summaries: Default::default(),
+        }
+    }
+
+    /// Latch [RINEXHeader] in this [QcContextSummary]
     pub fn latch_rinex(&mut self, descriptor: QcSourceDescriptor, data: RINEXHeader) {
         self.summaries.insert(
             descriptor,
-            QcFileSummary::RINEX(QcRINEXFileSummary::from_header(&data)),
+            QcFileSummary::RINEX(QcRINEXFileSummary::from_header(&data, self.frame)),
         );
     }
 

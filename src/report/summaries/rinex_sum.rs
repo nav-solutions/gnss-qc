@@ -4,7 +4,10 @@ use rinex::{
     prelude::{Header, RinexType, Version},
 };
 
-use crate::{navigation::QcReferencePosition, prelude::TimeScale};
+use crate::{
+    navigation::QcReferencePosition,
+    prelude::{Frame, TimeScale},
+};
 
 /// [QcRINEXFileSummary] summary.
 #[derive(Debug, Clone, Default)]
@@ -32,7 +35,8 @@ pub struct QcRINEXFileSummary {
 }
 
 impl QcRINEXFileSummary {
-    pub fn from_header(header: &Header) -> Self {
+    /// Builds [QcRINEXFileSummary] from provided [Header]
+    pub fn from_header(header: &Header, frame_ecef: Frame) -> Self {
         Self {
             version: header.version,
             antenna: header.rcvr_antenna.clone(),
@@ -45,6 +49,7 @@ impl QcRINEXFileSummary {
                         Some(QcReferencePosition::new(
                             (x_ecef_m, y_ecef_m, z_ecef_m),
                             time_of_first_obs,
+                            frame_ecef,
                         ))
                     } else {
                         None

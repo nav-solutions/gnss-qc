@@ -23,8 +23,7 @@ pub struct QcEphemerisData {
 impl QcEphemerisData {
     /// Tries to form [QcEphemerisData] from RINEX [Ephemeris]
     pub fn from_ephemeris(sv: SV, toc: Epoch, ephemeris: &Ephemeris) -> Option<Self> {
-        let ts = sv.constellation.timescale()?;
-        let toe = ephemeris.toe(ts)?;
+        let toe = ephemeris.toe(sv)?;
         Some(Self {
             sv,
             toe,
@@ -34,8 +33,8 @@ impl QcEphemerisData {
     }
 
     /// Converts [QcEphemerisData] to ANISE [Orbit]
-    fn to_orbit(&self, t: Epoch) -> Option<Orbit> {
-        let orbit = self.ephemeris.kepler2position(self.sv, self.toc, t)?;
+    fn to_orbit(&self, epoch: Epoch) -> Option<Orbit> {
+        let orbit = self.ephemeris.kepler2position(self.sv, epoch)?;
         Some(orbit)
     }
 }

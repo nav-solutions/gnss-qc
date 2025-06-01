@@ -8,6 +8,8 @@ use plotly::{
     layout::MapboxStyle,
 };
 
+use log::error;
+
 impl Render for QcRTKSummary {
     fn render(&self) -> Markup {
         let mut center_ddeg = (0.0, 0.0);
@@ -59,7 +61,7 @@ impl Render for QcRTKSummary {
                         traces.push(tr);
                     }
                     Err(e) => {
-                        println!("error={}", e);
+                        error!("{}", e);
                     }
                 }
             }
@@ -78,7 +80,6 @@ impl Render for QcRTKSummary {
         );
 
         for trace in traces {
-            panic!("test");
             map.add_trace(trace);
         }
 

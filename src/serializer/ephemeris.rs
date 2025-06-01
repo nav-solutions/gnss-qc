@@ -41,23 +41,18 @@ impl QcContext {
         let iter = data_set
             .nav_ephemeris_frames_iter()
             .filter_map(move |(k, v)| {
-                if let Some(timescale) = k.sv.constellation.timescale() {
-                    let toe = v.toe(timescale)?;
-                    Some(QcSerializedEphemeris {
-                        indexing: indexing.clone(),
-                        filename: filename.to_string(),
-                        product_type: QcProductType::BroadcastNavigation,
-                        data: QcEphemerisData {
-                            sv: k.sv,
-                            toe,
-                            toc: k.epoch,
-                            ephemeris: v.clone(),
-                        },
-                    })
-                } else {
-                    trace!("{}({}) - timescale is not supported", k.epoch, k.sv);
-                    None
-                }
+                let toe = v.toe(k.sv)?;
+                Some(QcSerializedEphemeris {
+                    indexing: indexing.clone(),
+                    filename: filename.to_string(),
+                    product_type: QcProductType::BroadcastNavigation,
+                    data: QcEphemerisData {
+                        sv: k.sv,
+                        toe,
+                        toc: k.epoch,
+                        ephemeris: v.clone(),
+                    },
+                })
             });
 
         Some(QcEphemerisIterator {
