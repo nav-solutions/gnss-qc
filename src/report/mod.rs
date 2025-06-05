@@ -1,6 +1,4 @@
 //! Qc analysis report
-pub mod sampling;
-
 use crate::{prelude::Epoch, processing::analysis::QcAnalysisBuilder};
 
 mod run_summary;
@@ -20,6 +18,13 @@ pub mod temporal_data;
 pub(crate) mod orbit_proj;
 
 use orbit_proj::QcOrbitProjections;
+
+#[cfg(feature = "navigation")]
+#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+pub mod nav;
+
+#[cfg(feature = "navigation")]
+use nav::QcNavReport;
 
 #[cfg(feature = "html")]
 #[cfg_attr(docsrs, doc(cfg(feature = "html")))]
@@ -45,11 +50,18 @@ pub struct QcRunReport {
     pub rtk_summary: Option<QcRTKSummary>,
 
     /// Possible SP3 Orbits proj
+    #[cfg(all(feature = "navigation", feature = "sp3"))]
     #[cfg_attr(docsrs, doc(cfg(all(feature = "navigation", feature = "sp3"))))]
     pub sp3_orbits_proj: Option<QcOrbitProjections>,
+
+    /// Possible [QcNavReport]
+    #[cfg(feature = "navigation")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+    pub navi_report: Option<QcNavReport>,
 }
 
 impl QcRunReport {
+    /// Initializes a [QcRunReport].
     pub(crate) fn new(deploy_time: Epoch, analysis: &QcAnalysisBuilder) -> Self {
         let mut s = Self::default();
 

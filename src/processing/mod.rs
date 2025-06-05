@@ -1,5 +1,7 @@
-pub mod analysis;
+//! Regroups all known Analysis and runner
 mod runner;
+
+pub mod analysis;
 
 use crate::{
     error::QcError,
@@ -137,6 +139,34 @@ mod test {
             .unwrap();
 
         ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
+            .unwrap();
+
+        let builder = QcAnalysisBuilder::all();
+
+        let report = ctx.process(builder).unwrap();
+
+        let html = report.render_html().into_string();
+        let mut fd = File::create("index.html").unwrap();
+        write!(fd, "{}", html).unwrap();
+    }
+
+    #[test]
+    fn process_jmf_longterm() {
+        init_logger();
+
+        let mut ctx = QcContext::new();
+
+        // load data
+        ctx.load_rinex_file("data/DataJMF/2024-09-18_00-00-00_GNSS-1.24o")
+            .unwrap();
+
+        ctx.load_rinex_file("data/DataJMF/2024-09-19_00-00-00_GNSS-1.obs")
+            .unwrap();
+
+        ctx.load_rinex_file("data/DataJMF/2025-04-29_19-53-50_GNSS-1.obs")
+            .unwrap();
+
+        ctx.load_rinex_file("data/DataJMF/240428survey.obs")
             .unwrap();
 
         let builder = QcAnalysisBuilder::all();

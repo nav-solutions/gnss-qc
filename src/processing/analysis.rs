@@ -6,7 +6,7 @@ pub enum QcAnalysis {
     ClockResiduals,
     SignalObservations,
     MeteoObservations,
-    Sampling,
+
     ClockSummary,
     SignalCombinations,
     MultiPathBias,
@@ -14,8 +14,20 @@ pub enum QcAnalysis {
     #[cfg(feature = "sp3")]
     SP3Summary,
 
+    /// Broadcast versus Precise residual analysis.
+    /// Wraps and summarizes each precise products
+    /// and compares them to "real-time" navigation message gathered
+    /// from Broadcast data.
     #[cfg(feature = "sp3")]
     OrbitResiduals,
+
+    /// [QcAnalysis::NaviPlot] regroups projections and visualizations
+    /// dedicated to fine analysis of the navigation conditions.
+    /// This is the combination of the signal sampling conditions,
+    /// skyview, navigation message, possible precise products
+    /// and correction messages.
+    #[cfg(feature = "navigation")]
+    NaviPlot,
 
     #[cfg(feature = "sp3")]
     SP3TemporalResiduals,
@@ -42,7 +54,7 @@ impl std::fmt::Display for QcAnalysis {
         match self {
             Self::Summary => write!(f, "Summary Report"),
             Self::RTKSummary => write!(f, "RTK Summary Report"),
-            Self::Sampling => write!(f, "Sampling Analysis"),
+            Self::NaviPlot => write!(f, "NAVI Plot"),
             Self::SignalCombinations => write!(f, "Signal Combinations"),
             Self::SignalObservations => write!(f, "Signal Observations"),
             Self::ClockResiduals => write!(f, "Clock Residuals"),
@@ -74,7 +86,6 @@ impl QcAnalysisBuilder {
         let s = Self::default()
             .summary_report()
             .summaries()
-            .sampling()
             .observations()
             .multipath_bias()
             .meteo_observations()
@@ -88,6 +99,9 @@ impl QcAnalysisBuilder {
 
         #[cfg(feature = "sp3")]
         let s = s.sp3_temporal_residuals();
+
+        #[cfg(feature = "navigation")]
+        let s = s.navi_plot();
 
         #[cfg(feature = "navigation")]
         let s = s.nav_pvt_solutions();
@@ -121,12 +135,6 @@ impl QcAnalysisBuilder {
         s
     }
 
-    pub fn sampling(&self) -> Self {
-        let mut s = self.clone();
-        s.analysis.push(QcAnalysis::Sampling);
-        s
-    }
-
     pub fn observations(&self) -> Self {
         let mut s = self.clone();
         s.analysis.push(QcAnalysis::SignalObservations);
@@ -148,6 +156,14 @@ impl QcAnalysisBuilder {
     pub fn clock_residuals(&self) -> Self {
         let mut s = self.clone();
         s.analysis.push(QcAnalysis::ClockResiduals);
+        s
+    }
+
+    /// Request to stack [QcAnalysis::NaviPlot] to the report to be redacted.
+    #[cfg(feature = "navigation")]
+    pub fn navi_plot(&self) -> Self {
+        let mut s = self.clone();
+        s.analysis.push(QcAnalysis::NaviPlot);
         s
     }
 

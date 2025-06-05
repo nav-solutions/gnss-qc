@@ -9,21 +9,30 @@ GNSS Quality Control
 [![MRSV](https://img.shields.io/badge/MSRV-1.82.0-orange?style=for-the-badge)](https://github.com/rust-lang/rust/releases/tag/1.82.0)
 [![License](https://img.shields.io/badge/license-MPL_2.0-orange?style=for-the-badge&logo=mozilla)](https://github.com/rtk-rs/qc-traits/blob/main/LICENSE)
 
-The GNSS Quality Control (QC) library is a flexible library to process
-GNSS data and perform data control and verifications.
+The GNSS Quality Control (QC) library is a post-processing oriented library,
+dedicated to GNSS data control and analysis.
 
-The origin of this library, is to answer the need to gather several different data sources,
-as required by GNSS post-processing. Since the spectrum of GNSS applications is broad,
-so is the potential applications of `GNSS-QC`. The workflow is divided in two steps
+Originally, this library was introduced to gather & consider several
+yet different data formats, as typically required in GNSS post-processing.
+Usually RINEX files, but also SP3 and others. RINEX covering many subformats,
+GNSS-postprocessing typically requires stacking several different RINEX files to achieve
+something.
 
-- Parse and stack the data, forming a `QcContext`. It offers smart data indexing
-- Process the context by requesting one or several analysis: obtain a `QcRunReport`.
+`gnss-qc` is divided in two major steps:
+
+- Parse and stack the data, forming a `QcContext`. This object offers smart, automated
+or manual data indexing. All algorithms and following methods apply to this object.
+- Process the context by requesting one or several analysis, redacting a `QcRunReport`.
+- Render the report in the desired format.
 
 Amongst all analysis we support, we can mention:
 
 - RINEX observation analysis
-- SP3 spatial and temporal residual analysis
+- Orbital state determination, projection & analysis
+- SP3 projection
+- SP3 residual analysis
 - Precise clock analysis
+- Precise clock residual analysis
 - Position, Velocity Time (P.V.T) solutions solving (on `navigation` feature)
 * CGGTTS solutions solving (on `navigation` + `cggtts` feature)
 
@@ -79,6 +88,27 @@ to the [Navigation feature](#navigation-feature) to understand the solvers we of
 You don't have to manually deploy the solver, you can specify in your Qc settings
 the solutions you want to wrap in your analysis. We support PVT and CGGTTS solutions,
 both can be activated at the same time.
+
+Getting started
+===============
+
+Parse some data, forming a data context then do something.
+In this example, we synthesize a basic report which combines most of our summary report
+(no heavy analysis).
+
+```rust
+// TODO
+```
+
+SP3 options
+===========
+
+TODO
+
+SP3 Residual analysis
+=====================
+
+TODO
 
 Navigation feature
 ==================

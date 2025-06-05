@@ -28,7 +28,7 @@ pub(crate) mod navigation;
 use crate::prelude::{Almanac, Frame};
 
 #[cfg(doc)]
-use crate::prelude::{QcPreferedIndexing, QcProductType};
+use crate::prelude::QcPreferedIndexing;
 
 // local exports
 pub(crate) use data::QcDataWrapper;

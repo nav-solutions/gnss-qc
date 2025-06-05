@@ -71,8 +71,7 @@ html = [
 ]
 
 [dependencies.rinex]
-git = "https://github.com/rtk-rs/rinex"
-version = "0.18"
+version = "0.19"
 features = [
     "qc", 
     "processing", 
@@ -87,7 +86,6 @@ features = [
 ]
 
 [dependencies.sp3]
-git = "https://github.com/rtk-rs/sp3"
 version = "1.2"
 optional = true
 features = [

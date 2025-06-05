@@ -14,22 +14,6 @@ impl QcContextSummary {
         // first file shown
         const files_summary = document.querySelectorAll('.file-summary');
 
-        // files_summary[0].styleList.remove('display: none');
-        // files_summary[0].styleList.add('display: block');
-
-        // const first_id = files_summary[0].getAttribute('id');
-        // console.log('file_sum: ' + first_id);
-
-        // const first_style = files_summary[0].getAttribute('style');
-        // console.log('file_sum: ' + first_style);
-
-        // files_summary[0].setAttribute('style', 'display: block');
-
-        // files_summary.forEach(summary => {
-        //     const id = summary.getAttribute('id');
-        //     console.log('file_sum: ' + id);
-        // });
-
         function selectFileSummary(filename) {
             console.log('clicked: ' + filename);
             const targetId = filename + '-sum';

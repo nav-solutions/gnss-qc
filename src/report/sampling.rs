@@ -5,6 +5,7 @@ use crate::prelude::{Duration, Epoch};
 pub struct SamplingGap {
     /// Last sampling [Epoch] latched
     pub start: Epoch,
+
     /// Dead time [Duration]
     pub duation: Duration,
 }
@@ -24,7 +25,7 @@ pub struct SamplingGapAnalysis {
 
 /// [Sampling] analysis may apply to any time domain datasets
 #[derive(Debug, Clone, Default)]
-pub struct Sampling {
+pub struct QcGeneralSampling {
     /// Total number of [Epoch]s processed
     pub total_epochs: usize,
 
@@ -45,4 +46,9 @@ pub struct Sampling {
 
     /// [SamplingGapAnalysis] (if any)
     pub gap_analysis: Option<SamplingGapAnalysis>,
+}
+
+pub struct QcSamplingReport {
+    /// General context analysis
+    pub general: QcGeneralSamplingReport,
 }

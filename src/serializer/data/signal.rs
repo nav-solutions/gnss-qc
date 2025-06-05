@@ -5,7 +5,7 @@ use rinex::{
 };
 
 #[cfg(doc)]
-use super::serializer::QcSerializer;
+use crate::serializer::QcSerializer;
 
 #[derive(Debug, Clone)]
 pub enum QcSignalObservation {

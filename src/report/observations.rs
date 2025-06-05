@@ -4,15 +4,12 @@ use std::collections::HashMap;
 use crate::{
     context::QcIndexing,
     prelude::{Constellation, Epoch, SV},
-    report::{sampling::Sampling, temporal_data::TemporalData},
+    report::temporal_data::TemporalData,
     serializer::data::{QcSerializedSignal, QcSignalObservation},
 };
 
 #[derive(Debug, Clone)]
 pub struct QcConstellationObservationsReport {
-    /// General sampling condition
-    pub sampling: Sampling,
-
     /// Pseudo Range (meters) per SV and frequency
     pub pseudo_range_m: HashMap<(SV, Carrier), TemporalData>,
 
@@ -25,8 +22,7 @@ pub struct QcConstellationObservationsReport {
 
 impl QcConstellationObservationsReport {
     /// Create new [QcConstellationObservationReport]
-    pub fn new(signal: QcSerializedSignal) -> Self {
-        let mut sampling = Sampling::default();
+    pub fn new(signal: &QcSerializedSignal) -> Self {
         let mut doppler = HashMap::with_capacity(4);
         let mut pseudo_range_m = HashMap::with_capacity(4);
         let mut phase_range_m = HashMap::with_capacity(4);
@@ -52,20 +48,15 @@ impl QcConstellationObservationsReport {
             }
         }
 
-        sampling.first_epoch = signal.data.epoch;
-        sampling.last_epoch = signal.data.epoch;
-        sampling.total_epochs = 1;
-
         Self {
             doppler,
             pseudo_range_m,
             phase_range_m,
-            sampling,
         }
     }
 
     /// Latch a new [QcSignalDataPoint]
-    pub fn add_contribution(&mut self, signal: QcSerializedSignal) {
+    pub fn add_contribution(&mut self, signal: &QcSerializedSignal) {
         match signal.data.observation {
             QcSignalObservation::Doppler(value) => {
                 if let Some(data) = self.doppler.get_mut(&(signal.data.sv, signal.data.carrier)) {
@@ -118,7 +109,7 @@ pub struct QcObservationsReport {
 
 impl QcObservationsReport {
     /// Latch a new [QcSignalDataPoint]
-    pub fn add_contribution(&mut self, observation: QcSerializedSignal) {
+    pub fn add_contribution(&mut self, observation: &QcSerializedSignal) {
         let key = (
             observation.indexing.clone(),
             observation.data.sv.constellation.clone(),

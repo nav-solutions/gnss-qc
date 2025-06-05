@@ -3,8 +3,8 @@ use crate::{
     error::QcError,
     processing::analysis::{QcAnalysis, QcAnalysisBuilder},
     report::{
-        observations::QcObservationsReport, orbit_proj::QcOrbitProjections, rtk::QcRTKSummary,
-        summaries::QcContextSummary, QcRunReport,
+        nav::QcNavReport, observations::QcObservationsReport, orbit_proj::QcOrbitProjections,
+        rtk::QcRTKSummary, summaries::QcContextSummary, QcRunReport,
     },
     serializer::data::{QcSerializedItem, QcSerializedPreciseState},
 };
@@ -33,11 +33,15 @@ pub struct QcRunner<'a> {
 
     summary: bool,
     stores_signals: bool,
+
     rtk_summary: bool,
 
     /// Reference [Frame]
     #[cfg(feature = "navigation")]
     frame: Frame,
+
+    #[cfg(feature = "navigation")]
+    navi_plot: bool,
 
     #[cfg(feature = "navigation")]
     has_pvt_solver: bool,
@@ -83,6 +87,9 @@ impl<'a> QcRunner<'a> {
         let mut stores_ephemeris = false;
 
         #[cfg(feature = "navigation")]
+        let mut navi_plot = false;
+
+        #[cfg(feature = "navigation")]
         let mut has_pvt_solver = false;
 
         for analysis in analysis.iter() {
@@ -104,13 +111,15 @@ impl<'a> QcRunner<'a> {
             }
 
             #[cfg(feature = "navigation")]
-            if matches!(analysis, QcAnalysis::OrbitResiduals) {
-                stores_ephemeris = true;
-                precise_states_residuals = true;
+            if matches!(analysis, QcAnalysis::NaviPlot) {
+                navi_plot = true;
             }
 
             #[cfg(feature = "navigation")]
-            if matches!(analysis, QcAnalysis::ClockResiduals) {
+            if matches!(
+                analysis,
+                QcAnalysis::OrbitResiduals | QcAnalysis::ClockResiduals | QcAnalysis::NaviPlot
+            ) {
                 stores_ephemeris = true;
             }
 
@@ -130,6 +139,9 @@ impl<'a> QcRunner<'a> {
 
             #[cfg(feature = "navigation")]
             frame,
+
+            #[cfg(feature = "navigation")]
+            navi_plot,
 
             #[cfg(feature = "navigation")]
             stores_ephemeris,
@@ -222,11 +234,22 @@ impl<'a> QcRunner<'a> {
             QcSerializedItem::Signal(item) => {
                 if self.stores_signals {
                     if let Some(observations) = &mut self.report.observations {
-                        observations.add_contribution(item);
+                        observations.add_contribution(&item);
                     } else {
                         let mut observation = QcObservationsReport::default();
-                        observation.add_contribution(item);
+                        observation.add_contribution(&item);
                         self.report.observations = Some(observation);
+                    }
+                }
+
+                #[cfg(feature = "navigation")]
+                if self.navi_plot {
+                    if let Some(report) = &mut self.report.navi_report {
+                        report.add_signal_contribution(&item);
+                    } else {
+                        let mut report = QcNavReport::default();
+                        report.add_signal_contribution(&item);
+                        self.report.navi_report = Some(report);
                     }
                 }
 

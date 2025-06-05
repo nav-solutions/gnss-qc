@@ -10,6 +10,9 @@ pub(crate) mod plot;
 mod rtk;
 mod summary;
 
+#[cfg(feature = "navigation")]
+mod nav;
+
 impl QcRunReport {
     /// Render this [QcRunReport] to HTML
     pub fn render_html(&self) -> Markup {
@@ -70,6 +73,14 @@ impl QcRunReport {
                             a data-target="sp3-orbit-proj" {
                                 span {
                                     "SP3 Orbit Projections"
+                                }
+                            }
+                        }
+
+                        @ if self.navi_report.is_some() {
+                            a data-target="nav-report" {
+                                span {
+                                    "NAV Report"
                                 }
                             }
                         }
@@ -139,6 +150,7 @@ impl QcRunReport {
                                 }
                             }
                         }
+
                         @ if let Some(observations) = &self.observations {
                             section id="observations" class="section" {
                                 h2 {
@@ -146,6 +158,17 @@ impl QcRunReport {
                                 }
                                 p {
                                     (observations.render())
+                                }
+                            }
+                        }
+
+                        @ if let Some(report) = &self.navi_report {
+                            section id="nav-report" class="section" {
+                                h2 {
+                                    "NAV Report"
+                                }
+                                p {
+                                    (report.render())
                                 }
                             }
                         }
