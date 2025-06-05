@@ -80,7 +80,7 @@ impl QcRunReport {
                         @ if self.navi_report.is_some() {
                             a data-target="nav-report" {
                                 span {
-                                    "NAV Report"
+                                    "Navigation"
                                 }
                             }
                         }
