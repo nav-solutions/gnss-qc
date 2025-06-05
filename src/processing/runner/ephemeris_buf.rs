@@ -16,7 +16,7 @@ impl EphemerisBuffer {
             .retain(|item| item.data.ephemeris.is_valid(item.data.sv, latest));
     }
 
-    pub fn latch(&mut self, item: QcSerializedEphemeris) {
-        self.inner.push(item);
+    pub fn latch(&mut self, item: &QcSerializedEphemeris) {
+        self.inner.push(item.clone());
     }
 }

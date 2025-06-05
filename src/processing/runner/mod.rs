@@ -168,11 +168,21 @@ impl<'a> QcRunner<'a> {
 
     pub fn consume(&mut self, item: QcSerializedItem) {
         match item {
-            QcSerializedItem::Ephemeris(item) =>
-            {
+            QcSerializedItem::Ephemeris(item) => {
                 #[cfg(feature = "navigation")]
                 if self.stores_ephemeris {
-                    self.ephemeris_buf.latch(item);
+                    self.ephemeris_buf.latch(&item);
+                }
+
+                #[cfg(feature = "navigation")]
+                if self.navi_plot {
+                    if let Some(report) = &mut self.report.navi_report {
+                        report.add_ephemeris_message(&item);
+                    } else {
+                        let mut report = QcNavReport::default();
+                        report.add_ephemeris_message(&item);
+                        self.report.navi_report = Some(report);
+                    }
                 }
             }
 

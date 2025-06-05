@@ -11,7 +11,7 @@ pub mod ephemeris;
 #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
 pub mod sp3;
 
-use crate::{ context::QcContext};
+use crate::context::QcContext;
 
 use data::{QcSerializedItem, QcSerializedRINEXHeader};
 use ephemeris::QcEphemerisIterator;
