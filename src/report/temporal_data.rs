@@ -3,10 +3,9 @@ use core::f64;
 use plotters::{
     coord::types::RangedCoordf64,
     prelude::{
-        Cartesian2d, ChartContext, Circle, DrawingBackend, EmptyElement, PathElement,
-        PointSeries,
+        Cartesian2d, ChartContext, Circle, DrawingBackend, EmptyElement, PathElement, PointSeries,
     },
-    style::{Color},
+    style::Color,
 };
 
 use crate::prelude::Epoch;
@@ -108,6 +107,6 @@ impl TemporalData {
         ))
         .unwrap()
         .label(curve_title)
-        .legend(move|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], curve_color.clone()));
+        .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], curve_color.clone()));
     }
 }

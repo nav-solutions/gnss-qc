@@ -103,6 +103,12 @@ impl QcPdfTableOfContent {
 
         chapters.push(chapter);
 
+        // RTK-summary
+        chapters.push(QcPdfChapter::new("RTK-Summary"));
+
+        // Observations
+        chapters.push(QcPdfChapter::new("Observations"));
+
         let mut documentation = QcPdfChapter::new("Documentation");
 
         let mut section = QcPdfSection::new("Framework");
