@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use maud::{html, Markup, Render};
 
-use crate::report::{html::plot::Plot, QcObservationsReport};
+use crate::report::{rendering::html::plot::Plot, QcObservationsReport};
 
 impl QcObservationsReport {
     pub(crate) fn javascript() -> String {

@@ -5,6 +5,8 @@ use crate::report::summaries::{QcContextSummary, QcFileSummary};
 
 mod rinex_sum;
 
+mod run;
+
 #[cfg(feature = "sp3")]
 mod sp3_sum;
 

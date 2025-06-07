@@ -44,6 +44,7 @@ pub mod prelude {
         config::{QcConfig, QcPreferedIndexing},
         context::{QcContext, QcIndexing, QcProductType},
         error::QcError,
+        processing::analysis::QcAnalysisBuilder,
     };
 
     // GNSS re-export

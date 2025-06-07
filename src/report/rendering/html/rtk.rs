@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use maud::{html, Markup, Render};
 
-use crate::report::{html::plot::Plot, QcRTKSummary};
+use crate::report::{rendering::html::plot::Plot, QcRTKSummary};
 
 use plotly::{
     common::{color::NamedColor, MarkerSymbol},

@@ -1,4 +1,4 @@
-use crate::report::html::plot::Plot;
+use crate::report::rendering::html::plot::Plot;
 use itertools::Itertools;
 use maud::{html, Markup, Render};
 use std::collections::HashMap;

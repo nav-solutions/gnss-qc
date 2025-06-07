@@ -26,12 +26,7 @@ pub mod nav;
 #[cfg(feature = "navigation")]
 use nav::QcNavReport;
 
-#[cfg(feature = "html")]
-#[cfg_attr(docsrs, doc(cfg(feature = "html")))]
-mod html;
-
-// #[cfg(doc)]
-// use crate::pipeline::QcPipeline;
+pub mod rendering;
 
 /// [QcRunReport] is synthesized on [QcPipeline] completion.
 /// It can then be rendered in several formats.

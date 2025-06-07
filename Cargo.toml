@@ -18,11 +18,12 @@ features = ["sp3", "flate2", "navigation"]
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [features]
-# Support Gzip compressed files by default
-# Supports SP3 parsing and indexing by default
-# HTML reports by default
-# Post-processed Navigation not possible by default (heavy job)
-default = ["sp3", "flate2", "html", "navigation", "cggtts"]
+# Flate2: Support Gzip compressed files by default
+# SP3: format supported by default (for PPP)
+# PDF: render report as PDF by default
+# Navigation: post-processed navigation
+# CGGTTS: post-fit CGGTTS available
+default = ["sp3", "flate2", "pdf", "navigation", "cggtts"]
 
 # Support Gzip compressed files natively
 flate2 = [
@@ -64,7 +65,13 @@ cggtts = [
     "dep:cggtts",
 ]
 
-# html report rendering
+# PDF report rendering
+pdf = [
+    "dep:latex",
+    "dep:genpdf",
+]
+
+# HTML report rendering
 html = [
     "dep:maud",
     "dep:plotly",
@@ -122,6 +129,8 @@ anise = { version = "0.6", optional = true }
 hifitime = { version = "4.1", features = ["serde", "std"] }
 gnss-rs = { version = "2.4", features = ["serde"] }
 gnss-qc-traits = { version = "0.2", features = ["processing"] }
+genpdf = { version = "0.2", optional = true }
+latex = { version = "0.3", optional = true }
 maud = { version = "0.26", optional = true }
 plotly = { version = "0.12", optional = true }
 
