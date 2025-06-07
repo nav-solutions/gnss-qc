@@ -4,7 +4,23 @@ use latex::Document;
 
 mod summary;
 
-use genpdf::fonts::FontFamily;
+mod font;
+use font::QcPdfFontFamily;
+
+mod title;
+use title::QcPdfTitle;
+
+mod subtitle;
+use subtitle::QcPdfSubtitle;
+
+mod table_of_content;
+use table_of_content::QcPdfTableOfContent;
+
+use genpdf::Element;
+
+pub(crate) const PDF_LARGE_VERTICAL_SPACING: f64 = 3.0;
+pub(crate) const PDF_MIN_VERTICAL_SPACING: f64 = 0.3;
+pub(crate) const PDF_MEDIUM_VERTICAL_SPACING: f64 = 1.5;
 
 impl QcRunReport {
     /// Render this [QcRunReport] as a `LateX` [Document].
@@ -27,12 +43,37 @@ impl QcRunReport {
 
     /// Render this [QcRunReport] as PDF [genpdf::Document].
     pub fn render_pdf(&self) -> genpdf::Document {
-        let font_family =
-            genpdf::fonts::from_files("fonts", "DejaVuSans", None).unwrap_or_else(|e| {
-                panic!("Failed to load fonts: {}", e);
-            });
+        let font = QcPdfFontFamily::new();
+        let mut doc = genpdf::Document::new(font);
 
-        let mut doc = genpdf::Document::new(font_family);
+        doc.set_title("GNSS-QC Report");
+        doc.set_minimal_conformance();
+        doc.set_line_spacing(1.25);
+
+        let mut decorator = genpdf::SimplePageDecorator::new();
+        decorator.set_margins(10);
+
+        decorator.set_header(|page| {
+            let mut layout = genpdf::elements::LinearLayout::vertical();
+            if page > 1 {
+                layout.push(
+                    genpdf::elements::Paragraph::new(format!("Page {}", page))
+                        .aligned(genpdf::Alignment::Center),
+                );
+                layout.push(genpdf::elements::Break::new(1));
+            }
+            layout.styled(genpdf::style::Style::new().with_font_size(10))
+        });
+
+        doc.set_page_decorator(decorator);
+
+        // title
+        doc.push(QcPdfTitle::new());
+        doc.push(genpdf::elements::Break::new(PDF_MIN_VERTICAL_SPACING));
+        doc.push(QcPdfSubtitle::new());
+
+        // table of content
+        doc.push(QcPdfTableOfContent::new(&self));
 
         doc
     }
@@ -40,15 +81,11 @@ impl QcRunReport {
 
 #[cfg(test)]
 mod test {
+    use crate::prelude::QcAnalysisBuilder;
     /**
      * Test PDF rendition using meaningful setups
      */
-    use std::fs::File;
-    use std::io::Write;
-
     use crate::{prelude::QcContext, tests::init_logger};
-
-    use crate::prelude::QcAnalysisBuilder;
 
     #[test]
     fn pdf_no_sp3() {
