@@ -1,5 +1,3 @@
-use genpdf::fonts::{FontData, FontFamily};
-
 pub struct QcPdfLogo {}
 
 impl QcPdfLogo {

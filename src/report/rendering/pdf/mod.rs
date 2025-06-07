@@ -10,7 +10,6 @@ mod font;
 use font::QcPdfFontFamily;
 
 mod logo;
-use logo::QcPdfLogo;
 
 // mod footer;
 // use footer::QcPdfFooter;
@@ -66,10 +65,10 @@ impl QcRunReport {
             layout.push(mini_logo.clone());
 
             if page > 1 {
-                // layout.push(
-                //     genpdf::elements::Paragraph::new(format!("Page {}", page))
-                //         .aligned(genpdf::Alignment::Center),
-                // );
+                layout.push(
+                    genpdf::elements::Paragraph::new(format!("Page {}", page))
+                        .aligned(genpdf::Alignment::Center),
+                );
             } else {
                 layout.push(QcPdfTitle::new());
             }
@@ -101,11 +100,11 @@ impl QcRunReport {
             doc.push(summary.render_pdf());
         }
 
-        // // Observations
-        // if let Some(observations) = &self.observations {
-        //     doc.push(genpdf::elements::PageBreak::new());
-        //     doc.push(observations.render_pdf());
-        // }
+        // Observations
+        if let Some(observations) = &self.observations {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(observations.render_pdf());
+        }
 
         // // NAVI plot
         // if let Some(navi_plot) = &self.navi_report {

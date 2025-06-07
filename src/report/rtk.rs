@@ -135,10 +135,14 @@ impl QcRTKSummary {
                     // add new baseline combination
                     for (rover_name, rover_pos) in self.rovers.iter() {
                         if let Some(rover_position) = rover_pos {
-                            let dist = 0.0;
+                            let dist_km =
+                                rover_position.distance_km(&position).unwrap_or_else(|e| {
+                                    error!("distance calculation error: {}", e);
+                                    Default::default()
+                                });
 
                             self.baseline_distances_km
-                                .insert((item.indexing.to_string(), rover_name.clone()), dist);
+                                .insert((item.indexing.to_string(), rover_name.clone()), dist_km);
                         }
                     }
 
@@ -146,10 +150,14 @@ impl QcRTKSummary {
                     for (name, base_pos) in self.bases.iter() {
                         if name != &base_name {
                             if let Some(base_position) = base_pos {
-                                let dist = 0.0;
+                                let dist_km =
+                                    base_position.distance_km(&position).unwrap_or_else(|e| {
+                                        error!("distance calculation error: {}", e);
+                                        Default::default()
+                                    });
 
                                 self.base_network_distances_km
-                                    .insert((name.to_string(), base_name.clone()), 0.0);
+                                    .insert((name.to_string(), base_name.clone()), dist_km);
                             }
                         }
                     }

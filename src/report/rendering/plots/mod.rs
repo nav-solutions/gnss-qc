@@ -3,7 +3,7 @@
 use plotters::coord::ranged1d::AsRangedCoord;
 use plotters::prelude::*;
 
-use plotters::coord::ranged1d::Ranged;
+// use plotters::coord::ranged1d::Ranged;
 
 use plotters::style::Color;
 

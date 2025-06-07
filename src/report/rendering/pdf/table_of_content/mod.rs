@@ -1,12 +1,8 @@
-use itertools::Itertools;
-
 use genpdf::{Element, RenderResult};
 
 use crate::{context::QcProductType, report::QcRunReport};
 
-use std::collections::HashMap;
-
-use crate::report::rendering::pdf::{PDF_LARGE_VERTICAL_SPACING, PDF_MEDIUM_VERTICAL_SPACING};
+use crate::report::rendering::pdf::PDF_LARGE_VERTICAL_SPACING;
 
 pub mod section;
 use section::QcPdfSection;

@@ -1,10 +1,7 @@
 use super::section::QcPdfSection;
-use crate::report::rendering::pdf::{
-    PDF_LARGE_VERTICAL_SPACING, PDF_MEDIUM_VERTICAL_SPACING, PDF_MIN_VERTICAL_SPACING,
-};
+use crate::report::rendering::pdf::PDF_MIN_VERTICAL_SPACING;
 
 use genpdf::Element;
-use itertools::Itertools;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct QcPdfChapter {

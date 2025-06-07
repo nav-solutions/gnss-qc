@@ -1,7 +1,3 @@
-use crate::report::rendering::pdf::PDF_LARGE_VERTICAL_SPACING;
-
-use super::PDF_MIN_VERTICAL_SPACING;
-
 use genpdf::Element;
 
 pub struct QcPdfCredits {}

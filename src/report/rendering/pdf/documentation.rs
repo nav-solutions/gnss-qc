@@ -1,9 +1,5 @@
 use genpdf::{Element, RenderResult};
 
-use crate::report::rendering::pdf::PDF_LARGE_VERTICAL_SPACING;
-
-use super::PDF_MIN_VERTICAL_SPACING;
-
 pub struct QcPdfDocumentation {}
 
 impl QcPdfDocumentation {

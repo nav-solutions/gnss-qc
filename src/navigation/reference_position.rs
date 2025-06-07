@@ -14,7 +14,7 @@ impl std::fmt::Display for QcReferencePosition {
 }
 
 impl QcReferencePosition {
-    // Define new [QcReferencePosition] from ECEF coordinates
+    /// Define new [QcReferencePosition] from ECEF coordinates
     pub fn new(ecef_m: (f64, f64, f64), epoch: Epoch, frame_ecef: Frame) -> Self {
         // const GM_M3_S2: f64 = 3.986004418E14;
 
@@ -41,6 +41,11 @@ impl QcReferencePosition {
     /// Create a new [QcReferencePosition] from an [Orbit]
     pub fn from_orbit(orbit: &Orbit) -> Self {
         Self { orbit: *orbit }
+    }
+
+    /// Computes distance (in km) from other [QcReferencePosition]
+    pub fn distance_km(&self, rhs: &Self) -> PhysicsResult<f64> {
+        self.orbit.distance_to_km(&rhs.orbit)
     }
 }
 

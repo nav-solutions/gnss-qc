@@ -30,6 +30,22 @@ pub enum QcFileSummary {
     SP3(QcSP3FileSummary),
 }
 
+impl QcFileSummary {
+    pub fn as_rinex(&self) -> Option<&QcRINEXFileSummary> {
+        match self {
+            Self::RINEX(sum) => Some(sum),
+            _ => None,
+        }
+    }
+
+    pub fn as_sp3(&self) -> Option<&QcSP3FileSummary> {
+        match self {
+            Self::SP3(sum) => Some(sum),
+            _ => None,
+        }
+    }
+}
+
 /// [QcContextSummary] summary.
 #[derive(Debug, Clone)]
 pub struct QcContextSummary {
