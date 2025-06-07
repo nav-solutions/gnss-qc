@@ -1,10 +1,12 @@
+use core::f64;
+
 use plotters::{
     coord::types::RangedCoordf64,
     prelude::{
-        Cartesian2d, ChartContext, Circle, DrawingBackend, EmptyElement, LineSeries, PathElement,
+        Cartesian2d, ChartContext, Circle, DrawingBackend, EmptyElement, PathElement,
         PointSeries,
     },
-    style::{Color, BLACK},
+    style::{Color},
 };
 
 use crate::prelude::Epoch;
@@ -34,11 +36,23 @@ impl TemporalData {
     }
 
     pub fn ymin(&self) -> f64 {
-        self.data[0]
+        let mut min = f64::INFINITY;
+        for value in self.data.iter() {
+            if *value < min {
+                min = *value;
+            }
+        }
+        min
     }
 
     pub fn ymax(&self) -> f64 {
-        self.data[self.size - 1]
+        let mut max = -f64::INFINITY;
+        for value in self.data.iter() {
+            if *value > max {
+                max = *value;
+            }
+        }
+        max
     }
 
     pub fn new(t: Epoch, data: f64) -> Self {
@@ -75,7 +89,7 @@ impl TemporalData {
     /// - curve_title: legend as [str]
     /// - curve_color: [Color] implementation
     // pub fn draw<'a, DB: DrawingBackend, C: Color + 'a>(
-    pub fn draw<'a, DB: DrawingBackend, C: Color>(
+    pub fn draw<'a, DB: DrawingBackend, C: Color + 'a + Clone>(
         &self,
         ctx: &mut ChartContext<'a, DB, Cartesian2d<RangedCoordf64, RangedCoordf64>>,
         curve_title: &str,
@@ -89,11 +103,11 @@ impl TemporalData {
                 .enumerate()
                 .map(|(index, x)| (x, self.data[index])),
             curve_point_size,
-            &curve_color,
+            curve_color.clone(),
             &|c, s, st| return EmptyElement::at(c) + Circle::new((0, 0), s, st.filled()),
         ))
         .unwrap()
         .label(curve_title)
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
+        .legend(move|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], curve_color.clone()));
     }
 }
