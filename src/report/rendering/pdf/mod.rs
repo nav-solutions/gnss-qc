@@ -1,10 +1,19 @@
 //! HTML rendition of the QcRunReport
 use crate::report::QcRunReport;
 
+mod nav;
+mod observations;
+mod rtk_sum;
 mod summary;
 
 mod font;
 use font::QcPdfFontFamily;
+
+mod logo;
+use logo::QcPdfLogo;
+
+// mod footer;
+// use footer::QcPdfFooter;
 
 mod title;
 use title::QcPdfTitle;
@@ -32,7 +41,14 @@ pub(crate) const PDF_MEDIUM_VERTICAL_SPACING: f64 = 1.5;
 impl QcRunReport {
     /// Render this [QcRunReport] as PDF [genpdf::Document].
     pub fn render_pdf(&self) -> genpdf::Document {
+        let logo = genpdf::elements::Image::from_path("logo/logo.jpg").unwrap();
+
+        let mini_logo = logo
+            .with_alignment(genpdf::Alignment::Right)
+            .with_scale(genpdf::Scale::new(0.33, 0.33));
+
         let font = QcPdfFontFamily::new();
+
         let mut doc = genpdf::Document::new(font);
 
         doc.set_title("GNSS-QC Report");
@@ -42,22 +58,31 @@ impl QcRunReport {
         let mut decorator = genpdf::SimplePageDecorator::new();
         decorator.set_margins(10);
 
-        decorator.set_header(|page| {
+        decorator.set_header(move |page| {
             let mut layout = genpdf::elements::LinearLayout::vertical();
+
+            layout.push(genpdf::elements::Break::new(1));
+
+            layout.push(mini_logo.clone());
+
             if page > 1 {
-                layout.push(
-                    genpdf::elements::Paragraph::new(format!("Page {}", page))
-                        .aligned(genpdf::Alignment::Center),
-                );
-                layout.push(genpdf::elements::Break::new(1));
+                // layout.push(
+                //     genpdf::elements::Paragraph::new(format!("Page {}", page))
+                //         .aligned(genpdf::Alignment::Center),
+                // );
+            } else {
+                layout.push(QcPdfTitle::new());
             }
+
             layout.styled(genpdf::style::Style::new().with_font_size(10))
         });
 
         doc.set_page_decorator(decorator);
 
+        // let mut decorator = QcPdfFooter::new();
+        // doc.set_page_decorator(decorator);
+
         // title
-        doc.push(QcPdfTitle::new());
         doc.push(genpdf::elements::Break::new(PDF_MIN_VERTICAL_SPACING));
         doc.push(QcPdfSubtitle::new());
 
@@ -76,23 +101,23 @@ impl QcRunReport {
             doc.push(summary.render_pdf());
         }
 
-        // Observations
-        if let Some(observations) = &self.observations {
-            doc.push(genpdf::elements::PageBreak::new());
-            doc.push(observations.render_pdf());
-        }
+        // // Observations
+        // if let Some(observations) = &self.observations {
+        //     doc.push(genpdf::elements::PageBreak::new());
+        //     doc.push(observations.render_pdf());
+        // }
 
-        // NAVI plot
-        if let Some(navi_plot) = &self.navi_report {
-            doc.push(genpdf::elements::PageBreak::new());
-            doc.push(navi_plot.render_pdf());
-        }
+        // // NAVI plot
+        // if let Some(navi_plot) = &self.navi_report {
+        //     doc.push(genpdf::elements::PageBreak::new());
+        //     doc.push(navi_plot.render_pdf());
+        // }
 
-        // SP3 Proj
-        if let Some(sp3_proj) = &self.sp3_orbits_proj {
-            doc.push(genpdf::elements::PageBreak::new());
-            doc.push(sp3_proj.render_pdf());
-        }
+        // // SP3 Proj
+        // if let Some(sp3_proj) = &self.sp3_orbits_proj {
+        //     doc.push(genpdf::elements::PageBreak::new());
+        //     doc.push(sp3_proj.render_pdf());
+        // }
 
         // documentation
         doc.push(genpdf::elements::PageBreak::new());
