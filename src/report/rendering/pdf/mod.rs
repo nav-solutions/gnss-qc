@@ -1,6 +1,5 @@
 //! HTML rendition of the QcRunReport
 use crate::report::QcRunReport;
-use latex::Document;
 
 mod summary;
 
@@ -13,8 +12,16 @@ use title::QcPdfTitle;
 mod subtitle;
 use subtitle::QcPdfSubtitle;
 
+pub mod vertical_separator;
+
 mod table_of_content;
 use table_of_content::QcPdfTableOfContent;
+
+mod documentation;
+use documentation::QcPdfDocumentation;
+
+mod credits;
+use credits::QcPdfCredits;
 
 use genpdf::Element;
 
@@ -23,24 +30,6 @@ pub(crate) const PDF_MIN_VERTICAL_SPACING: f64 = 0.3;
 pub(crate) const PDF_MEDIUM_VERTICAL_SPACING: f64 = 1.5;
 
 impl QcRunReport {
-    /// Render this [QcRunReport] as a `LateX` [Document].
-    pub fn render_latex(&self) -> Document {
-        let mut doc = Document::new(latex::DocumentClass::Article);
-        doc.preamble.title("GNSS-QC Report");
-        doc.preamble.author(&format!(
-            "RTK-rs framework <https://github.com/rtk-rs> v{}",
-            env!("CARGO_PKG_VERSION")
-        ));
-
-        // link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/rtk-rs/.github/master/logos/logo2.jpg";
-
-        // run report
-        // summary
-        // RTK Summary
-
-        doc
-    }
-
     /// Render this [QcRunReport] as PDF [genpdf::Document].
     pub fn render_pdf(&self) -> genpdf::Document {
         let font = QcPdfFontFamily::new();
@@ -73,7 +62,16 @@ impl QcRunReport {
         doc.push(QcPdfSubtitle::new());
 
         // table of content
+        // doc.push(genpdf::elements::PageBreak::new());
         doc.push(QcPdfTableOfContent::new(&self));
+
+        // documentation
+        // doc.push(genpdf::elements::PageBreak::new());
+        doc.push(QcPdfDocumentation::new());
+
+        // credits
+        // doc.push(genpdf::elements::PageBreak::new());
+        doc.push(QcPdfCredits::new());
 
         doc
     }
@@ -103,6 +101,58 @@ mod test {
         ctx.load_rinex_file("data/OBS/V3/VLNS0630.22O").unwrap();
 
         ctx.load_gzip_rinex_file("data/MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz")
+            .unwrap();
+
+        let builder = QcAnalysisBuilder::all();
+
+        let report = ctx.process(builder).unwrap();
+
+        report.render_pdf().render_to_file("report.pdf").unwrap();
+    }
+
+    #[test]
+    fn pdf_full_run_24h() {
+        init_logger();
+
+        let mut ctx = QcContext::new();
+
+        // load data
+        ctx.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+            .unwrap();
+
+        ctx.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            .unwrap();
+
+        ctx.load_gzip_rinex_file("data/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            .unwrap();
+
+        ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
+            .unwrap();
+
+        let builder = QcAnalysisBuilder::all();
+
+        let report = ctx.process(builder).unwrap();
+
+        report.render_pdf().render_to_file("report.pdf").unwrap();
+    }
+
+    #[test]
+    fn pdf_jmf_longterm() {
+        init_logger();
+
+        let mut ctx = QcContext::new();
+
+        // load data
+        ctx.load_rinex_file("data/DataJMF/2024-09-18_00-00-00_GNSS-1.24o")
+            .unwrap();
+
+        ctx.load_rinex_file("data/DataJMF/2024-09-19_00-00-00_GNSS-1.obs")
+            .unwrap();
+
+        ctx.load_rinex_file("data/DataJMF/2025-04-29_19-53-50_GNSS-1.obs")
+            .unwrap();
+
+        ctx.load_rinex_file("data/DataJMF/240428survey.obs")
             .unwrap();
 
         let builder = QcAnalysisBuilder::all();

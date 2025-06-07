@@ -28,7 +28,7 @@ impl QcPdfChapter {
         let mut layout = genpdf::elements::LinearLayout::vertical();
         layout.push(genpdf::elements::Paragraph::new(&self.name));
 
-        for section in self.sections.iter().sorted() {
+        for section in self.sections.iter() {
             layout.push(genpdf::elements::Break::new(PDF_MIN_VERTICAL_SPACING));
             layout.push(
                 section

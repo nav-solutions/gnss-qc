@@ -32,7 +32,7 @@ impl QcPdfSection {
 
             layout.push(
                 genpdf::elements::Paragraph::new(paragraph)
-                    .styled(genpdf::style::Style::new().bold().with_font_size(10)),
+                    .styled(genpdf::style::Style::new().with_font_size(8)),
             );
         }
 

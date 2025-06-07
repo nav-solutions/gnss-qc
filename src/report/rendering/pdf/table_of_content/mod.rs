@@ -14,7 +14,7 @@ use section::QcPdfSection;
 mod chapter;
 use chapter::QcPdfChapter;
 
-use super::PDF_MIN_VERTICAL_SPACING;
+use super::{vertical_separator::QcPdfVerticalSeparator, PDF_MIN_VERTICAL_SPACING};
 
 pub struct QcPdfTableOfContent {
     pub chapters: Vec<QcPdfChapter>,
@@ -37,6 +37,7 @@ impl Element for QcPdfTableOfContent {
 
         for chapter in self.chapters.iter() {
             layout.push(genpdf::elements::Break::new(PDF_MIN_VERTICAL_SPACING));
+            layout.push(QcPdfVerticalSeparator::new().render());
             layout.push(
                 chapter
                     .render()
@@ -54,7 +55,7 @@ impl QcPdfTableOfContent {
 
         // Summary
         let mut chapter = QcPdfChapter::new("Summary");
-        chapter.add_section(QcPdfSection::new("Run report"));
+        chapter.add_section(QcPdfSection::new("Run summary"));
 
         if let Some(summary) = &report.summary {
             let has_rinex = summary
@@ -65,14 +66,19 @@ impl QcPdfTableOfContent {
                 > 0;
 
             if has_rinex {
-                chapter.add_section(QcPdfSection::new("RINEX"));
+                let mut section = QcPdfSection::new("RINEX");
 
-                // let sum = chapters.get_mut("Summary").unwrap();
-                // sum.push("RINEX".to_string());
+                for file in summary.summaries.keys().filter_map(|source| {
+                    if source.product_type.is_rinex_product() {
+                        Some(&source.filename)
+                    } else {
+                        None
+                    }
+                }) {
+                    section.add_paragraph(file);
+                }
 
-                // for name in summary.summaries.keys().sorted() {
-                //     sum.push(format!("{}({})", name.filename, name.product_type));
-                // }
+                chapter.add_section(section);
             }
 
             let has_sp3 = summary
@@ -83,11 +89,38 @@ impl QcPdfTableOfContent {
                 > 0;
 
             if has_sp3 {
-                chapter.add_section(QcPdfSection::new("SP3"));
+                let mut section = QcPdfSection::new("SP3");
+
+                for file in summary.summaries.keys().filter_map(|source| {
+                    if source.product_type == QcProductType::PreciseOrbit {
+                        Some(&source.filename)
+                    } else {
+                        None
+                    }
+                }) {
+                    section.add_paragraph(file);
+                }
+
+                chapter.add_section(section);
             }
         }
 
         chapters.push(chapter);
+
+        let mut documentation = QcPdfChapter::new("Documentation");
+
+        let mut section = QcPdfSection::new("Framework");
+        section.add_paragraph("github.com");
+        section.add_paragraph("GNSS-Qc (API)");
+        section.add_paragraph("RINEX (API)");
+        section.add_paragraph("SP3 (API)");
+
+        documentation.add_section(section);
+
+        chapters.push(documentation);
+
+        let mut credits = QcPdfChapter::new("Credits");
+        chapters.push(credits);
 
         Self { chapters }
     }
