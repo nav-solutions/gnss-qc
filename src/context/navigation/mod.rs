@@ -19,7 +19,7 @@ use anise::{
         metaload::{MetaAlmanacError, MetaFile},
         planetary::PlanetaryDataError,
     },
-    constants::frames::{EARTH_ITRF93, EARTH_J2000},
+    constants::frames::{EARTH_ITRF93, IAU_EARTH_FRAME},
     errors::AlmanacError,
     prelude::{Almanac, Frame, MetaAlmanac},
 };
@@ -128,7 +128,7 @@ impl QcContext {
         };
 
         let frame = almanac
-            .frame_from_uid(EARTH_J2000)
+            .frame_from_uid(IAU_EARTH_FRAME)
             .unwrap_or_else(|e| panic!("anise internal error: {}", e));
 
         (almanac, frame)

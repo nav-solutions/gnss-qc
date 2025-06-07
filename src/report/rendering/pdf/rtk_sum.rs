@@ -31,11 +31,7 @@ impl QcRTKSummary {
                         .styled(genpdf::style::Effect::Bold)
                         .padded(1),
                 )
-                .element(
-                    genpdf::elements::Paragraph::new("None")
-                        .styled(genpdf::style::Effect::Bold)
-                        .padded(1),
-                )
+                .element(genpdf::elements::Paragraph::new("None").padded(1))
                 .push()
                 .expect("Invalid table row");
         } else {
@@ -46,11 +42,7 @@ impl QcRTKSummary {
                         .styled(genpdf::style::Effect::Bold)
                         .padded(1),
                 )
-                .element(
-                    genpdf::elements::Paragraph::new(rovers.iter().join(", "))
-                        .styled(genpdf::style::Effect::Bold)
-                        .padded(1),
-                )
+                .element(genpdf::elements::Paragraph::new(rovers.iter().join(", ")).padded(1))
                 .push()
                 .expect("Invalid table row");
         }
@@ -62,11 +54,7 @@ impl QcRTKSummary {
                     .styled(genpdf::style::Effect::Bold)
                     .padded(1),
             )
-            .element(
-                genpdf::elements::Paragraph::new(format!("{}", num_rovers))
-                    .styled(genpdf::style::Effect::Bold)
-                    .padded(1),
-            )
+            .element(genpdf::elements::Paragraph::new(format!("{}", num_rovers)).padded(1))
             .push()
             .expect("Invalid table row");
 
@@ -77,11 +65,7 @@ impl QcRTKSummary {
                     .styled(genpdf::style::Effect::Bold)
                     .padded(1),
             )
-            .element(
-                genpdf::elements::Paragraph::new(bases.iter().join(", "))
-                    .styled(genpdf::style::Effect::Bold)
-                    .padded(1),
-            )
+            .element(genpdf::elements::Paragraph::new(bases.iter().join(", ")).padded(1))
             .push()
             .expect("Invalid table row");
 
@@ -92,11 +76,7 @@ impl QcRTKSummary {
                     .styled(genpdf::style::Effect::Bold)
                     .padded(1),
             )
-            .element(
-                genpdf::elements::Paragraph::new(format!("{}", num_bases))
-                    .styled(genpdf::style::Effect::Bold)
-                    .padded(1),
-            )
+            .element(genpdf::elements::Paragraph::new(format!("{}", num_bases)).padded(1))
             .push()
             .expect("Invalid table row");
 
@@ -134,21 +114,9 @@ impl QcRTKSummary {
         for ((base1, base2), dist_km) in self.base_network_distances_km.iter() {
             table
                 .row()
-                .element(
-                    genpdf::elements::Paragraph::new(base1)
-                        .styled(genpdf::style::Effect::Bold)
-                        .padded(1),
-                )
-                .element(
-                    genpdf::elements::Paragraph::new(base2)
-                        .styled(genpdf::style::Effect::Bold)
-                        .padded(1),
-                )
-                .element(
-                    genpdf::elements::Paragraph::new(format!("{:3.3}", dist_km))
-                        .styled(genpdf::style::Effect::Bold)
-                        .padded(1),
-                )
+                .element(genpdf::elements::Paragraph::new(base1).padded(1))
+                .element(genpdf::elements::Paragraph::new(base2).padded(1))
+                .element(genpdf::elements::Paragraph::new(format!("{:3.3}", dist_km)).padded(1))
                 .push()
                 .expect("Invalid table row");
         }
@@ -187,21 +155,9 @@ impl QcRTKSummary {
         for ((rover, base), dist_km) in self.baseline_distances_km.iter() {
             table
                 .row()
-                .element(
-                    genpdf::elements::Paragraph::new(rover)
-                        .styled(genpdf::style::Effect::Bold)
-                        .padded(1),
-                )
-                .element(
-                    genpdf::elements::Paragraph::new(base)
-                        .styled(genpdf::style::Effect::Bold)
-                        .padded(1),
-                )
-                .element(
-                    genpdf::elements::Paragraph::new(format!("{:3.3}", dist_km))
-                        .styled(genpdf::style::Effect::Bold)
-                        .padded(1),
-                )
+                .element(genpdf::elements::Paragraph::new(rover).padded(1))
+                .element(genpdf::elements::Paragraph::new(base).padded(1))
+                .element(genpdf::elements::Paragraph::new(format!("{:3.3}", dist_km)).padded(1))
                 .push()
                 .expect("Invalid table row");
         }

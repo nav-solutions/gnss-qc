@@ -1,12 +1,11 @@
-use plotters::coord::ranged1d::AsRangedCoord;
-use plotters::prelude::*;
-
-// use plotters::coord::ranged1d::Ranged;
-
-use plotters::style::Color;
-
-use image::DynamicImage;
-use image::ImageBuffer;
+use plotters::{
+    coord::types::RangedCoordf64,
+    prelude::{
+        Cartesian2d, ChartContext, Circle, DrawingBackend, EmptyElement, LineSeries, PathElement,
+        PointSeries,
+    },
+    style::{Color, BLACK},
+};
 
 use crate::prelude::Epoch;
 
@@ -18,6 +17,14 @@ pub struct TemporalData {
 }
 
 impl TemporalData {
+    pub fn xmin(&self) -> f64 {
+        self.first_epoch().to_utc_days()
+    }
+
+    pub fn xmax(&self) -> f64 {
+        self.last_epoch().to_utc_days()
+    }
+
     pub fn first_epoch(&self) -> Epoch {
         self.epochs[0]
     }
@@ -26,11 +33,11 @@ impl TemporalData {
         self.epochs[self.size - 1]
     }
 
-    fn xmin(&self) -> f64 {
+    pub fn ymin(&self) -> f64 {
         self.data[0]
     }
 
-    fn xmax(&self) -> f64 {
+    pub fn ymax(&self) -> f64 {
         self.data[self.size - 1]
     }
 
@@ -62,51 +69,31 @@ impl TemporalData {
         &self.data
     }
 
+    /// Draws this [TemporalData] on provided graphical backend.
     /// ## Input
-    /// - x: data that implements [AsRangedCoord]
-    /// - y: data that implements [AsRangedCoord]
-    /// - plot_title: readable [str]
-    /// - width: plot width in pxl (as [u32])
-    /// - height: plot height in pxl (as [u32])
-    /// - bg_color: [Color] implementation
-    pub fn to_cartesian_2d<C: Color>(
+    /// - backend: mutable [DrawingArea]
+    /// - curve_title: legend as [str]
+    /// - curve_color: [Color] implementation
+    // pub fn draw<'a, DB: DrawingBackend, C: Color + 'a>(
+    pub fn draw<'a, DB: DrawingBackend, C: Color>(
         &self,
-        plot_title: &str,
-        width: u32,
-        height: u32,
-        bg_color: C,
-    ) -> DynamicImage {
-        let mut buffer = ImageBuffer::new(width, height);
-
-        {
-            let mut backend =
-                BitMapBackend::with_buffer(&mut buffer, (width, height)).into_drawing_area();
-
-            backend.fill(&bg_color).unwrap();
-
-            let x_spec = self.first_epoch().to_mjd_utc_days()..self.last_epoch().to_mjd_utc_days();
-            let y_spec = self.xmin()..self.xmax();
-
-            let mut chart = ChartBuilder::on(&backend)
-                .margin(10)
-                .caption(plot_title, ("sans-serif", 30))
-                .x_label_area_size(30)
-                .y_label_area_size(30)
-                .build_cartesian_2d(x_spec, y_spec)
-                .unwrap();
-
-            chart.draw_series(LineSeries::new(
-                self.epochs
-                    .iter()
-                    .map(|t| t.to_utc_days())
-                    .enumerate()
-                    .map(|(index, x)| (x, self.data[index])),
-                &RED,
-            ));
-
-            backend.present().unwrap();
-        }
-
-        DynamicImage::ImageRgb8(buffer)
+        ctx: &mut ChartContext<'a, DB, Cartesian2d<RangedCoordf64, RangedCoordf64>>,
+        curve_title: &str,
+        curve_color: C,
+        curve_point_size: u32,
+    ) {
+        ctx.draw_series(PointSeries::of_element(
+            self.epochs
+                .iter()
+                .map(|t| t.to_utc_days())
+                .enumerate()
+                .map(|(index, x)| (x, self.data[index])),
+            curve_point_size,
+            &curve_color,
+            &|c, s, st| return EmptyElement::at(c) + Circle::new((0, 0), s, st.filled()),
+        ))
+        .unwrap()
+        .label(curve_title)
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
     }
 }
