@@ -17,6 +17,9 @@ pub enum QcSignalObservation {
 
     /// Doppler shift in Hz/s
     Doppler(f64),
+
+    /// SSI in dBc
+    SSI(f64),
 }
 
 /// [QcSignalData] streamed by [QcSerializer]

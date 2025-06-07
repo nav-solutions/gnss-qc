@@ -161,6 +161,7 @@ mod test {
                             QcSignalObservation::Doppler(_) => {
                                 panic!("this file does not have dopplers!");
                             }
+                            QcSignalObservation::SSI(_) => {}
                         }
                     } else if serialized.data.carrier == Carrier::L2 {
                         match serialized.data.observation {
@@ -180,6 +181,7 @@ mod test {
                             QcSignalObservation::Doppler(_) => {
                                 panic!("this file does not have dopplers!");
                             }
+                            QcSignalObservation::SSI(_) => {}
                         }
                     } else {
                         panic!(
@@ -206,6 +208,7 @@ mod test {
                             QcSignalObservation::Doppler(_) => {
                                 panic!("this file does not have dopplers!");
                             }
+                            QcSignalObservation::SSI(_) => {}
                         }
                     } else if serialized.data.carrier == Carrier::L2 {
                         match serialized.data.observation {
@@ -225,6 +228,7 @@ mod test {
                             QcSignalObservation::Doppler(_) => {
                                 panic!("this file does not have dopplers!");
                             }
+                            QcSignalObservation::SSI(_) => {}
                         }
                     } else {
                         panic!(
@@ -251,6 +255,7 @@ mod test {
                             QcSignalObservation::Doppler(_) => {
                                 panic!("this file does not have dopplers!");
                             }
+                            QcSignalObservation::SSI(_) => {}
                         }
                     } else if serialized.data.carrier == Carrier::L2 {
                         match serialized.data.observation {
@@ -270,6 +275,7 @@ mod test {
                             QcSignalObservation::Doppler(_) => {
                                 panic!("this file does not have dopplers!");
                             }
+                            QcSignalObservation::SSI(_) => {}
                         }
                     } else {
                         panic!(

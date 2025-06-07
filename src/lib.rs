@@ -51,8 +51,8 @@ pub mod prelude {
     pub use gnss::prelude::{Constellation, COSPAR, SV};
 
     pub use qc_traits::{
-        Filter, FilterItem, GnssAbsoluteTime, MaskOperand, Preprocessing, Repair, RepairTrait,
-        TimePolynomial, Timeshift,
+        Decimate, DecimationFilter, Filter, FilterItem, GnssAbsoluteTime, MaskFilter, MaskOperand,
+        Masking, Preprocessing, Repair, RepairTrait, Split, TimePolynomial, Timeshift,
     };
 
     // Hifitime re-export

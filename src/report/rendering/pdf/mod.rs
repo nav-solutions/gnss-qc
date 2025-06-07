@@ -136,7 +136,10 @@ mod test {
     /**
      * Test PDF rendition using meaningful setups
      */
-    use crate::{prelude::QcContext, tests::init_logger};
+    use crate::{
+        prelude::{Filter, Preprocessing, QcContext},
+        tests::init_logger,
+    };
 
     #[test]
     fn pdf_no_sp3() {
@@ -155,6 +158,9 @@ mod test {
 
         ctx.load_gzip_rinex_file("data/MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz")
             .unwrap();
+
+        let gal_gps_filter = Filter::equals("G05,E05,G10,E10,G17,E17").unwrap();
+        ctx.filter_mut(&gal_gps_filter);
 
         let builder = QcAnalysisBuilder::all();
 
@@ -182,6 +188,9 @@ mod test {
         ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
             .unwrap();
 
+        let gal_gps_filter = Filter::equals("GPS, Gal").unwrap();
+        ctx.filter_mut(&gal_gps_filter);
+
         let builder = QcAnalysisBuilder::all();
 
         let report = ctx.process(builder).unwrap();
@@ -207,6 +216,9 @@ mod test {
 
         ctx.load_rinex_file("data/DataJMF/240428survey.obs")
             .unwrap();
+
+        let gal_gps_filter = Filter::equals("GPS, Gal").unwrap();
+        ctx.filter_mut(&gal_gps_filter);
 
         let builder = QcAnalysisBuilder::all();
 

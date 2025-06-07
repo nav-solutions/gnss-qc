@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use crate::prelude::QcConfig;
 
+mod preprocessing;
 mod rinex;
 
 #[cfg(feature = "flate2")]

@@ -4,19 +4,19 @@ use serde::{Deserialize, Serialize};
 /// Input data prefered indexing method (classification).
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub enum QcPreferedIndexing {
-    /// Let the framework figure it out
+    /// Let the framework figure how to index the dataset.
     #[default]
     Auto,
 
-    /// Indexing by GNSS-Receiver (RX) name or model will be prefered for all signal sources.
-    /// If such information is not present in the signal source, we will still use a subsidary option though.
+    /// Indexing by GNSS-Receiver name or model will be prefered for all signal sources.
+    /// If such information does not exist, we will use a secondary option.
     GnssReceiver,
 
-    /// Indexing by name of operator
+    /// Indexing by name of operator.
     Operator,
 
-    /// Indexing by agency name. If your signal observations are not tied to an agency publisher,
-    /// we will still use a subsidary signal indexing method though.
+    /// Indexing by agency name.
+    /// If such information does not exist, we will use a secondary option.
     Agency,
 }
 

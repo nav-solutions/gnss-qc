@@ -20,6 +20,7 @@ pub use orbit::QcOrbitPreference;
 pub enum Error {
     #[error("invalid report type")]
     InvalidReportType,
+
     #[cfg(feature = "navigation")]
     #[error("invalid orbit preference")]
     InvalidOrbitPreference,
@@ -31,9 +32,8 @@ pub enum Error {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct QcConfig {
     /// Select a prefered Indexing method. This only applies to
-    /// Observation RINEX in this early versions. Other products
-    /// are mixed, whatever the publisher name. Which facilitates post-processing,
-    /// but is not perfect.
+    /// RINEX files, other files are indexed by data publishers.
+    /// Correct data indexing is mandatory for differential navigation (RTK).
     #[serde(default)]
     pub indexing: QcPreferedIndexing,
 
