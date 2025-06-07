@@ -18,12 +18,32 @@ Usually RINEX files, but also SP3 and others. RINEX covering many subformats,
 GNSS-postprocessing typically requires stacking several different RINEX files to achieve
 something.
 
-`gnss-qc` is divided in two major steps:
+In `GNSS-Qc`, the workflow is divided in four major steps:
 
-- Parse and stack the data, forming a `QcContext`. This object offers smart, automated
-or manual data indexing. All algorithms and following methods apply to this object.
-- Process the context by requesting one or several analysis, redacting a `QcRunReport`.
-- Render the report in the desired format.
+1. Parse and stack the data, forming a `QcContext`. This is always the first step.
+`QcContext` offers smart data format detection and automated indexing.
+Manual indexing of the dataset is possible using `QcConfig`. 
+Once a `QcContext` has been formed (even basic), you can start from there, deploy
+one of the algorithms.
+
+2. Possibly take advantage of the `Preprocessing` Trait to rework the dataset.
+This is particularly useful for heavy processes on heavy files. You can use
+this trait to narrow down, zoom in or decimate the dataset. We also provide
+the `Repair` method that may be used to repair the data prior moving forward.
+
+3. Process. This can take different forms:
+  - Report synthesis: design the report specs with `QcAnalysisBuilder` and simply
+  invoke `process()`. The report can then be rendered.
+  - For those interested in post-processed navigation and other similar topics,
+  we offer a few methods directly. You can either wrap your solutions
+  inside a report, using the previous method, or operate yourself one of the
+  lower-level methods, for example using the `.nav_pvt_solver()` wrapper.
+  - Manual (lower-level) operations: operate yourself and obtain your own solutions.
+  This requires understanding and mastering how `QcContext` stores data and inner
+  data formats.
+
+4. If you synthesized a report, you can then render it. We offer `pdf` 
+or `html` rendition, on two separate crate features.
 
 Amongst all analysis we support, we can mention:
 
@@ -35,6 +55,8 @@ Amongst all analysis we support, we can mention:
 - Precise clock residual analysis
 - Position, Velocity Time (P.V.T) solutions solving (on `navigation` feature)
 * CGGTTS solutions solving (on `navigation` + `cggtts` feature)
+
+Refer to the following examples and the `QcAnalysisBuilder` for more information.
 
 Licensing
 =========

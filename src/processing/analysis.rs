@@ -1,24 +1,50 @@
 /// All supported [QcAnalysis]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum QcAnalysis {
+    /// [QcAnalysis::Summary] will generate a summary table
+    /// (as an introduction) for all RINEX products.
+    /// This gives high level information such as timescale being used
+    /// and information about the data production setup.
     Summary,
-    RTKSummary,
-    ClockResiduals,
+
+    /// [QcAnalysis::SignalObservations] will generate a cartesian 2D
+    /// projection of each observation per data source, per individual Constellation.
     SignalObservations,
+
+    /// [QcAnalysis::MeteoObservations] will generate a cartesian 2D projection
+    /// of meteo sensors, in case such data was provided.
     MeteoObservations,
 
+    /// [QcAnalaysis::RTKSummary] is meaningful as long as you
+    /// loaded two different RINEX sources. The ROVER/Base definitions
+    /// do not have to be complete, because this library considers
+    /// data-sources as Base by default. [QcAnalysis::RTKSummary]
+    /// gives you a better understanding and projection of the RTK regional area.
+    RTKSummary,
+
     ClockSummary,
+
     SignalCombinations,
     MultiPathBias,
 
+    /// [QcAnalysis::ClockResiduals] will evaluate and render (as cartesian
+    /// 2D projections) the residual error between the clock states resolved
+    /// from Broadcast radio message, and post-processed products (in case
+    /// such have been loaded).
+    ClockResiduals,
+
+    /// [QcAnalysis::SP3Summary] will generate a summary table
+    /// for each SP3 product, giving high level information like
+    /// data producer, reference frame and coordinates system, or timescale
+    /// being used.
     #[cfg(feature = "sp3")]
     SP3Summary,
 
-    /// Broadcast versus Precise residual analysis.
-    /// Wraps and summarizes each precise products
-    /// and compares them to "real-time" navigation message gathered
-    /// from Broadcast data.
     #[cfg(feature = "sp3")]
+    /// [QcAnalysis::OrbitResiduals] will evaluate and render (as cartesian
+    /// 2D/3D projections) the residual error between the orbital states resolved
+    /// from Broadcast radio message, and post-processed products (in case
+    /// such have been loaded).
     OrbitResiduals,
 
     /// [QcAnalysis::NaviPlot] regroups projections and visualizations
@@ -30,12 +56,23 @@ pub enum QcAnalysis {
     NaviPlot,
 
     #[cfg(feature = "sp3")]
+    /// [QcAnalysis::SP3TemporalResiduals] will evaluate and render (as cartesian
+    /// 2D projections) the residual error between the clock states resolved
+    /// from Broadcast radio message, and the post-processed clock state obtained
+    /// from SP3 (in case such have been loaded).
     SP3TemporalResiduals,
 
     #[cfg(feature = "navigation")]
+    /// [QcAnalysis::PVT] will attach [PvtSolutions] to this report being synthesized.
+    /// [PvtSolutions] regroups several projections and a lot of information,
+    /// about the receiver, receiving conditions and local environment.
     PVT(PvtSolutions),
 
     #[cfg(all(feature = "navigation", feature = "cggtts"))]
+    /// [QcAnalysis::CGGTTS] will run the special CGGTTS post-fit over the
+    /// [PvtSolutions]. This is dedicated to the local clock state,
+    /// then resolved with higher precision, and typically used in remote
+    /// (post-processed) clock synchronization.
     CGGTTS(PvtSolutions),
 }
 
@@ -116,14 +153,20 @@ impl QcAnalysisBuilder {
         self.analysis.clone()
     }
 
-    /// The summary report will report input products that were encountered.
-    pub fn summary_report(&self) -> Self {
+    /// Generate a summary table
+    /// (as an introduction) for all RINEX products.
+    /// This gives high level information such as timescale being used
+    /// and information about the data production setup.
+    pub fn rinex_summary(&self) -> Self {
         let mut s = self.clone();
         s.analysis.push(QcAnalysis::Summary);
         s
     }
 
-    /// Activate summary reports of all supported types
+    /// Generate a summary table
+    /// (as an introduction) for all RINEX and SP3 products.
+    /// This gives high level information such as timescale being used
+    /// and information about the data production setup.
     pub fn summaries(&self) -> Self {
         let mut s = self.clone();
         s.analysis.push(QcAnalysis::ClockSummary);
@@ -147,20 +190,30 @@ impl QcAnalysisBuilder {
         s
     }
 
+    /// Generate a cartesian 2D projection
+    /// of meteo sensor measurements, in case such data was provided.
     pub fn meteo_observations(&self) -> Self {
         let mut s = self.clone();
         s.analysis.push(QcAnalysis::MeteoObservations);
         s
     }
 
+    /// Evaluate and render (as cartesian
+    /// 2D projections) the residual error between the clock states resolved
+    /// from Broadcast radio message, and post-processed products (in case
+    /// such have been loaded).
     pub fn clock_residuals(&self) -> Self {
         let mut s = self.clone();
         s.analysis.push(QcAnalysis::ClockResiduals);
         s
     }
 
-    /// Request to stack [QcAnalysis::NaviPlot] to the report to be redacted.
     #[cfg(feature = "navigation")]
+    /// Regroups projections and visualizations
+    /// dedicated to in-depth analysis of the navigation conditions.
+    /// This is the combination of the signal sampling conditions,
+    /// skyview, navigation message, possible precise products
+    /// and correction messages.
     pub fn navi_plot(&self) -> Self {
         let mut s = self.clone();
         s.analysis.push(QcAnalysis::NaviPlot);
@@ -169,6 +222,10 @@ impl QcAnalysisBuilder {
 
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
+    /// Generate a summary table
+    /// for each SP3 product, giving high level information like
+    /// data producer, reference frame and coordinates system, or timescale
+    /// being used.
     pub fn sp3_summary(&self) -> Self {
         let mut s = self.clone();
         s.analysis.push(QcAnalysis::SP3Summary);
@@ -177,6 +234,10 @@ impl QcAnalysisBuilder {
 
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
+    /// Evaluate and render (as cartesian
+    /// 2D/3D projections) the residual error between the orbital states resolved
+    /// from Broadcast radio message, and post-processed products (in case
+    /// such have been loaded).
     pub fn orbit_residuals(&self) -> Self {
         let mut s = self.clone();
         s.analysis.push(QcAnalysis::OrbitResiduals);
@@ -185,6 +246,10 @@ impl QcAnalysisBuilder {
 
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
+    /// Evaluate and render (as cartesian
+    /// 2D projections) the residual error between the clock states resolved
+    /// from Broadcast radio message, and the post-processed clock state obtained
+    /// from SP3 (in case such have been loaded).
     pub fn sp3_temporal_residuals(&self) -> Self {
         let mut s = self.clone();
         s.analysis.push(QcAnalysis::SP3TemporalResiduals);
@@ -193,6 +258,9 @@ impl QcAnalysisBuilder {
 
     #[cfg(feature = "navigation")]
     #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+    /// Attach [PvtSolutions] to this report being synthesized.
+    /// [PvtSolutions] regroups several projections and a lot of information,
+    /// about the receiver, receiving conditions and local environment.
     pub fn nav_pvt_solutions(&self) -> Self {
         let mut s = self.clone();
         s.analysis
@@ -202,6 +270,10 @@ impl QcAnalysisBuilder {
 
     #[cfg(all(feature = "navigation", feature = "cggtts"))]
     #[cfg_attr(docsrs, doc(cfg(all(feature = "navigation", feature = "cggtts"))))]
+    /// Run the special CGGTTS post-fit over the
+    /// [PvtSolutions] and attach these solutions to the report being synthesized.
+    /// This is dedicated to the local clock state,
+    /// then resolved with higher precision, and typically used in remote
     pub fn nav_cggtts_solutions(&self) -> Self {
         let mut s = self.clone();
         s.analysis
