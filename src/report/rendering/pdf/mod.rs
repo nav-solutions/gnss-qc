@@ -62,15 +62,44 @@ impl QcRunReport {
         doc.push(QcPdfSubtitle::new());
 
         // table of content
-        // doc.push(genpdf::elements::PageBreak::new());
         doc.push(QcPdfTableOfContent::new(&self));
 
+        // report content
+        if let Some(summary) = &self.summary {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(summary.render_pdf());
+        }
+
+        // RTK summary
+        if let Some(summary) = &self.rtk_summary {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(summary.render_pdf());
+        }
+
+        // Observations
+        if let Some(observations) = &self.observations {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(observations.render_pdf());
+        }
+
+        // NAVI plot
+        if let Some(navi_plot) = &self.navi_report {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(navi_plot.render_pdf());
+        }
+
+        // SP3 Proj
+        if let Some(sp3_proj) = &self.sp3_orbits_proj {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(sp3_proj.render_pdf());
+        }
+
         // documentation
-        // doc.push(genpdf::elements::PageBreak::new());
+        doc.push(genpdf::elements::PageBreak::new());
         doc.push(QcPdfDocumentation::new());
 
         // credits
-        // doc.push(genpdf::elements::PageBreak::new());
+        doc.push(genpdf::elements::PageBreak::new());
         doc.push(QcPdfCredits::new());
 
         doc
