@@ -7,6 +7,8 @@ use crate::prelude::QcConfig;
 mod preprocessing;
 mod rinex;
 
+pub mod sampling;
+
 #[cfg(feature = "flate2")]
 #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
 mod flate2;
