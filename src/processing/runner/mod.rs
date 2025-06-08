@@ -95,14 +95,19 @@ impl<'a> QcRunner<'a> {
         for analysis in analysis.iter() {
             if matches!(
                 analysis,
-                QcAnalysis::SignalCombinations
-                    | QcAnalysis::SignalObservations
-                    | QcAnalysis::MultiPathBias
+                QcAnalysis::DopplerObservations
+                    | QcAnalysis::PhaseObservations
+                    | QcAnalysis::PseudoRangeObservations
+                    | QcAnalysis::SignalPowerObservations
+                    | QcAnalysis::MelbourneWubbenaCombination
+                    | QcAnalysis::GeometryFreeCombination
+                    | QcAnalysis::IonosphereFreeCombination
+                    | QcAnalysis::MultiPath
             ) {
                 stores_signals = true;
             }
 
-            if matches!(analysis, QcAnalysis::Summary) {
+            if matches!(analysis, QcAnalysis::RINEXSummary) {
                 summary = true;
             }
 
@@ -217,7 +222,7 @@ impl<'a> QcRunner<'a> {
             #[cfg(feature = "sp3")]
             QcSerializedItem::SP3Header(header) => {
                 // latch new potential contribution
-                if self.analysis.contains(&QcAnalysis::Summary) {
+                if self.analysis.contains(&QcAnalysis::SP3Summary) {
                     let descriptor = QcSourceDescriptor {
                         indexing: header.indexing,
                         filename: header.filename,

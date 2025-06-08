@@ -67,12 +67,11 @@ is delivered under the [Mozilla V2 Public](https://www.mozilla.org/en-US/MPL/2.0
 Logs
 ====
 
-This framework uses `$RUST_LOG` for debug traces. Turn them on to debug, in particular:
+This framework uses `rust-log` for debug traces. It is controlled by the `$RUSTLOG` environment variable.
+Turn them on to debug in particular:
 
-* the data indexing. Especially when using manual indexing (custom preferences),
-you can make sure the framework picked up your preference correctly.
-* when performing complex tasks, like P.V.T solutions solving, it is recommended to monitor the process
-using the debug traces.
+* Data indexing: especially when using manual indexing (custom preferences)
+* Monitor ongoing complex process like P.V.T solutions solving.
 
 Core fundations
 ===============
