@@ -1,3 +1,5 @@
+use core::num;
+
 use crate::{
     context::{QcContext, QcSourceDescriptor},
     prelude::{Duration, Epoch},
@@ -41,13 +43,10 @@ pub struct QcSerializer<'a> {
     /// Current [Epoch]
     epoch: Option<Epoch>,
 
-    /// Last [Epoch] to be streamed
-    last_epoch: Option<Epoch>,
-
     descriptor_ptr: usize,
     num_rinex_descriptors: usize,
+    num_eph_sources: usize,
     num_sp3_descriptors: usize,
-    first_temporal_iter: bool,
 
     /// Total descriptors to be serialized
     rinex_descriptors: Vec<&'a QcSourceDescriptor>,
@@ -63,6 +62,9 @@ pub struct QcSerializer<'a> {
 
     /// All [QcPreciseStateIterator] sources
     #[cfg(feature = "sp3")]
+    num_precise_sources: usize,
+
+    #[cfg(feature = "sp3")]
     precise_state_sources: Vec<QcPreciseStateIterator<'a>>,
 }
 
@@ -74,14 +76,19 @@ impl QcContext {
         let mut signal_sources = Vec::new();
 
         // Ephemeris sources
+        let mut num_eph_sources = 0;
         let mut ephemeris_sources = Vec::new();
 
         // Precise sources
+        #[cfg(feature = "sp3")]
+        let mut num_precise_sources = 0;
+
         #[cfg(feature = "sp3")]
         let mut precise_state_sources = Vec::new();
 
         for (desc, _) in self.data.iter() {
             if let Some(serializer) = self.ephemeris_serializer(&desc.indexing) {
+                num_eph_sources += 1;
                 ephemeris_sources.push(serializer);
                 continue;
             } else if let Some(serializer) = self.signal_serializer(&desc.indexing) {
@@ -91,13 +98,13 @@ impl QcContext {
 
             #[cfg(feature = "sp3")]
             if let Some(serializer) = self.precise_states_serializer(&desc.indexing) {
+                num_precise_sources += 1;
                 precise_state_sources.push(serializer);
             }
         }
 
         let total_duration = self.total_duration();
         let epoch = self.first_epoch();
-        let last_epoch = self.last_epoch();
 
         let rinex_descriptors = self
             .data
@@ -122,11 +129,10 @@ impl QcContext {
             signal_sources,
             total_duration,
             epoch,
-            last_epoch,
             rinex_descriptors,
+            num_eph_sources,
             ephemeris_sources,
             descriptor_ptr: 0,
-            first_temporal_iter: true,
 
             num_rinex_descriptors,
             state: Default::default(),
@@ -136,6 +142,9 @@ impl QcContext {
 
             #[cfg(feature = "sp3")]
             sp3_descriptors,
+
+            #[cfg(feature = "sp3")]
+            num_precise_sources,
 
             #[cfg(feature = "sp3")]
             precise_state_sources,
@@ -180,15 +189,22 @@ impl<'a> Iterator for QcSerializer<'a> {
                     if let Some(item) = self.next_ephemeris() {
                         return Some(item);
                     } else {
-                        self.state = State::Temporal(TemporalState::PreciseOrbits);
+                        if self.descriptor_ptr == self.num_eph_sources {
+                            // consumed all sources
+                            self.descriptor_ptr = 0;
+                            self.state = State::Temporal(TemporalState::PreciseOrbits);
+                        }
                     }
                 }
                 State::Temporal(TemporalState::PreciseOrbits) => {
                     if let Some(item) = self.next_precise_state() {
                         return Some(item);
                     } else {
-                        self.descriptor_ptr = 0;
-                        self.state = State::Temporal(TemporalState::Observations);
+                        if self.descriptor_ptr == self.num_precise_sources {
+                            // consumed all sources
+                            self.descriptor_ptr = 0;
+                            self.state = State::Temporal(TemporalState::Observations);
+                        }
                     }
                 }
                 State::Temporal(TemporalState::Observations) => {
@@ -283,7 +299,7 @@ impl<'a> QcSerializer<'a> {
 
         // serialize
         let serialized = QcSerializedSP3Header {
-            data: data.header.clone(),
+            data: &data.header,
             indexing: &descriptor.indexing,
             product_type: descriptor.product_type,
             filename: &descriptor.filename,
@@ -301,11 +317,11 @@ impl<'a> QcSerializer<'a> {
     }
 
     pub fn next_ephemeris(&mut self) -> Option<QcSerializedItem<'a>> {
-        if self.num_rinex_descriptors == 0 {
+        if self.num_eph_sources == 0 {
             return None;
         }
 
-        if self.descriptor_ptr == self.num_rinex_descriptors {
+        if self.descriptor_ptr == self.num_eph_sources {
             return None;
         }
 
@@ -323,11 +339,11 @@ impl<'a> QcSerializer<'a> {
     }
 
     pub fn next_precise_state(&mut self) -> Option<QcSerializedItem<'a>> {
-        if self.num_sp3_descriptors == 0 {
+        if self.num_precise_sources == 0 {
             return None;
         }
 
-        if self.descriptor_ptr == self.num_sp3_descriptors {
+        if self.descriptor_ptr == self.num_precise_sources {
             return None;
         }
 
@@ -427,15 +443,107 @@ mod test {
         ctx.load_gzip_rinex_file("data/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
             .unwrap();
 
+        assert_eq!(ctx.total_rinex_files(), 2);
+        assert_eq!(ctx.total_sp3_files(), 0);
+
         let mut serializer = ctx.serializer();
 
-        let mut points = 0;
+        let mut header_1_found = false;
+        let mut header_2_found = false;
 
-        while let Some(_) = serializer.next() {
-            points += 1;
+        let mut points_1 = 0;
+        let mut points_2 = 0;
+
+        while let Some(item) = serializer.next() {
+            match item {
+                QcSerializedItem::RINEXHeader(header) => {
+                    if header.filename.contains("MOJN00DNK_R_20201770000_01D_MN") {
+                        header_1_found = true;
+                    } else if header.filename.contains("ESBC00DNK_R_20201770000_01D_MN") {
+                        header_2_found = true;
+                    } else {
+                        panic!("received unexpected header content");
+                    }
+                }
+                QcSerializedItem::Ephemeris(data) => {
+                    if data.filename.contains("MOJN00DNK_R_20201770000_01D_MN") {
+                        points_1 += 1;
+                    } else if data.filename.contains("ESBC00DNK_R_20201770000_01D_MN") {
+                        points_2 += 1;
+                    } else {
+                        panic!("received unexpected content");
+                    }
+                }
+                _ => panic!("received unexpected symbol!"),
+            }
         }
 
-        assert!(points > 0, "did not propose any ephemeris data points!");
+        assert!(header_1_found, "did not proposed header #1");
+        assert!(header_2_found, "did not proposed header #2");
+
+        assert!(points_1 > 0, "did not propose any data points for file #1!");
+        assert!(points_2 > 0, "did not propose any data points for file #2!");
+    }
+
+    #[test]
+    #[cfg(feature = "sp3")]
+    fn dual_sp3_context_serializer() {
+        init_logger();
+
+        let mut ctx = QcContext::new();
+
+        ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201760000_01D_15M_ORB.SP3.gz")
+            .unwrap();
+
+        ctx.load_gzip_sp3_file("data/SP3/D/COD0MGXFIN_20230500000_01D_05M_ORB.SP3.gz")
+            .unwrap();
+
+        assert_eq!(ctx.total_rinex_files(), 0);
+        assert_eq!(ctx.total_sp3_files(), 2);
+
+        let mut serializer = ctx.serializer();
+
+        let mut header_1_found = false;
+        let mut header_2_found = false;
+
+        let mut points_1 = 0;
+        let mut points_2 = 0;
+
+        while let Some(item) = serializer.next() {
+            match item {
+                QcSerializedItem::SP3Header(header) => {
+                    if header
+                        .filename
+                        .contains("COD0MGXFIN_20230500000_01D_05M_ORB")
+                    {
+                        header_1_found = true;
+                    } else if header
+                        .filename
+                        .contains("GRG0MGXFIN_20201760000_01D_15M_ORB")
+                    {
+                        header_2_found = true;
+                    } else {
+                        panic!("received unexpected header content");
+                    }
+                }
+                QcSerializedItem::PreciseState(data) => {
+                    if data.filename.contains("COD0MGXFIN_20230500000_01D_05M_ORB") {
+                        points_1 += 1;
+                    } else if data.filename.contains("GRG0MGXFIN_20201760000_01D_15M_ORB") {
+                        points_2 += 1;
+                    } else {
+                        panic!("received unexpected content");
+                    }
+                }
+                _ => panic!("received unexpected symbol!"),
+            }
+        }
+
+        assert!(header_1_found, "did not proposed header #1");
+        assert!(header_2_found, "did not proposed header #2");
+
+        assert!(points_1 > 0, "did not propose any data points for file #1!");
+        assert!(points_2 > 0, "did not propose any data points for file #2!");
     }
 
     #[test]

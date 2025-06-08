@@ -19,6 +19,7 @@ mod sp3_data;
 #[cfg(feature = "sp3")]
 pub use sp3_data::QcPreciseState;
 
+#[derive(Debug)]
 pub struct QcSerializedData<'a, T> {
     /// origin filename
     pub filename: &'a str,
@@ -40,7 +41,7 @@ pub type QcSerializedSignal<'a> = QcSerializedData<'a, QcSignalData>;
 pub type QcSerializedRINEXHeader<'a> = QcSerializedData<'a, &'a RINEXHeader>;
 
 #[cfg(feature = "sp3")]
-pub type QcSerializedSP3Header<'a> = QcSerializedData<'a, SP3Header>;
+pub type QcSerializedSP3Header<'a> = QcSerializedData<'a, &'a SP3Header>;
 
 #[cfg(feature = "sp3")]
 pub type QcSerializedPreciseState<'a> = QcSerializedData<'a, QcPreciseState>;
