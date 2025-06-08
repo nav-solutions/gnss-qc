@@ -1,5 +1,3 @@
-use core::num;
-
 use crate::{
     context::{QcContext, QcSourceDescriptor},
     prelude::{Duration, Epoch},
@@ -538,7 +536,6 @@ mod test {
                 _ => panic!("received unexpected symbol!"),
             }
         }
-
         assert!(header_1_found, "did not proposed header #1");
         assert!(header_2_found, "did not proposed header #2");
 

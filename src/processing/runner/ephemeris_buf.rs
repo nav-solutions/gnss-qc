@@ -1,10 +1,10 @@
 use crate::{prelude::Epoch, serializer::data::QcSerializedEphemeris};
 
-pub struct EphemerisBuffer {
-    inner: Vec<QcSerializedEphemeris>,
+pub struct EphemerisBuffer<'a> {
+    inner: Vec<QcSerializedEphemeris<'a>>,
 }
 
-impl EphemerisBuffer {
+impl<'a> EphemerisBuffer<'a> {
     pub fn new() -> Self {
         Self {
             inner: Vec::with_capacity(16),
@@ -16,7 +16,7 @@ impl EphemerisBuffer {
             .retain(|item| item.data.ephemeris.is_valid(item.data.sv, latest));
     }
 
-    pub fn latch(&mut self, item: &QcSerializedEphemeris) {
-        self.inner.push(item.clone());
+    pub fn latch(&mut self, item: QcSerializedEphemeris<'a>) {
+        self.inner.push(item);
     }
 }

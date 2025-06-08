@@ -27,8 +27,8 @@ pub(crate) mod serializer;
 
 mod config;
 mod context;
-// mod processing;
-// mod report;
+mod processing;
+mod report;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]

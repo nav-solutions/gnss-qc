@@ -9,6 +9,11 @@ use crate::{
     serializer::data::{QcSerializedItem, QcSerializedPreciseState},
 };
 
+mod signals_buf;
+mod temporal_data;
+
+use signals_buf::SignalsBuffer;
+
 #[cfg(feature = "navigation")]
 use crate::prelude::Frame;
 
@@ -54,7 +59,10 @@ pub struct QcRunner<'a> {
 
     /// [EphemerisBuffer]
     #[cfg(feature = "navigation")]
-    ephemeris_buf: EphemerisBuffer,
+    ephemeris_buf: EphemerisBuffer<'a>,
+
+    /// [SignalsBuffer]
+    signals_buf: SignalsBuffer,
 
     #[cfg(feature = "sp3")]
     sp3_summary: bool,
@@ -67,7 +75,7 @@ pub struct QcRunner<'a> {
 
     /// [PreciseStateBuffer]
     #[cfg(feature = "sp3")]
-    precise_states_buf: PreciseStateBuffer,
+    precise_states_buf: PreciseStateBuffer<'a>,
 
     #[cfg(all(feature = "navigation", feature = "sp3"))]
     orbit_residuals: bool,
@@ -170,6 +178,8 @@ impl<'a> QcRunner<'a> {
             power_observations,
             pseudo_range_observations,
 
+            signals_buf: SignalsBuffer::new(),
+
             #[cfg(feature = "navigation")]
             frame,
 
@@ -210,7 +220,7 @@ impl<'a> QcRunner<'a> {
             QcSerializedItem::Ephemeris(item) => {
                 #[cfg(feature = "navigation")]
                 if self.stores_ephemeris {
-                    self.ephemeris_buf.latch(&item);
+                    self.ephemeris_buf.latch(item);
                 }
 
                 #[cfg(feature = "navigation")]
@@ -228,10 +238,10 @@ impl<'a> QcRunner<'a> {
             QcSerializedItem::RINEXHeader(item) => {
                 if self.rtk_summary && item.product_type == QcProductType::Observation {
                     if let Some(summary) = &mut self.report.rtk_summary {
-                        summary.latch_base_header(item.clone());
+                        summary.latch_base_header(item);
                     } else {
                         let mut summary = QcRTKSummary::new(self.frame);
-                        summary.latch_base_header(item.clone());
+                        summary.latch_base_header(item);
                         self.report.rtk_summary = Some(summary);
                     }
                 }

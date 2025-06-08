@@ -35,7 +35,7 @@ impl QcContext {
 
         let mut runner = QcRunner::new(&analysis, &mut report, self.earth_cef)?;
 
-        // pull & consume data
+        // consume all data
         while let Some(sample) = serializer.next() {
             runner.consume(sample);
         }
@@ -51,7 +51,6 @@ impl QcContext {
 
         info!("process concluded: {}", end_time);
         debug!("run duration: {}", run_duration);
-
         Ok(report)
     }
 }
