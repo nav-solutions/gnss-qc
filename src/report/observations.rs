@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use crate::{
     context::QcIndexing,
     prelude::{Constellation, Epoch, SV},
-    report::temporal_data::TemporalData,
     serializer::data::{QcSerializedSignal, QcSignalObservation},
 };
 
@@ -34,19 +33,18 @@ impl DataStorage {
 
     /// Latch a new data point
     pub fn latch_data_point(&mut self, sv: SV, carrier: Carrier, epoch: Epoch, point: f64) {
-
         self.time_of_last_obs = epoch;
 
         if let Some(storage) = self.storage.get_mut(&(sv, carrier)) {
             storage.push(epoch, point);
         } else {
-            self.storage.insert((sv, carrier), TemporalData::new(epoch, point));
+            self.storage
+                .insert((sv, carrier), TemporalData::new(epoch, point));
         }
     }
 }
 
 pub(crate) struct QcObservationsReport {
-
     /// True when phase observations should be stored
     pub stores_phase: bool,
 
@@ -74,7 +72,12 @@ pub(crate) struct QcObservationsReport {
 
 impl QcObservationsReport {
     /// Initializes a new [QcObservationsReport]
-    pub fn new(stores_phase: bool, stores_dopplers: bool, stores_pseudo_range: bool, stores_power: bool) -> Self {
+    pub fn new(
+        stores_phase: bool,
+        stores_dopplers: bool,
+        stores_pseudo_range: bool,
+        stores_power: bool,
+    ) -> Self {
         Self {
             stores_dopplers,
             stores_phase,
@@ -98,43 +101,83 @@ impl QcObservationsReport {
             QcSignalObservation::Doppler(value) => {
                 if self.stores_dopplers {
                     if let Some(inner) = self.doppler_shifts_hz_s.get_mut(&key) {
-                        inner.latch_data_point(signal.data.sv, signal.data.carrier, signal.data.epoch, value);
+                        inner.latch_data_point(
+                            signal.data.sv,
+                            signal.data.carrier,
+                            signal.data.epoch,
+                            value,
+                        );
                     } else {
-                        let storage = DataStorage::new(signal.data.sv, signal.data.carrier, signal.data.epoch, value);
+                        let storage = DataStorage::new(
+                            signal.data.sv,
+                            signal.data.carrier,
+                            signal.data.epoch,
+                            value,
+                        );
                         self.doppler_shifts_hz_s.insert(key, storage);
                     }
                 }
-            },
+            }
             QcSignalObservation::PhaseRange(value) => {
                 if self.stores_phase {
                     if let Some(inner) = self.phase_range_m.get_mut(&key) {
-                        inner.latch_data_point(signal.data.sv, signal.data.carrier, signal.data.epoch, value);
+                        inner.latch_data_point(
+                            signal.data.sv,
+                            signal.data.carrier,
+                            signal.data.epoch,
+                            value,
+                        );
                     } else {
-                        let storage = DataStorage::new(signal.data.sv, signal.data.carrier, signal.data.epoch, value);
+                        let storage = DataStorage::new(
+                            signal.data.sv,
+                            signal.data.carrier,
+                            signal.data.epoch,
+                            value,
+                        );
                         self.phase_range_m.insert(key, storage);
                     }
                 }
-            },
+            }
             QcSignalObservation::PseudoRange(value) => {
                 if self.stores_pseudo_range {
                     if let Some(inner) = self.pseudo_range_m.get_mut(&key) {
-                        inner.latch_data_point(signal.data.sv, signal.data.carrier, signal.data.epoch, value);
+                        inner.latch_data_point(
+                            signal.data.sv,
+                            signal.data.carrier,
+                            signal.data.epoch,
+                            value,
+                        );
                     } else {
-                        let storage = DataStorage::new(signal.data.sv, signal.data.carrier, signal.data.epoch, value);
+                        let storage = DataStorage::new(
+                            signal.data.sv,
+                            signal.data.carrier,
+                            signal.data.epoch,
+                            value,
+                        );
                         self.pseudo_range_m.insert(key, storage);
                     }
                 }
-            },
+            }
             QcSignalObservation::SSI(value) => {
                 if self.stores_power {
                     if let Some(inner) = self.power_ssi_dbc.get_mut(&key) {
-                        inner.latch_data_point(signal.data.sv, signal.data.carrier, signal.data.epoch, value);
+                        inner.latch_data_point(
+                            signal.data.sv,
+                            signal.data.carrier,
+                            signal.data.epoch,
+                            value,
+                        );
                     } else {
-                        let storage = DataStorage::new(signal.data.sv, signal.data.carrier, signal.data.epoch, value);
+                        let storage = DataStorage::new(
+                            signal.data.sv,
+                            signal.data.carrier,
+                            signal.data.epoch,
+                            value,
+                        );
                         self.power_ssi_dbc.insert(key, storage);
                     }
                 }
-            },
+            }
         }
     }
 }

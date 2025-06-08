@@ -45,7 +45,7 @@ pub struct QcRunner<'a> {
     doppler_observations: bool,
     power_observations: bool,
     pseudo_range_observations: bool,
-    
+
     rtk_summary: bool,
 
     #[cfg(feature = "navigation")]

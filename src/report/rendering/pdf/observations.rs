@@ -66,10 +66,12 @@ impl QcObservationsReport {
                             // x, y axis
                             let (mut x_spec, mut y_spec) =
                                 (f64::INFINITY..-f64::INFINITY, f64::INFINITY..-f64::INFINITY);
-                            
+
                             panic!("x_spec={:?}, y_spec={:?}", x_spec, y_spec);
 
-                            for (nth_data, ((sv, carrier), temporal_data)) in data.storage.iter().enumerate() {
+                            for (nth_data, ((sv, carrier), temporal_data)) in
+                                data.storage.iter().enumerate()
+                            {
                                 let (xmin, xmax) = (temporal_data.xmin(), temporal_data.xmax());
                                 let (ymin, ymax) = (temporal_data.ymin(), temporal_data.ymax());
 
@@ -113,22 +115,16 @@ impl QcObservationsReport {
 
                             chart.configure_mesh().draw().unwrap();
 
-                            for (nth_sv, sv) in data
-                                .storage
-                                .keys()
-                                .map(|(sv, _)| sv)
-                                .unique()
-                                .enumerate()
+                            for (nth_sv, sv) in
+                                data.storage.keys().map(|(sv, _)| sv).unique().enumerate()
                             {
-                                for carrier in
-                                    data.storage.keys().filter_map(|(sv_i, carrier)| {
-                                        if sv_i == sv {
-                                            Some(carrier)
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                {
+                                for carrier in data.storage.keys().filter_map(|(sv_i, carrier)| {
+                                    if sv_i == sv {
+                                        Some(carrier)
+                                    } else {
+                                        None
+                                    }
+                                }) {
                                     let sv_color = nth_sv as f64 / cmap_len;
                                     let sv_color = cmap.get_color(sv_color);
 

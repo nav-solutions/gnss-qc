@@ -36,14 +36,14 @@ impl QcRTKSummary {
     }
 
     /// Initializes a [QcRTKSummary] from ROVER [QcSerializedRINEXHeader].
-    pub fn from_rover_header(item: QcSerializedRINEXHeader, frame: Frame) -> Self {
+    pub fn from_rover_header(item: &QcSerializedRINEXHeader, frame: Frame) -> Self {
         Self {
             frame,
             rovers: {
                 let mut map = HashMap::new();
 
                 if let Some(position) = item.data.rx_position {
-                    if let Some(obs) = item.data.obs {
+                    if let Some(obs) = &item.data.obs {
                         if let Some(time_of_first_obs) = obs.timeof_first_obs {
                             let position =
                                 QcReferencePosition::new(position, time_of_first_obs, frame);
@@ -66,14 +66,14 @@ impl QcRTKSummary {
     }
 
     /// Initializes a [QcRTKSummary] from BASE [QcSerializedRINEXHeader].
-    pub fn from_base_header(item: QcSerializedRINEXHeader, frame: Frame) -> Self {
+    pub fn from_base_header(item: &QcSerializedRINEXHeader, frame: Frame) -> Self {
         Self {
             frame,
             bases: {
                 let mut map = HashMap::new();
 
                 if let Some(position) = item.data.rx_position {
-                    if let Some(obs) = item.data.obs {
+                    if let Some(obs) = &item.data.obs {
                         if let Some(time_of_first_obs) = obs.timeof_first_obs {
                             let position =
                                 QcReferencePosition::new(position, time_of_first_obs, frame);
@@ -95,9 +95,9 @@ impl QcRTKSummary {
     }
 
     /// Latch a new ROVER [QcSerializedRINEXHeader].
-    pub fn latch_rover_header(&mut self, item: QcSerializedRINEXHeader) {
+    pub fn latch_rover_header(&mut self, item: &QcSerializedRINEXHeader) {
         if let Some(position) = item.data.rx_position {
-            if let Some(obs) = item.data.obs {
+            if let Some(obs) = &item.data.obs {
                 if let Some(time_of_first_obs) = obs.timeof_first_obs {
                     let position =
                         QcReferencePosition::new(position, time_of_first_obs, self.frame);
@@ -108,9 +108,14 @@ impl QcRTKSummary {
                     // add new baseline combinations
                     for (base_name, base_pos) in self.bases.iter() {
                         if let Some(base_position) = base_pos {
-                            let dist = 0.0;
+                            let dist_km =
+                                position.distance_km(&base_position).unwrap_or_else(|e| {
+                                    error!("distance calculation error: {}", e);
+                                    Default::default()
+                                });
+
                             self.baseline_distances_km
-                                .insert((base_name.clone(), item.indexing.to_string()), dist);
+                                .insert((base_name.clone(), item.indexing.to_string()), dist_km);
                         }
                     }
                 }
@@ -121,11 +126,11 @@ impl QcRTKSummary {
     }
 
     /// Latch a new BASE [QcSerializedRINEXHeader].
-    pub fn latch_base_header(&mut self, item: QcSerializedRINEXHeader) {
+    pub fn latch_base_header(&mut self, item: &QcSerializedRINEXHeader) {
         let base_name = item.indexing.to_string();
 
         if let Some(position) = item.data.rx_position {
-            if let Some(obs) = item.data.obs {
+            if let Some(obs) = &item.data.obs {
                 if let Some(time_of_first_obs) = obs.timeof_first_obs {
                     let position =
                         QcReferencePosition::new(position, time_of_first_obs, self.frame);
