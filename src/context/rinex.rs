@@ -119,7 +119,7 @@ impl QcContext {
         }))
     }
 
-    /// Returns total number of SP3 [QcProductType]s that were loaded
+    /// Returns total number of RINEX files that were loaded.
     pub fn total_rinex_files(&self) -> usize {
         self.rinex_filenames_iter().count()
     }

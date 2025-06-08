@@ -1,3 +1,4 @@
+//! Navigation specific objects
 mod nav_filter;
 pub use nav_filter::*;
 

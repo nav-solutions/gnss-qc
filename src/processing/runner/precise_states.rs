@@ -1,4 +1,4 @@
-use crate::{report::QcRunReport, serializer::data::QcSerializedPreciseState};
+use crate::serializer::data::QcSerializedPreciseState;
 
 pub struct PreciseStateBuffer {
     inner: Vec<QcSerializedPreciseState>,

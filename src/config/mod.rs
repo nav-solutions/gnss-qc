@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[cfg(feature = "html")]
 use maud::{html, Markup, Render};
 
 mod indexing;
@@ -74,6 +75,7 @@ impl QcConfig {
     }
 }
 
+#[cfg(feature = "html")]
 impl Render for QcConfig {
     fn render(&self) -> Markup {
         html! {

@@ -21,20 +21,18 @@ extern crate log;
 extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 
+pub mod error;
+
+pub(crate) mod serializer;
+
 mod config;
 mod context;
-// mod pipeline;
-// mod plot;
-// mod html;
-mod processing;
-mod report;
-mod serializer;
+// mod processing;
+// mod report;
 
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
 mod navigation;
-
-pub mod error;
 
 #[cfg(test)]
 mod tests;
@@ -44,7 +42,7 @@ pub mod prelude {
         config::{QcConfig, QcPreferedIndexing},
         context::{QcContext, QcIndexing, QcProductType},
         error::QcError,
-        processing::analysis::QcAnalysisBuilder,
+        // processing::analysis::QcAnalysisBuilder,
     };
 
     // GNSS re-export
@@ -63,9 +61,6 @@ pub mod prelude {
 
     pub use std::path::Path;
 
-    #[cfg(feature = "html")]
-    pub use maud::Markup;
-
     #[cfg(feature = "sp3")]
     pub use sp3::prelude::{Error as SP3Error, SP3};
 
@@ -80,10 +75,4 @@ pub mod prelude {
         constants::frames::{EARTH_ITRF93, EARTH_J2000, IAU_EARTH_FRAME, SUN_J2000},
         prelude::{Almanac, Frame, Orbit},
     };
-
-    // #[cfg(feature = "navigation")]
-    // pub use gnss_rtk::prelude::{Config as NavPreset, Method as NavMethod, User as NavUserProfile};
-
-    // #[cfg(feature = "cggtts")]
-    // pub use crate::context::navigation::NavCggttsSolver;
 }

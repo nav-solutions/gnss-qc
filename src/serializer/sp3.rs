@@ -8,11 +8,11 @@ use super::data::QcSerializedPreciseState;
 /// [QcPreciseStateIterator] used internally to stream data.
 pub struct QcPreciseStateIterator<'a> {
     /// [QcAbstractIterator]
-    pub iter: QcAbstractIterator<'a, QcSerializedPreciseState>,
+    pub iter: QcAbstractIterator<'a, QcSerializedPreciseState<'a>>,
 }
 
 impl<'a> Iterator for QcPreciseStateIterator<'a> {
-    type Item = QcSerializedPreciseState;
+    type Item = QcSerializedPreciseState<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
@@ -24,13 +24,13 @@ impl QcContext {
     /// and desired [QcIndexing] provider.
     pub fn precise_states_serializer<'a>(
         &'a self,
-        indexing: QcIndexing,
+        indexing: &'a QcIndexing,
     ) -> Option<QcPreciseStateIterator<'a>> {
         let (filename, data_set) = self
             .data
             .iter()
             .filter_map(|(k, v)| {
-                if k.product_type == QcProductType::PreciseOrbit && k.indexing == indexing {
+                if k.product_type == QcProductType::PreciseOrbit && k.indexing == *indexing {
                     Some((&k.filename, v.as_sp3().unwrap()))
                 } else {
                     None
@@ -43,8 +43,8 @@ impl QcContext {
                 .satellites_position_km_iter()
                 .filter_map(move |(epoch, sv, position_km)| {
                     Some(QcSerializedPreciseState {
-                        indexing: indexing.clone(),
-                        filename: filename.to_string(),
+                        indexing: indexing,
+                        filename: filename,
                         product_type: QcProductType::BroadcastNavigation,
                         data: QcPreciseState {
                             sv,
@@ -79,7 +79,7 @@ mod test {
 
         let marker = QcIndexing::GeodeticMarker("ABVI".to_string());
         assert!(
-            ctx.ephemeris_serializer(marker).is_none(),
+            ctx.ephemeris_serializer(&marker).is_none(),
             "should not exist!"
         );
 
@@ -89,13 +89,13 @@ mod test {
 
         let marker = QcIndexing::GeodeticMarker("ABVI".to_string());
         assert!(
-            ctx.ephemeris_serializer(marker).is_none(),
+            ctx.ephemeris_serializer(&marker).is_none(),
             "should not exist!"
         );
 
         let marker = QcIndexing::None;
 
-        assert!(ctx.ephemeris_serializer(marker).is_some(), "should exist!");
+        assert!(ctx.ephemeris_serializer(&marker).is_some(), "should exist!");
     }
 
     #[test]
@@ -110,7 +110,7 @@ mod test {
 
         let marker = QcIndexing::None;
 
-        let mut serializer = ctx.ephemeris_serializer(marker).expect("should exist");
+        let mut serializer = ctx.ephemeris_serializer(&marker).expect("should exist");
 
         let g01 = SV::from_str("G01").unwrap();
 

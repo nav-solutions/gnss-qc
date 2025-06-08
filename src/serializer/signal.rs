@@ -12,17 +12,20 @@ use super::data::QcSignalData;
 
 pub struct QcSignalIterator<'a> {
     /// [QcSynchronousIterator]
-    pub iter: QcAbstractIterator<'a, QcSerializedSignal>,
+    pub iter: QcAbstractIterator<'a, QcSerializedSignal<'a>>,
 }
 
 impl QcContext {
     /// Obtain [QcSignalSerializer] scoped to [QcIndexing] data source, from current [QcContext].
-    pub fn signal_serializer<'a>(&'a self, indexing: QcIndexing) -> Option<QcSignalIterator<'a>> {
+    pub fn signal_serializer<'a>(
+        &'a self,
+        indexing: &'a QcIndexing,
+    ) -> Option<QcSignalIterator<'a>> {
         let (filename, data_set) = self
             .data
             .iter()
             .filter_map(|(k, v)| {
-                if k.product_type == QcProductType::Observation && k.indexing == indexing {
+                if k.product_type == QcProductType::Observation && k.indexing == *indexing {
                     Some((&k.filename, v.as_rinex().unwrap()))
                 } else {
                     None
@@ -49,8 +52,8 @@ impl QcContext {
                     let observation = observation?;
 
                     Some(QcSerializedSignal {
-                        indexing: indexing.clone(),
-                        filename: filename.to_string(),
+                        indexing: indexing,
+                        filename: filename,
                         product_type: QcProductType::Observation,
                         data: QcSignalData {
                             epoch: k.epoch,
@@ -78,7 +81,7 @@ impl QcContext {
 }
 
 impl<'a> Iterator for QcSignalIterator<'a> {
-    type Item = QcSerializedSignal;
+    type Item = QcSerializedSignal<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
@@ -108,7 +111,7 @@ mod test {
         let agency = "test".to_string();
         let source = QcIndexing::Agency(agency);
 
-        assert!(ctx.signal_serializer(source).is_none(), "should not exist");
+        assert!(ctx.signal_serializer(&source).is_none(), "should not exist");
     }
 
     #[test]
@@ -123,7 +126,7 @@ mod test {
         let marker = "VLNS-10801M001".to_string();
         let source = QcIndexing::GeodeticMarker(marker);
 
-        let mut serializer = ctx.signal_serializer(source).expect("should exist");
+        let mut serializer = ctx.signal_serializer(&source).expect("should exist");
 
         let g08 = SV::from_str("G08").unwrap();
 

@@ -114,6 +114,9 @@ mod test {
         ctx.load_gzip_rinex_file("data/MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz")
             .unwrap();
 
+        assert_eq!(ctx.total_rinex_files(), 5);
+        assert_eq!(ctx.total_sp3_files(), 0);
+
         let t0_utc = Epoch::from_str("2021-12-31T23:59:42").unwrap();
         let t_n_gpst = Epoch::from_str("2023-09-11T23:55:00").unwrap();
 
@@ -144,6 +147,9 @@ mod test {
 
         ctx.load_gzip_sp3_file("data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
             .unwrap();
+
+        assert_eq!(ctx.total_rinex_files(), 3);
+        assert_eq!(ctx.total_sp3_files(), 1);
 
         let t0_utc = Epoch::from_str("2020-06-24T19:49:42 UTC").unwrap();
         let t_n_gpst = Epoch::from_str("2020-06-26T00:00:00 GPST").unwrap();

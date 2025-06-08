@@ -31,14 +31,17 @@ pub struct QcRunner<'a> {
     /// [QcRunReport] being redacted
     report: &'a mut QcRunReport,
 
-    summary: bool,
-    stores_signals: bool,
-
-    rtk_summary: bool,
-
     /// Reference [Frame]
     #[cfg(feature = "navigation")]
     frame: Frame,
+
+    rinex_summary: bool,
+    phase_observations: bool,
+    doppler_observations: bool,
+    power_observations: bool,
+    pseudo_range_observations: bool,
+    
+    rtk_summary: bool,
 
     #[cfg(feature = "navigation")]
     navi_plot: bool,
@@ -54,6 +57,9 @@ pub struct QcRunner<'a> {
     ephemeris_buf: EphemerisBuffer,
 
     #[cfg(feature = "sp3")]
+    sp3_summary: bool,
+
+    #[cfg(feature = "sp3")]
     precise_states_residuals: bool,
 
     #[cfg(feature = "sp3")]
@@ -62,6 +68,9 @@ pub struct QcRunner<'a> {
     /// [PreciseStateBuffer]
     #[cfg(feature = "sp3")]
     precise_states_buf: PreciseStateBuffer,
+
+    #[cfg(all(feature = "navigation", feature = "sp3"))]
+    orbit_residuals: bool,
 }
 
 impl<'a> QcRunner<'a> {
@@ -73,9 +82,16 @@ impl<'a> QcRunner<'a> {
     ) -> Result<Self, QcError> {
         let analysis = builder.build();
 
-        let mut summary = false;
+        let mut rinex_summary = false;
         let mut rtk_summary = false;
-        let mut stores_signals = false;
+
+        let mut power_observations = false;
+        let mut phase_observations = false;
+        let mut pseudo_range_observations = false;
+        let mut doppler_observations = false;
+
+        #[cfg(feature = "sp3")]
+        let mut sp3_summary = false;
 
         #[cfg(feature = "sp3")]
         let mut stores_precise_states = false;
@@ -90,63 +106,78 @@ impl<'a> QcRunner<'a> {
         let mut navi_plot = false;
 
         #[cfg(feature = "navigation")]
+        let mut orbit_residuals = false;
+
+        #[cfg(feature = "navigation")]
         let mut has_pvt_solver = false;
 
         for analysis in analysis.iter() {
-            if matches!(
-                analysis,
-                QcAnalysis::DopplerObservations
-                    | QcAnalysis::PhaseObservations
-                    | QcAnalysis::PseudoRangeObservations
-                    | QcAnalysis::SignalPowerObservations
-                    | QcAnalysis::MelbourneWubbenaCombination
-                    | QcAnalysis::GeometryFreeCombination
-                    | QcAnalysis::IonosphereFreeCombination
-                    | QcAnalysis::MultiPath
-            ) {
-                stores_signals = true;
-            }
-
-            if matches!(analysis, QcAnalysis::RINEXSummary) {
-                summary = true;
-            }
-
-            if matches!(analysis, QcAnalysis::RTKSummary) {
-                rtk_summary = true;
+            match analysis {
+                QcAnalysis::DopplerObservations => {
+                    doppler_observations = true;
+                }
+                QcAnalysis::PseudoRangeObservations => {
+                    pseudo_range_observations = true;
+                }
+                QcAnalysis::PhaseObservations => {
+                    phase_observations = true;
+                }
+                QcAnalysis::SignalPowerObservations => {
+                    power_observations = true;
+                }
+                QcAnalysis::RINEXSummary => {
+                    rinex_summary = true;
+                }
+                _ => {}
             }
 
             #[cfg(feature = "navigation")]
-            if matches!(analysis, QcAnalysis::NaviPlot) {
-                navi_plot = true;
+            match analysis {
+                QcAnalysis::RTKSummary => {
+                    rtk_summary = true;
+                }
+                QcAnalysis::NaviPlot => {
+                    navi_plot = true;
+                    stores_ephemeris = true;
+                }
+                QcAnalysis::PVT(_) | QcAnalysis::CGGTTS(_) => {
+                    stores_ephemeris = true;
+                }
+                _ => {}
             }
 
-            #[cfg(feature = "navigation")]
-            if matches!(
-                analysis,
-                QcAnalysis::OrbitResiduals | QcAnalysis::ClockResiduals | QcAnalysis::NaviPlot
-            ) {
-                stores_ephemeris = true;
-            }
-
-            #[cfg(feature = "navigation")]
-            if matches!(analysis, QcAnalysis::PVT(_) | QcAnalysis::CGGTTS(_)) {
-                has_pvt_solver = true;
-                stores_signals = true;
-                stores_ephemeris = true;
-                stores_precise_states = true;
+            #[cfg(feature = "sp3")]
+            match analysis {
+                QcAnalysis::SP3Summary => {
+                    sp3_summary = true;
+                }
+                QcAnalysis::OrbitResiduals => {
+                    orbit_residuals = true;
+                    stores_ephemeris = true;
+                }
+                QcAnalysis::ClockResiduals => {
+                    stores_ephemeris = true;
+                }
+                _ => {}
             }
         }
 
         Ok(Self {
-            summary,
-            stores_signals,
+            rinex_summary,
             rtk_summary,
+            phase_observations,
+            doppler_observations,
+            power_observations,
+            pseudo_range_observations,
 
             #[cfg(feature = "navigation")]
             frame,
 
             #[cfg(feature = "navigation")]
             navi_plot,
+
+            #[cfg(all(feature = "navigation", feature = "sp3"))]
+            orbit_residuals,
 
             #[cfg(feature = "navigation")]
             stores_ephemeris,
@@ -159,6 +190,9 @@ impl<'a> QcRunner<'a> {
 
             #[cfg(feature = "sp3")]
             stores_precise_states,
+
+            #[cfg(feature = "sp3")]
+            sp3_summary,
 
             #[cfg(feature = "sp3")]
             precise_states_residuals,
@@ -202,7 +236,7 @@ impl<'a> QcRunner<'a> {
                     }
                 }
 
-                if self.summary {
+                if self.rinex_summary {
                     let descriptor = QcSourceDescriptor {
                         indexing: item.indexing,
                         filename: item.filename,
@@ -247,13 +281,22 @@ impl<'a> QcRunner<'a> {
             }
 
             QcSerializedItem::Signal(item) => {
-                if self.stores_signals {
-                    if let Some(observations) = &mut self.report.observations {
-                        observations.add_contribution(&item);
+                if self.doppler_observations
+                    || self.phase_observations
+                    || self.doppler_observations
+                    || self.power_observations
+                {
+                    if let Some(report) = &mut self.report.observations {
+                        report.latch_signal(&item);
                     } else {
-                        let mut observation = QcObservationsReport::default();
-                        observation.add_contribution(&item);
-                        self.report.observations = Some(observation);
+                        let mut report = QcObservationsReport::new(
+                            self.phase_observations,
+                            self.doppler_observations,
+                            self.pseudo_range_observations,
+                            self.power_observations,
+                        );
+                        report.latch_signal(&item);
+                        self.report.observations = Some(report);
                     }
                 }
 

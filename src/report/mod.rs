@@ -30,7 +30,7 @@ pub mod rendering;
 
 /// [QcRunReport] is synthesized on [QcPipeline] completion.
 /// It can then be rendered in several formats.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct QcRunReport {
     /// [QcRunSummary]
     pub run_summary: QcRunSummary,

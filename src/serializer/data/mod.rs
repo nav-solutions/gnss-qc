@@ -19,49 +19,47 @@ mod sp3_data;
 #[cfg(feature = "sp3")]
 pub use sp3_data::QcPreciseState;
 
-#[derive(Clone)]
-pub struct QcSerializedData<T: Clone> {
+pub struct QcSerializedData<'a, T> {
     /// origin filename
-    pub filename: String,
+    pub filename: &'a str,
 
     /// Product type source
     pub product_type: QcProductType,
 
     /// Method used in indexing
-    pub indexing: QcIndexing,
+    pub indexing: &'a QcIndexing,
 
     /// Type dependent data
     pub data: T,
 }
 
-pub type QcSerializedEphemeris = QcSerializedData<QcEphemerisData>;
+pub type QcSerializedEphemeris<'a> = QcSerializedData<'a, QcEphemerisData>;
 
-pub type QcSerializedSignal = QcSerializedData<QcSignalData>;
+pub type QcSerializedSignal<'a> = QcSerializedData<'a, QcSignalData>;
 
-pub type QcSerializedRINEXHeader = QcSerializedData<RINEXHeader>;
-
-#[cfg(feature = "sp3")]
-pub type QcSerializedSP3Header = QcSerializedData<SP3Header>;
+pub type QcSerializedRINEXHeader<'a> = QcSerializedData<'a, &'a RINEXHeader>;
 
 #[cfg(feature = "sp3")]
-pub type QcSerializedPreciseState = QcSerializedData<QcPreciseState>;
+pub type QcSerializedSP3Header<'a> = QcSerializedData<'a, SP3Header>;
 
-#[derive(Clone)]
-pub enum QcSerializedItem {
+#[cfg(feature = "sp3")]
+pub type QcSerializedPreciseState<'a> = QcSerializedData<'a, QcPreciseState>;
+
+pub enum QcSerializedItem<'a> {
     /// [QcSerializedRINEXHeader]
-    RINEXHeader(QcSerializedRINEXHeader),
+    RINEXHeader(QcSerializedRINEXHeader<'a>),
 
     #[cfg(feature = "sp3")]
     /// [QcSerializedSP3Header]
-    SP3Header(QcSerializedSP3Header),
+    SP3Header(QcSerializedSP3Header<'a>),
 
-    /// [QcSerializedSignalData]
-    Signal(QcSerializedSignal),
+    /// [QcSerializedSignal]
+    Signal(QcSerializedSignal<'a>),
 
     /// [QcEphemerisData]
-    Ephemeris(QcSerializedEphemeris),
+    Ephemeris(QcSerializedEphemeris<'a>),
 
     #[cfg(feature = "sp3")]
     /// [QcSerializedPreciseState]
-    PreciseState(QcSerializedPreciseState),
+    PreciseState(QcSerializedPreciseState<'a>),
 }

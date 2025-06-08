@@ -2,24 +2,26 @@
 use crate::error::QcError;
 use gnss_rs::prelude::Constellation;
 
-/// [QcNavFilterType] describes complex Navigation conditions
-/// we may apply.
+/// [QcNavFilterType] describes complex Navigation conditions.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum QcNavFilterType {
     /// Healthy SV (suitable for navigation)
     Healthy,
+
     /// Unhealthy SV (not suitable for navigation)
     Unhealthy,
-    /// (In-) testing SV (usually not suitable for navigation)
+
+    /// SV in beta-testing or development, usually not suitable for navigation.
     Testing,
 }
 
-/// [QcNavFilter] is used to apply complex Navigation status conditions.
+/// [QcNavFilter] is used to apply complex Navigation conditions.
 #[derive(Debug, Clone, PartialEq)]
 pub struct QcNavFilter {
-    /// [NavFilterType] we support.
+    /// [QcNavFilterType] we support.
     pub filter: QcNavFilterType,
-    /// Possible targetted constellations
+
+    /// Possible [Constellation]s scope.
     pub constellations: Vec<Constellation>,
 }
 
