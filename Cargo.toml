@@ -1,6 +1,6 @@
 [package]
 name = "gnss-qc"
-version = "0.3.0-alpha"
+version = "0.4.0-alpha"
 license = "MPL-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "GNSS data Quality Control"
