@@ -92,10 +92,48 @@ impl QcContext {
         Ok(())
     }
 
-    /// Load a readable [Rinex] file into this [QcContext].
+    /// Load a [Rinex] file into this [QcContext].
+    /// This data is then auto-indexed, eitheir 100% automatically
+    /// or using the preference preset. If you want to control
+    /// the indexing method, prefer [Self::load_and_index_rinex_file].
     pub fn load_rinex_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), QcError> {
         let rinex = Rinex::from_file(&path)?;
         self.load_rinex(path, rinex)
+    }
+
+    /// Loads a [Rinex] file into this [QcContext] and index it
+    /// using desired [QcIndexing] option. You manage your dataset,
+    /// and it is up to you to use correct [QcIndexing] method.
+    /// For example:
+    /// - [QcIndexing::Custom] is always feasible
+    /// - but others like [QcIndexing::GnssReceiver] or [QcIndexing::Agency]
+    /// requires the data to describe such value.
+    /// - You cal also lazily use [QcIndexing::None] but this will erase
+    /// possible similar products that have already been loaded.
+    pub fn load_and_index_rinex_file<P: AsRef<Path>>(&mut self, path: P, indexing: QcIndexing) -> Result<(), QcError> {
+        let rinex = Rinex::from_file(&path)?;
+
+        let filename = path
+            .as_ref()
+            .file_stem()
+            .ok_or(QcError::FileNameDetermination)?
+            .to_string_lossy()
+            .to_string();
+
+        // strips possible remaining terminations
+        let filename = filename.split('.').collect::<Vec<_>>()[0];
+
+        let product_type = QcProductType::from(&rinex);
+        
+        let descriptor = QcSourceDescriptor {
+            product_type,
+            indexing,
+            filename: filename.to_string(),
+        };
+
+        self.data.insert(descriptor, QcDataWrapper::RINEX(rinex));
+
+        Ok(())
     }
 
     /// Obtain an [Iterator] over all RINEX [QcProductType]s present in current [QcContext].

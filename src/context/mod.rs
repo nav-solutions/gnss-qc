@@ -1,13 +1,20 @@
 //! GNSS processing context definition.
 use itertools::Itertools;
-use std::collections::HashMap;
 
-use crate::prelude::QcConfig;
+use std::{
+    collections::HashMap,
+    path::Path,
+};
 
 mod preprocessing;
 mod rinex;
+mod fops;
 
 pub mod sampling;
+
+use crate::prelude::{QcConfig, Rinex};
+
+use walkdir::WalkDir;
 
 #[cfg(feature = "flate2")]
 #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
@@ -23,9 +30,9 @@ pub(crate) mod data;
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
 pub(crate) mod navigation;
 
-// #[cfg(feature = "navigation")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-// pub mod time;
+#[cfg(feature = "navigation")]
+#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+pub mod time;
 
 #[cfg(feature = "navigation")]
 use crate::prelude::{Almanac, Frame};
@@ -169,14 +176,43 @@ impl QcContext {
         let (almanac, earth_cef) = Self::default_almanac_frame();
 
         Self {
+            data: Default::default(),
+            configuration: QcConfig::default(),
+
             #[cfg(feature = "navigation")]
             almanac,
 
             #[cfg(feature = "navigation")]
             earth_cef,
+        }
+    }
 
-            data: Default::default(),
-            configuration: QcConfig::default(),
+    /// Recursively parse the provided workspace, loading every single file
+    /// we may find and support. In case no files are supported or workspace
+    /// is empty, this will return an empty data set: check the logs.
+    ///
+    /// ## Input
+    /// - workspace: readable [Path]
+    /// - max_depth: maximal search depth as [usize]
+    pub fn from_workspace<P: AsRef<Path>>(workspace: P, max_depth: usize) -> Self {
+        for entry in WalkDir::new(workspace)
+                .max_depth(max_depth)
+                .into_iter()
+                .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+
+            if !path.is_dir() {
+                if let Ok(rinex) = Rinex::from_gzip_file(path) {
+                }
+            }
+            match path.extension() {
+                Ok(extension) => {
+                },
+                Err(e) => {
+
+                }
+            }
         }
     }
 
@@ -191,5 +227,60 @@ impl QcContext {
         let mut s = self.clone();
         s.configuration = cfg;
         s
+    }
+
+    /// Delete all data currently indexed by [QcIndexing].
+    pub fn delete_index(&mut self, indexing: &QcIndexing) {
+        self.data.retain(|desc, _| {
+            desc.indexing != indexing
+        });
+    }
+
+    /// Delete all contributions from this filename.
+    /// NB: the file termination is not preserved by this library.
+    /// To be sure, use the available context and file iterators.
+    pub fn delete_file(&mut self, filename: &str) {
+        self.data.retain(|desc, _| {
+            desc.filename != filename
+        });
+    }
+    
+    /// Deletes all products from this type
+    pub fn delete_products(&mut self, product_type: QcProductType) {
+        self.data.retain(|desc, _| {
+            desc.product_type != product_type
+        });
+    }
+
+    /// Preserves data indexed by [QcIndexing] (only,
+    /// all other entries get deleted).
+    pub fn retain_index(&mut self, indexing: &QcIndexing) {
+        self.data.retain(|desc, _| {
+            desc.indexing == indexing
+        });
+    }
+    
+    /// Preserves data from this source file only,
+    /// all other entries get deleted.
+    /// NB: the file termination is not preserved by this library.
+    /// To be sure, use the available context and file iterators.
+    pub fn retain_filename(&mut self, filename: &str) {
+        self.data.retain(|desc, _| {
+            desc.filename == filename
+        });
+    }
+    
+    /// Retains only this [QcProductType]s.
+    pub fn retain_product(&mut self, product_type: QcProductType) {
+        self.data.retain(|desc, _| {
+            desc.product_type == product_type
+        });
+    }
+
+    /// Retains only this [QcProductType].
+    pub fn retain_products(&mut self, product_types: Vec<QcProductType>) {
+        self.data.retain(|desc, _| {
+            product_types.contains(&desc.product_type)
+        });
     }
 }

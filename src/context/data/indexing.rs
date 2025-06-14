@@ -41,6 +41,11 @@ pub enum QcIndexing {
 }
 
 impl QcIndexing {
+    /// Builds a new [QcIndexing] from agency name (publisher)
+    pub fn from_agency(agency: &str) -> Self {
+        Self::Agency(agency.to_string())
+    }
+
     /// Builds new [QcIndexing] from RINEX [Receiver] model
     pub fn from_receiver(rx: &Receiver) -> Self {
         Self::GnssReceiver(format!("{}-{}", rx.model, rx.sn))
@@ -51,6 +56,11 @@ impl QcIndexing {
         Self::RxAntenna(format!("{}-{}", antenna.model, antenna.sn))
     }
 
+    /// Builds a new custom [QcIndexing]
+    pub fn from_custom_label(label: &str) -> Self {
+        Self::Custom(label.to_string())
+    }
+
     /// Builds new [QcIndexing] from RINEX [GeodeticMarker]
     pub fn from_geodetic_marker(marker: &GeodeticMarker) -> Self {
         if let Some(number) = marker.number() {
@@ -58,6 +68,11 @@ impl QcIndexing {
         } else {
             Self::GeodeticMarker(marker.name.to_string())
         }
+    }
+
+    /// Builds a new [QcIndexing] operator name
+    pub fn from_operator(&self, name: &str) -> Self {
+        Self::Operator(name.to_string())
     }
 
     /// [Rinex] smart automated indexing

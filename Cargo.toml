@@ -79,7 +79,7 @@ html = [
 ]
 
 [dependencies.rinex]
-version = "0.19"
+version = "0.20"
 features = [
     "qc", 
     "processing", 
@@ -94,7 +94,7 @@ features = [
 ]
 
 [dependencies.sp3]
-version = "1.2"
+version = "1.3"
 optional = true
 features = [
     "qc", 
@@ -121,15 +121,22 @@ features = [
 
 [dependencies]
 log = "0.4"
+walkdir = "2.4"
 thiserror = "2"
+
 strum = "0.27"
 strum_macros = "0.26"
+
 itertools = "0.14.0"
+
 serde = { version = "1.0", default-features = false, features = ["derive"] }
+
 anise = { version = "0.6", optional = true }
 hifitime = { version = "4.1", features = ["serde", "std"] }
+
 gnss-rs = { version = "2.4", features = ["serde"] }
-gnss-qc-traits = { version = "0.2", features = ["processing"] }
+gnss-qc-traits = { version = "0.3.1", features = ["processing"] }
+
 plotters = { version = "0.3", optional = true }
 image = { version = "0.23", optional = true }
 genpdf = { version = "0.2", optional = true, features = ["images"] }

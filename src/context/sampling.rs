@@ -4,6 +4,34 @@ impl QcContext {
     /// Returns first (earliest) [Epoch] of this [QcContext], considering
     /// all data symbols from all temporal products.   
     /// Returns [None] for [QcContext]s that only comprise a-temporal products.
+    ///
+    /// [QcContext] is not limited to a single-day surveying,
+    /// it all depends on the dataset you have formed:
+    /// ```
+    /// use gnss_qc::prelude::QcContext;
+    ///
+    /// let mut ctx = QcContext::new();
+    ///
+    /// ctx.load_rinex_file("data/OBS/V3/VLNS0010.22O").unwrap();
+    ///
+    /// let (first_epoch, last_epoch) = (
+    ///     ctx.first_epoch().unwrap(), 
+    ///     ctx.last_epoch().unwrap(), 
+    /// );
+    ///
+    /// assert_eq!(first_epoch.to_gregorian_utc(), 2021, 12, 31, 23, 59, 42, 00);
+    /// assert_eq!(last_epoch.to_gregorian_utc(), 2021, 12, 31, 23, 59, 42, 00);
+    ///
+    /// ctx.load_rinex_file("data/OBS/V3/VLNS0630.22O").unwrap();
+    ///
+    /// let (first_epoch, last_epoch) = (
+    ///     ctx.first_epoch().unwrap(), 
+    ///     ctx.last_epoch().unwrap(), 
+    /// );
+    ///
+    /// assert_eq!(first_epoch.to_gregorian_utc(), 2021, 12, 31, 23, 59, 42, 00);
+    /// assert_eq!(last_epoch.to_gregorian_utc(), 2023, 09, 11, 23, 55, 00, 00);
+    /// ```
     pub fn first_epoch(&self) -> Option<Epoch> {
         let mut ret = Option::<Epoch>::None;
 
@@ -74,6 +102,24 @@ impl QcContext {
 
     /// Returns total [Duration] of this [QcContext], considering  all temporal products.   
     /// Returns [Duration::ZERO] for [QcContext]s that only comprise a-temporal products.
+    ///
+    /// [QcContext] is not limited to a single-day surveying,
+    /// it all depends on the dataset you have formed:
+    /// ```
+    /// use gnss_qc::prelude::{QcContext, Duration};
+    ///
+    /// let mut ctx = QcContext::new();
+    ///
+    /// assert_eq!(ctx.duration(), Duration::ZERO);
+    ///
+    /// ctx.load_rinex_file("data/OBS/V3/VLNS0010.22O").unwrap();
+    ///
+    /// assert_eq!(ctx.duration(), Duration::from_seconds(3600.0));
+    ///
+    /// ctx.load_rinex_file("data/OBS/V3/VLNS0630.22O").unwrap();
+    ///
+    /// assert_eq!(ctx.duration(), Duration::from_seconds(3600.0));
+    /// ```
     pub fn total_duration(&self) -> Duration {
         let mut duration = Duration::ZERO;
 

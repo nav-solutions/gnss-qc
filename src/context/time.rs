@@ -1,95 +1,95 @@
-use crate::prelude::{QcContext, TimeScale};
+use crate::prelude::{QcContext, TimeScale, QcIndexing};
 
-use qc_traits::{GnssAbsoluteTime, Merge, Timeshift};
+use qc_traits::{GnssTimeCorrectionsDatabase, Merge, Timeshift};
 
 impl QcContext {
     /// Form a [GnssAbsoluteTime] solver from this [QcContext],
-    /// used to allow transposition into other [TimeScale]s.   
-    /// This requires navigation feature  to be enabled and compliance to be effective.
-    pub fn gnss_absolute_time_solver(&self) -> GnssAbsoluteTime {
-        let mut solver = GnssAbsoluteTime::new(&[]);
-
-        if let Some(rinex) = &self.brdc_navigation {
-            let brdc = rinex.gnss_absolute_time_solver().unwrap(); // infaillible
-            solver.merge_mut(&brdc).unwrap(); // infaillible
-        }
-
-        solver
-    }
-
-    /// Precise temporal transposition of each individual products contained in current [QcContext].
-    ///
-    /// NB: transposition might not be feasible for some components, therefore
-    /// you should double check the newly obtained [QcContext].
-    ///
-    /// This may apply to [SP3] products, if feature is activated.
-    ///
-    /// Example (1): RINEX transposition
+    /// used in precise [TimeScale] transposition.
+    /// This requires at least one BRDC RINEX file.
     /// ```
-    /// use gnss_qc::prelude::{QcContext, TimeScale};
-    ///
+    /// use gnss_qc::prelude::*;
+    /// 
     /// let mut context = QcContext::new();
     ///
-    /// // GPST observations
+    /// // GPST data
     /// context.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     ///     .unwrap();
     ///
-    /// // Transposition attempt
-    /// let transposed = context.timescale_transposition(TimeScale::GST);
-    /// let transposed_obs = transposed.observation().unwrap();
+    /// // context is not compatible at this point
+    /// assert!(context.gnss_absolute_time_solver().is_none());
     ///
-    /// // For this to work, Observations are not enough.
-    /// for t in transposed_obs.epoch_iter() {
-    ///     assert_eq!(t.time_scale, TimeScale::GST);
-    /// }
-    /// ```
-    ///
-    /// When BRDC Navigation RINEX is provided, we can take advantage of it, to apply
-    /// a more precise transposition, as this type of RINEX may describe conversion methods
-    /// to actual true state of specific timescales.
-    ///
-    /// In this example, this applies to GPST, UTC and GST. Any transposition
-    /// to those timescale will be more accurate and follow the actual timescale state:
-    /// ```
-    /// use gnss_qc::prelude::{QcContext, TimeScale};
-    ///
-    /// let mut context = QcContext::new();
-    ///
-    /// // GPST observations
-    /// context.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
-    ///     .unwrap();
-    ///
-    /// // NAV BRDC RINEX
+    /// // Load NAV RINEX
     /// context.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///     .unwrap();
     ///
-    /// let transposed = context.timescale_transposition(TimeScale::GST);
-    /// let transposed_obs = transposed.observation().unwrap();
+    /// let solver = context.gnss_absolute_time_solver().unwrap();
     ///
-    /// // Verify transposition is now effective
-    /// for t in transposed_obs.epoch_iter() {
-    ///     assert_eq!(t.time_scale, TimeScale::GST);
-    /// }
+    /// // you can then use this information for precise temporal transposition
+    /// context.precise_timeshift_mut(&solver, TimeScale::GST);
     /// ```
-    ///
-    /// Example: SP3 transposition is totally valid.
-    ///
-    pub fn timescale_transposition(&self, target: TimeScale) -> Self {
-        let mut s = self.clone();
-        s.timescale_transposition_mut(target);
-        s
+    pub fn gnss_time_corrections_database(&self) -> Option<GnssTimeCorrectionsDatabase> {
+        let mut ret = Option::<GnssAbsoluteTime>::None;
+
+        for (desc, data) in self.data.iter() {
+            if desc.product_type == QcProductType::BroadcastNavigation {
+                let rinex = data.as_rinex()
+                    .expect("internal error: RINEX data access");
+
+                let new = rinex.gnss_time_corrections_database()
+                    .expect("gnss_absolute_time should exist");
+
+                if let Some(solver) = &mut ret {
+                    solver.merge_mut(new);
+                } else {
+                    solver = Some(new);
+                }
+            }
+        }
+
+        ret
     }
+    
+    /// Form a [GnssTimeCorrectionsDatabase] for one agency or publisher in particular.
+    /// This database can then be used in precise time correction and transposition.
+    /// ```
+    /// use gnss_qc::prelude::*;
+    /// 
+    /// let mut context = QcContext::new();
+    ///
+    /// // GPST data
+    /// context.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+    ///     .unwrap();
+    ///
+    /// // context is not compatible at this point
+    /// assert!(context.gnss_time_corrections_database().is_none());
+    ///
+    /// // Load NAV RINEX (x1)
+    /// context.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///     .unwrap();
+    ///
+    /// // Load NAV RINEX (x2)
+    /// context.load_gzip_rinex_file("data/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///     .unwrap();
+    ///
+    /// // when several publishers exist, you can use this method
+    /// // to select one in particular
+    /// let solver = context.gnss_time_corrections_agency_database("MOJN").unwrap();
+    ///
+    /// // you can then use this information for precise temporal transposition
+    /// context.precise_timeshift_mut(&solver, TimeScale::GST);
+    /// ```
+    pub fn gnss_time_corrections_agency_database(&self, agency: &str) -> Option<GnssTimeCorrectionsDatabase> {
+        let filter = QcIndexing::from_agency(agency);
 
-    pub fn timescale_transposition_mut(&mut self, target: TimeScale) {
-        let solver = self.gnss_absolute_time_solver();
+        for (desc, data) in self.data.iter() {
+            if desc.product_type == QcProductType::BroadcastNavigation && desc.indexing == filter {
+                let rinex = data.as_rinex()
+                    .expect("internal error: RINEX data access");
 
-        for (_, rinex) in self.observation_sources_iter_mut() {
-            rinex.timeshift_mut(&solver, target);
+                let solver = rinex.gnss_absolute_time_solver()?;
+                return Some(solver);
+            }
         }
-
-        #[cfg(feature = "sp3")]
-        if let Some(sp3) = &mut self.sp3 {
-            sp3.timeshift_mut(&solver, target);
-        }
+        None
     }
 }

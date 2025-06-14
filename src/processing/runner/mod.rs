@@ -30,8 +30,8 @@ mod precise_states;
 use precise_states::PreciseStateBuffer;
 
 pub struct QcRunner<'a> {
-    /// List of [QcAnalysis]
-    analysis: Vec<QcAnalysis>,
+    /// [QcAnalysisBuilder]
+    builder: QcAnalysisBuilder,
 
     /// [QcRunReport] being redacted
     report: &'a mut QcRunReport,
@@ -40,45 +40,11 @@ pub struct QcRunner<'a> {
     #[cfg(feature = "navigation")]
     frame: Frame,
 
-    rinex_summary: bool,
-    phase_observations: bool,
-    doppler_observations: bool,
-    power_observations: bool,
-    pseudo_range_observations: bool,
+    /// [SignalsBuffer] deployed & used if needed
+    signals_buffer: Option<SignalsBuffer>,
 
-    rtk_summary: bool,
-
-    #[cfg(feature = "navigation")]
-    navi_plot: bool,
-
-    #[cfg(feature = "navigation")]
-    has_pvt_solver: bool,
-
-    #[cfg(feature = "navigation")]
-    stores_ephemeris: bool,
-
-    /// [EphemerisBuffer]
-    #[cfg(feature = "navigation")]
-    ephemeris_buf: EphemerisBuffer<'a>,
-
-    /// [SignalsBuffer]
-    signals_buf: SignalsBuffer,
-
-    #[cfg(feature = "sp3")]
-    sp3_summary: bool,
-
-    #[cfg(feature = "sp3")]
-    precise_states_residuals: bool,
-
-    #[cfg(feature = "sp3")]
-    stores_precise_states: bool,
-
-    /// [PreciseStateBuffer]
-    #[cfg(feature = "sp3")]
-    precise_states_buf: PreciseStateBuffer<'a>,
-
-    #[cfg(all(feature = "navigation", feature = "sp3"))]
-    orbit_residuals: bool,
+    /// [EphemerisBuffer] deployed & used if needed
+    ephemeris_buffer: Option<EphemerisBuffer>,
 }
 
 impl<'a> QcRunner<'a> {
@@ -87,166 +53,57 @@ impl<'a> QcRunner<'a> {
         builder: &QcAnalysisBuilder,
         report: &'a mut QcRunReport,
         frame: Frame,
-    ) -> Result<Self, QcError> {
-        let analysis = builder.build();
+    ) -> Self {
 
-        let mut rinex_summary = false;
-        let mut rtk_summary = false;
+        let signals_buffer = if builder.needs_signals_buffering() {
+            Some(SignalsBuffer::new())
+        } else {
+            None
+        };
 
-        let mut power_observations = false;
-        let mut phase_observations = false;
-        let mut pseudo_range_observations = false;
-        let mut doppler_observations = false;
+        let ephemeris_buffer = if builder.needs_ephemeris_buffering() {
+            Some(EphemerisBuffer::new())
+        } else {
+            None
+        };
 
-        #[cfg(feature = "sp3")]
-        let mut sp3_summary = false;
-
-        #[cfg(feature = "sp3")]
-        let mut stores_precise_states = false;
-
-        #[cfg(feature = "sp3")]
-        let mut precise_states_residuals = false;
-
-        #[cfg(feature = "navigation")]
-        let mut stores_ephemeris = false;
-
-        #[cfg(feature = "navigation")]
-        let mut navi_plot = false;
-
-        #[cfg(feature = "navigation")]
-        let mut orbit_residuals = false;
-
-        #[cfg(feature = "navigation")]
-        let mut has_pvt_solver = false;
-
-        for analysis in analysis.iter() {
-            match analysis {
-                QcAnalysis::DopplerObservations => {
-                    doppler_observations = true;
-                }
-                QcAnalysis::PseudoRangeObservations => {
-                    pseudo_range_observations = true;
-                }
-                QcAnalysis::PhaseObservations => {
-                    phase_observations = true;
-                }
-                QcAnalysis::SignalPowerObservations => {
-                    power_observations = true;
-                }
-                QcAnalysis::RINEXSummary => {
-                    rinex_summary = true;
-                }
-                _ => {}
-            }
-
-            #[cfg(feature = "navigation")]
-            match analysis {
-                QcAnalysis::RTKSummary => {
-                    rtk_summary = true;
-                }
-                QcAnalysis::NaviPlot => {
-                    navi_plot = true;
-                    stores_ephemeris = true;
-                }
-                QcAnalysis::PVT(_) | QcAnalysis::CGGTTS(_) => {
-                    stores_ephemeris = true;
-                }
-                _ => {}
-            }
-
-            #[cfg(feature = "sp3")]
-            match analysis {
-                QcAnalysis::SP3Summary => {
-                    sp3_summary = true;
-                }
-                QcAnalysis::OrbitResiduals => {
-                    orbit_residuals = true;
-                    stores_ephemeris = true;
-                }
-                QcAnalysis::ClockResiduals => {
-                    stores_ephemeris = true;
-                }
-                _ => {}
-            }
-        }
-
-        Ok(Self {
-            rinex_summary,
-            rtk_summary,
-            phase_observations,
-            doppler_observations,
-            power_observations,
-            pseudo_range_observations,
-
-            signals_buf: SignalsBuffer::new(),
-
-            #[cfg(feature = "navigation")]
+        Self {
             frame,
-
-            #[cfg(feature = "navigation")]
-            navi_plot,
-
-            #[cfg(all(feature = "navigation", feature = "sp3"))]
-            orbit_residuals,
-
-            #[cfg(feature = "navigation")]
-            stores_ephemeris,
-
-            #[cfg(feature = "navigation")]
-            has_pvt_solver,
-
-            #[cfg(feature = "navigation")]
-            ephemeris_buf: EphemerisBuffer::new(),
-
-            #[cfg(feature = "sp3")]
-            stores_precise_states,
-
-            #[cfg(feature = "sp3")]
-            sp3_summary,
-
-            #[cfg(feature = "sp3")]
-            precise_states_residuals,
-
-            #[cfg(feature = "sp3")]
-            precise_states_buf: PreciseStateBuffer::new(),
-
             report,
-            analysis,
-        })
+            builder,
+            signals_buffer,
+            ephemeris_buffer,
+        }
     }
 
     pub fn consume(&mut self, item: QcSerializedItem) {
         match item {
             QcSerializedItem::Ephemeris(item) => {
-                #[cfg(feature = "navigation")]
-                if self.stores_ephemeris {
-                    self.ephemeris_buf.latch(item);
-                }
-
-                #[cfg(feature = "navigation")]
-                if self.navi_plot {
-                    if let Some(report) = &mut self.report.navi_report {
-                        report.add_ephemeris_message(&item);
-                    } else {
-                        let mut report = QcNavReport::default();
-                        report.add_ephemeris_message(&item);
-                        self.report.navi_report = Some(report);
-                    }
+                
+                if self.builder.needs_ephemeris_buffering() {
+                    let mut buffer = self.ephemeris_buffer.unwrap();
+                    buffer.latch(item);
                 }
             }
 
             QcSerializedItem::RINEXHeader(item) => {
-                if self.rtk_summary && item.product_type == QcProductType::Observation {
-                    if let Some(summary) = &mut self.report.rtk_summary {
-                        summary.latch_base_header(item);
-                    } else {
-                        let mut summary = QcRTKSummary::new(self.frame);
-                        summary.latch_base_header(item);
-                        self.report.rtk_summary = Some(summary);
-                    }
+
+                match item.product_type {
+                    QcProductType::Observation => {
+                        if self.builder.rtk_summary {
+                            if let Some(summary) = &mut self.report.rtk_summary {
+                                summary.latch_base_header(item);
+                            } else {
+                                let mut summary = QcRTKSummary::new(self.frame);
+                                summary.latch_base_header(item);
+                                self.report.rtk_summary = Some(summary);
+                            }
+                        }
+                    },
+                    _ => {},
                 }
 
-                if self.rinex_summary {
+                if self.builder.rinex_summary {
                     let descriptor = QcSourceDescriptor {
                         indexing: item.indexing,
                         filename: item.filename,
@@ -265,8 +122,7 @@ impl<'a> QcRunner<'a> {
 
             #[cfg(feature = "sp3")]
             QcSerializedItem::SP3Header(header) => {
-                // latch new potential contribution
-                if self.analysis.contains(&QcAnalysis::SP3Summary) {
+                if self.builder.sp3_summary {
                     let descriptor = QcSourceDescriptor {
                         indexing: header.indexing,
                         filename: header.filename,
@@ -285,56 +141,81 @@ impl<'a> QcRunner<'a> {
 
             #[cfg(feature = "sp3")]
             QcSerializedItem::PreciseState(item) => {
-                if self.precise_states_residuals {
-                    self.run_precise_states_residuals(item);
+                if self.builder.sp3_orbit_proj {
+                    
+                    if let Some(report) = &mut self.report.sp3_orbit_proj {
+                        report.latch(item);
+                    } else {
+                        let mut report = QcOrbitProjection::new();
+                        report.latch(item);
+                        self.report.sp3_orbit_proj = Some(report);
+                    }
                 }
             }
 
             QcSerializedItem::Signal(item) => {
-                if self.doppler_observations
-                    || self.phase_observations
-                    || self.doppler_observations
-                    || self.power_observations
-                {
-                    if let Some(report) = &mut self.report.observations {
-                        report.latch_signal(&item);
-                    } else {
-                        let mut report = QcObservationsReport::new(
-                            self.phase_observations,
-                            self.doppler_observations,
-                            self.pseudo_range_observations,
-                            self.power_observations,
-                        );
-                        report.latch_signal(&item);
-                        self.report.observations = Some(report);
-                    }
-                }
+                match item.data.observation {
+                    QcSignalObservation::PseudoRange(value) => {
+                        if self.builder.pseudo_range_observations {
+                            if let Some(report) = &mut self.report.pseudo_range_observations {
+                                report.latch_value(item.indexing, item.filename, item.data.sv, item.data.carrier, item.data.epoch, value); 
+                            } else {
+                                let mut report = QcObservationsReport::new("Pseudo Range");
+                                report.latch_value(item.indexing, item.filename, item.data.sv, item.data.carrier, item.data.epoch, value);
+                            }
+                        }
 
-                #[cfg(feature = "navigation")]
-                if self.navi_plot {
-                    if let Some(report) = &mut self.report.navi_report {
-                        report.add_signal_contribution(&item);
-                    } else {
-                        let mut report = QcNavReport::default();
-                        report.add_signal_contribution(&item);
-                        self.report.navi_report = Some(report);
-                    }
-                }
+                        if self.builder.needs_signals_buffering() {
+                            let mut buffer = self.signals_buffer.unwrap();
+                            buffer.latch(item);
+                            
+                            if self.builder.pseudo_range_residuals {
 
-                #[cfg(feature = "navigation")]
-                if self.stores_ephemeris {
-                    // self.ephemeris_buf.update(item.data.epoch);
+                            }
+                            if self.builder.phase_range_residuals {
+
+                            }
+                            if self.builder.pseudo_range_if_combination {
+
+                            }
+                            if self.builder.pseudo_range_gf_combination {
+                                for combination in buffer.pseudorange_gf_combinations() {
+                                }
+                            }
+                        }
+                    },
+                    QcSignalObservation::PhaseRange(value) => {
+                        if self.builder.carrier_phase_observations {
+                            if let Some(report) = &mut self.report.carrier_phase_observations {
+                                report.latch_value(item.indexing, item.filename, item.data.sv, item.data.carrier, item.data.epoch, value); 
+                            } else {
+                                let mut report = QcObservationsReport::new("Carrier Phase");
+                                report.latch_value(item.indexing, item.filename, item.data.sv, item.data.carrier, item.data.epoch, value);
+                            }
+                        }
+                    },
+                    QcSignalObservation::Doppler(value) => {
+                        if self.builder.signal_power_observations {
+                            if let Some(report) = &mut self.report.doppler_observations {
+                                report.latch_value(item.indexing, item.filename, item.data.sv, item.data.carrier, item.data.epoch, value); 
+                            } else {
+                                let mut report = QcObservationsReport::new("Doppler Shifts");
+                                report.latch_value(item.indexing, item.filename, item.data.sv, item.data.carrier, item.data.epoch, value);
+                            }
+                        }
+                    },
+                    QcSignalObservation::SSI(value) => {
+                        if self.builder.signal_power_observations {
+                            if let Some(report) = &mut self.report.pseudo_range_observations {
+                                report.latch_value(item.indexing, item.filename, item.data.sv, item.data.carrier, item.data.epoch, value); 
+                            } else {
+                                let mut report = QcObservationsReport::new("Signal Power");
+                                report.latch_value(item.indexing, item.filename, item.data.sv, item.data.carrier, item.data.epoch, value);
+                            }
+                        }
+                    },
                 }
             }
-        }
-    }
-
-    fn run_precise_states_residuals(&mut self, item: QcSerializedPreciseState) {
-        if let Some(orbit_projs) = &mut self.report.sp3_orbits_proj {
-            orbit_projs.latch_precise_state(item);
-        } else {
-            let proj = QcOrbitProjections::from_precise_state(item);
-            self.report.sp3_orbits_proj = Some(proj);
         }
     }
 }

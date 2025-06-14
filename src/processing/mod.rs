@@ -19,7 +19,7 @@ impl QcContext {
     /// - [QcAnalysisBuilder] analysis specs
     /// ## Output
     /// - Synthesized [QcRunReport] that you can then render in your prefered format.
-    pub fn process(&self, analysis: QcAnalysisBuilder) -> Result<QcRunReport, QcError> {
+    pub fn process(&self, builder: QcAnalysisBuilder) -> Result<QcRunReport, QcError> {
         let mut serializer = self.serializer();
 
         let deploy_time = Epoch::now()
@@ -31,9 +31,9 @@ impl QcContext {
 
         info!("process starting: {}", deploy_time);
 
-        let mut report = QcRunReport::new(deploy_time, &analysis);
+        let mut report = QcRunReport::new(deploy_time, &builder);
 
-        let mut runner = QcRunner::new(&analysis, &mut report, self.earth_cef)?;
+        let mut runner = QcRunner::new(&builder, &mut report, self.earth_cef);
 
         // consume all data
         while let Some(sample) = serializer.next() {

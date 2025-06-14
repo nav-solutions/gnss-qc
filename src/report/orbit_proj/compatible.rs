@@ -42,15 +42,9 @@ impl QcConstellationOrbitProj {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct QcOrbitProjectionsKey {
-    pub indexing: QcIndexing,
-    pub constellation: Constellation,
-}
-
 #[derive(Clone)]
 pub struct QcOrbitProjections {
-    pub projections: HashMap<QcOrbitProjectionsKey, QcConstellationOrbitProj>,
+    pub projections: HashMap<(QcIndexing, Constellation), QcConstellationOrbitProj>,
 }
 
 impl QcOrbitProjections {

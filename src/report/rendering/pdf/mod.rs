@@ -1,5 +1,8 @@
-//! HTML rendition of the QcRunReport
-use crate::report::QcRunReport;
+//! PDF rendition of a QcRunReport
+use crate::report::{
+    QcRunReport,
+    rendering::QcRenderingOptions,
+};
 
 mod nav;
 mod observations;
@@ -39,7 +42,7 @@ pub(crate) const PDF_MEDIUM_VERTICAL_SPACING: f64 = 1.5;
 
 impl QcRunReport {
     /// Render this [QcRunReport] as PDF [genpdf::Document].
-    pub fn render_pdf(&self) -> genpdf::Document {
+    pub fn render_pdf(&self, opts: &QcRenderingOptions) -> genpdf::Document {
         let logo = genpdf::elements::Image::from_path("logo/logo.jpg").unwrap();
 
         let mini_logo = logo
@@ -99,24 +102,76 @@ impl QcRunReport {
             doc.push(genpdf::elements::PageBreak::new());
             doc.push(summary.render_pdf());
         }
-
-        // Observations
-        if let Some(observations) = &self.observations {
+        
+        // NAVI report
+        if let Some(navi) = &self.navi_report {
             doc.push(genpdf::elements::PageBreak::new());
-            doc.push(observations.render_pdf());
+            doc.push(navi.render_pdf(&opts));
         }
 
-        // // NAVI plot
-        // if let Some(navi_plot) = &self.navi_report {
-        //     doc.push(genpdf::elements::PageBreak::new());
-        //     doc.push(navi_plot.render_pdf());
-        // }
+        // Observations: PR, CP, DOP, POW
+        if let Some(report) = &self.pseudo_range_observations {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(report.render_pdf(&opts));
+        }
+        if let Some(report) = &self.carrier_phase_observations {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(report.render_pdf(&opts));
+        }
+        if let Some(report) = &self.doppler_observations {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(report.render_pdf(&opts));
+        }
+        if let Some(report) = &self.signal_power_observations {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(report.render_pdf(&opts));
+        }
 
-        // // SP3 Proj
-        // if let Some(sp3_proj) = &self.sp3_orbits_proj {
-        //     doc.push(genpdf::elements::PageBreak::new());
-        //     doc.push(sp3_proj.render_pdf());
-        // }
+        // Combinations: GF, IF, MW
+        if let Some(report) = &self.geometry_free_combinations {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(report.render_pdf(&opts));
+        }
+        if let Some(report) = &self.ionosphere_free_combinations {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(report.render_pdf(&opts));
+        }
+        if let Some(report) = &self.melbourne_wubbena_combinations {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(report.render_pdf(&opts));
+        }
+
+        // Signal Residuals: PR, CP
+        if let Some(report) = &self.pseudo_range_residuals {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(report.render_pdf(&opts));
+        }
+        if let Some(report) = &self.carrier_phase_residuals {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(report.render_pdf(&opts));
+        }
+        
+        // Gap Histogram
+        if let Some(histogram) = &self.pseudo_range_gap_histogram {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(histogram.render_pdf(&opts));
+        }
+        if let Some(histogram) = &self.carrier_phase_gap_histogram {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(histogram.render_pdf(&opts));
+        }
+
+        // SP3 orbit proj
+        if let Some(orbit_proj) = &self.sp3_orbit_proj {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(orbit_proj.render_pdf(&opts));
+        }
+
+        // Clock residuals
+        if let Some(report) = &self.clock_residuals {
+            doc.push(genpdf::elements::PageBreak::new());
+            doc.push(report.render_pdf(&opts));
+        }
 
         // documentation
         doc.push(genpdf::elements::PageBreak::new());

@@ -60,8 +60,77 @@ impl QcContext {
         }))
     }
 
+    /// Obtain an [Iterator] over all SP3 products from this agency
+    pub fn sp3_agency_filenames_iter(&self, agency: &str) -> Box<dyn Iterator<Item = String> + '_> {
+        let filter = QcIndexing::from_agency(agency);
+
+        Box::new(self.data.iter().filter_map(|(k, _)| {
+            if k.product_type == QcProductType::PreciseOrbit && k.indexing == filter {
+                Some(k.filename.clone())
+            } else {
+                None
+            }
+        }))
+    }
+
     /// Returns total number of SP3 [QcProductType]s that were loaded
     pub fn total_sp3_files(&self) -> usize {
         self.sp3_filenames_iter().count()
+    }
+
+    /// Within all SP3 products, delete this source file.
+    /// Does not affect other types of products.
+    /// NB: the file termination is not preserved by this library.
+    /// To be sure, use the available context and file iterators.
+    pub fn sp3_delete_filename(&mut self, sp3_filename: &str) {
+        self.data.retain(|desc, _| {
+            match desc.product_type {
+                QcProductType::PreciseOrbit => desc.filename != sp3_filename,
+                _ => true,
+            }
+        });
+    }
+    
+    /// Within all SP3 products, delete those published by this agency.
+    pub fn sp3_delete_agency(&mut self, agency: &str) {
+        self.data.retain(|desc, _| {
+            match desc.product_type {
+                QcProductType::PreciseOrbit => {
+                    match desc.indexing {
+                        QcIndexing::Agency(ag) => ag != agency,
+                        _ => true,
+                    }
+                },
+                _ => true,
+            }
+        });
+    }
+
+    /// From all SP3 products, retain only this source file.
+    /// Does not affect other types of products.
+    /// NB: the file termination is not preserved by this library.
+    /// To be sure, use the available context and file iterators.
+    pub fn sp3_retain_filename(&mut self, sp3_filename: &str) {
+        self.data.retain(|desc, _| {
+            match desc.product_type {
+                QcProductType::PreciseOrbit => desc.filename == sp3_filename,
+                _ => true,
+            }
+        });
+    }
+
+    /// Within all SP3 products, retain only those published by this agency.
+    pub fn sp3_retain_agency(&mut self, agency: &str) {
+        self.data.retain(|desc, _| {
+            match desc.product_type {
+                QcProductType::PreciseOrbit => {
+                    match desc.indexing {
+                        QcIndexing::Agency(ag) => ag == agency,
+                        _ => false,
+                    }
+                },
+                _ => true,
+            }
+        });
     }
 }
