@@ -1,6 +1,6 @@
-use crate::prelude::{QcContext, TimeScale, QcIndexing};
+use crate::prelude::{QcContext, TimeScale, QcIndexing, TimeCorrectionsDB};
 
-use qc_traits::{GnssTimeCorrectionsDatabase, Merge, Timeshift};
+use qc_traits::{Merge, Timeshift};
 
 impl QcContext {
     /// Form a [GnssAbsoluteTime] solver from this [QcContext],
@@ -27,8 +27,8 @@ impl QcContext {
     /// // you can then use this information for precise temporal transposition
     /// context.precise_timeshift_mut(&solver, TimeScale::GST);
     /// ```
-    pub fn gnss_time_corrections_database(&self) -> Option<GnssTimeCorrectionsDatabase> {
-        let mut ret = Option::<GnssAbsoluteTime>::None;
+    pub fn time_corrections_database(&self) -> Option<TimeCorrectionsDB> {
+        let mut ret = Option::<TimeCorrectionsDB>::None;
 
         for (desc, data) in self.data.iter() {
             if desc.product_type == QcProductType::BroadcastNavigation {

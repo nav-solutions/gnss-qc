@@ -1,11 +1,6 @@
-use crate::prelude::QcContext;
-
 use std::path::Path;
 
-use crate::{
-    prelude::{QcContext},
-    error::QcError,
-};
+use crate::{error::QcError, prelude::QcContext, context::QcMatchBy};
 
 impl QcContext {
     /// [QcContext::synthesize] generates output product
@@ -28,7 +23,11 @@ impl QcContext {
     /// from RTK network:
     /// ```
     /// ```
-    pub fn synthesize<P: AsRef<Path>>(&self, directory: P, match_by: Option<QcMatchBy>) -> Result<(), QcError> {
+    pub fn synthesize<P: AsRef<Path>>(
+        &self,
+        directory: P,
+        match_by: Option<QcMatchBy>,
+    ) -> Result<(), QcError> {
         for (desc, data) in self.data.iter() {
             let mut matched = match_by.is_none();
 
@@ -36,26 +35,24 @@ impl QcContext {
                 // matched |= match_by.match(desc);
             }
 
-            if matched {
-
-            }
+            if matched {}
         }
 
         Ok(())
     }
-    
-    /// Applies [Self::synthesize] to all/any product types and files contained in 
+
+    /// Applies [Self::synthesize] to all/any product types and files contained in
     /// current [QcContext].
     ///
     /// ## Input
     /// - directory: [Path] prefix
     ///
-    /// Example: 
+    /// Example:
     /// ```
     /// ```
     ///
     /// Refer to [Self::synthesize] for more information
-    pub fn synthesize_all<P: AsRef<Path>>(&self, directory: P) -> Result<(), Error> {
+    pub fn synthesize_all<P: AsRef<Path>>(&self, directory: P) -> Result<(), QcError> {
         self.synthesize(directory, None)
     }
 }

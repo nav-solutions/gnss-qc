@@ -1,7 +1,13 @@
 mod merge;
 mod synthesis;
 
-/// [FileOps] describes the list of supported File Operations
+use crate::context::{
+    QcMatchBy,
+    QcProductType,
+};
+
+/// [QcFileOps] describes the list of supported File Operations
+#[derive(Copy, Clone, PartialEq)]
 pub enum QcFileOps {
     /// [FileOps::Merge] will combine identical products
     /// into a single one. You can typically load several
@@ -19,7 +25,7 @@ pub enum QcFileOps {
 
 /// [QcFileOpsBuilder] is used to describe File Operations.
 /// [QcFileOps] describes the list of supported operations.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct QcFileOpsBuilder {
     /// [QcFileOps]
     pub(crate) fops: QcFileOps,
@@ -78,9 +84,17 @@ impl QcFileOpsBuilder {
     
     /// Restrict operation to this GNSS receiver model.
     /// This is particularly useful in RTK/differential setups.
-    pub fn match_by_agency(&self, name: &str) -> Self {
+    pub fn match_by_receiver_model(&self, name: &str) -> Self {
         let mut s = self.clone();
-        s.match_by = Some(QcMatchBy::agency(name));
+        s.match_by = Some(QcMatchBy::gnss_receiver_model(name));
+        s
+    }
+    
+    /// Restrict operation to this GNSS antenna model.
+    /// This is particularly useful in RTK/differential setups.
+    pub fn match_by_antenna_model(&self, name: &str) -> Self {
+        let mut s = self.clone();
+        s.match_by = Some(QcMatchBy::gnss_receiver_antenna(name));
         s
     }
 

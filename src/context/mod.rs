@@ -44,7 +44,7 @@ use crate::prelude::QcPreferedIndexing;
 pub(crate) use data::QcDataWrapper;
 
 // pub export
-pub use data::{QcIndexing, QcProductType, QcSourceDescriptor};
+pub use data::{QcIndexing, QcProductType, QcMatchBy, cQcSourceDescriptor};
 
 /// [QcContext] is a general structure capable to store most common GNSS data.   
 /// It is dedicated to post processing workflows, precise timing or atmosphere analysis.

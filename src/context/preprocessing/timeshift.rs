@@ -1,4 +1,4 @@
-use crate::prelude::{TimeCorrectionDatabase, QcContext, TimeScale, Timeshift};
+use crate::prelude::{QcContext, TimeScale, Timeshift};
 
 impl QcContext {
     /// Temporal transposition into desired [TimeScale].

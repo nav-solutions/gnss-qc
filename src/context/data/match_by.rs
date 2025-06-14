@@ -1,5 +1,7 @@
+use crate::context::{QcIndexing, QcProductType};
+
 /// [QcMatchBy] regroups all our data search methods
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum QcMatchBy {
     /// Acces data from this file source
     Filename(String),
@@ -14,12 +16,12 @@ pub enum QcMatchBy {
 
 impl QcMatchBy {
     /// Builds a new [QcProductType] filter
-    pub fn product_type(product: QcProductType)) -> Self {
+    pub fn product_type(product: QcProductType) -> Self {
         Self::ProductType(product)
     }
     
     /// Builds a new [QcIndexing] filter
-    pub fn indexing(index: QcIndexing)) -> Self {
+    pub fn indexing(index: QcIndexing) -> Self {
         Self::Indexing(index)
     }
 
@@ -40,21 +42,21 @@ impl QcMatchBy {
     
     /// Builds a new Geodetic marker filter
     pub fn geodetic_marker(name: &str) -> Self {
-        Self::indexing(QcIndexing::from_geodetic_marker(name))
+        Self::indexing(QcIndexing::GeodeticMarker(name.to_string()))
     }
 
     /// Builds a new GNSS receiver model filter
     pub fn gnss_receiver_model(model: &str) -> Self {
-        Self::indexing(QcIndexing::from_receiver(model))
+        Self::indexing(QcIndexing::GnssReceiver(model.to_string()))
     }
     
     /// Builds a new receiver Antenna model filter
     pub fn gnss_receiver_antenna(model: &str) -> Self {
-        Self::indexing(QcIndexing::from_antenna(model))
+        Self::indexing(QcIndexing::RxAntenna(model.to_string()))
     }
 
     /// Builds a new operator name filter
     pub fn operator(name: &str) -> Self {
-        Self::indexing(QcIndexing::from_operator(name))
+        Self::indexing(QcIndexing::Operator(name.to_string()))
     }
 }
