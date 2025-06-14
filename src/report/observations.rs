@@ -73,7 +73,7 @@ impl QcObservationsReport {
     /// Latch new [QcSerializedSignal] contribution
     pub fn latch_data_point(&mut self, indexing: &QcIndexing, sv: SV, carrier: Carrier, epoch: Epoch, value: f64) {
         let key = (
-            indexing: indexing.clone(),
+            indexing.clone(),
             data.sv.constellation.clone(),
         );
 

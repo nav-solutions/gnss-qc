@@ -21,7 +21,6 @@ mod sampling;
 mod clock;
 use clock::ClockResiduals;
 
-
 #[cfg(feature = "navigation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
 pub mod nav;
