@@ -1,20 +1,63 @@
-use crate::prelude::{QcContext, TimeScale};
+use crate::prelude::{ProductType, QcContext, TimeScale};
 
-use qc_traits::{GnssAbsoluteTime, Merge, Timeshift};
+use qc_traits::{Merge, TimeCorrectionError, TimeCorrectionsDB, Timeshift};
 
 impl QcContext {
-    /// Form a [GnssAbsoluteTime] solver from this [QcContext],
-    /// used to allow transposition into other [TimeScale]s.
-    /// This requires navigation both feature and compatibility to truly be effective.
-    pub fn gnss_absolute_time_solver(&self) -> GnssAbsoluteTime {
-        let mut solver = GnssAbsoluteTime::new(&[]);
+    /// Collect a [TimeCorrectionDB] from this [QcContext], that you can then
+    /// use for precise temporal correction. The database will contain
+    /// all time corrections available and described by this dataset.
+    /// This requires both navigation feature and navigation compatibility to truly be effective.
+    pub fn time_corrections_database(&self) -> Option<TimeCorrectionsDB> {
+        let mut db = Option::<TimeCorrectionsDB>::None;
 
         if let Some(brdc) = self.brdc_navigation() {
-            let brdc = brdc.gnss_absolute_time_solver().unwrap(); // infaillible
-            solver.merge_mut(&brdc).unwrap(); // infaillble
+            if let Some(nav_db) = brdc.time_corrections_database() {
+                if let Some(db) = &mut db {
+                    db.merge_mut(&nav_db).unwrap(); // infaillble
+                } else {
+                    db = Some(nav_db);
+                }
+            }
         }
 
-        solver
+        db
+    }
+
+    /// Infaillible transposition of the temporal products to desired [TimeScale].
+    /// This only applies to the following products:
+    /// - Observation RINEX
+    /// - SP3
+    /// ```
+    /// use gnss_qc::prelude::{QcContext, TimeScale};
+    ///
+    /// let mut context = QcContext::new();
+    ///
+    /// // GPST observations
+    /// context.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+    ///     .unwrap();
+    ///
+    /// // GPST sP3
+    /// context.load_sp3_file("data/SP3/D/example.txt")
+    ///     .unwrap();
+    ///
+    /// // convert both to GST
+    /// context.timescale_transposition_mut(TimeScale::GST);
+    /// ```
+    pub fn timescale_transposition_mut(&mut self, timescale: TimeScale) {
+        for (product_type, data) in self.blob.iter_mut() {
+            match product_type {
+                ProductType::Observation => {
+                    let rinex = data.as_mut_rinex().unwrap();
+                    rinex.timeshift_mut(timescale);
+                }
+                #[cfg(feature = "sp3")]
+                ProductType::HighPrecisionOrbit => {
+                    let sp3 = data.as_mut_sp3().unwrap();
+                    sp3.timeshift_mut(timescale);
+                }
+                _ => {}
+            }
+        }
     }
 
     /// Precise temporal transposition of each individual products contained in current [QcContext].
@@ -33,23 +76,21 @@ impl QcContext {
     /// context.load_gzip_rinex_file("data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     ///     .unwrap();
     ///
-    /// // Transposition attempt
-    /// let transposed = context.timescale_transposition(TimeScale::GST);
-    /// let transposed_obs = transposed.observation().unwrap();
+    /// // this setup is not compatible
+    /// assert!(context.time_corrections_database().is_none());
     ///
-    /// // For this to work, Observations are not enough.
-    /// for t in transposed_obs.epoch_iter() {
-    ///     assert_eq!(t.time_scale, TimeScale::GPST);
-    /// }
-    ///
-    /// // You need to stack NAV RINEX for that day as well
+    /// // stack NAV RINEX
     /// context.load_gzip_rinex_file("data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///     .unwrap();
     ///
-    /// let transposed = context.timescale_transposition(TimeScale::GST);
-    /// let transposed_obs = transposed.observation().unwrap();
+    /// let database = context.time_corrections_database()
+    ///     .unwrap();
     ///
-    /// // For this to work, Observations are not enough.
+    /// context.precise_time_correction_mut(&database, TimeScale::GST);
+    ///
+    /// // verify we shifted all observations to GST
+    /// let transposed_obs = context.observation().unwrap();
+    ///
     /// for t in transposed_obs.epoch_iter() {
     ///     assert_eq!(t.time_scale, TimeScale::GST);
     /// }
@@ -59,22 +100,20 @@ impl QcContext {
     /// SP3 are totally valid in any GNSS timescale, you can use this framework
     /// to reformat as desired !
     ///
-    pub fn timescale_transposition(&self, target: TimeScale) -> Self {
-        let mut s = self.clone();
-        s.timescale_transposition_mut(target);
-        s
-    }
-
-    pub fn timescale_transposition_mut(&mut self, target: TimeScale) {
-        let solver = self.gnss_absolute_time_solver();
-
+    pub fn precise_time_correction_mut(
+        &mut self,
+        db: &TimeCorrectionsDB,
+        timescale: TimeScale,
+    ) -> Result<(), TimeCorrectionError> {
         if let Some(observations) = self.observation_mut() {
-            observations.timeshift_mut(&solver, target);
+            observations.precise_correction_mut(db, timescale)?;
         }
 
         #[cfg(feature = "sp3")]
         if let Some(sp3) = self.sp3_mut() {
-            sp3.timeshift_mut(&solver, target);
+            sp3.precise_correction_mut(db, timescale)?;
         }
+
+        Ok(())
     }
 }
