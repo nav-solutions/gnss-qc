@@ -169,43 +169,46 @@ impl OrbitReport {
         #[cfg(feature = "sp3")]
         if let Some(sp3) = ctx.sp3() {
             if let Some(rx_orbit) = reference {
-                for (t, sp3_sv, sp3_orbit) in sp3.satellites_orbit_iter(ctx.earth_cef) {
-                    if let Ok(az_el_range) = ctx
-                        .almanac
-                        .azimuth_elevation_range_sez(sp3_orbit, rx_orbit, None, None)
-                    {
-                        let (lat_ddeg, long_ddeg, _) = sp3_orbit
+                for sp3_state in sp3.satellites_orbit_iter(ctx.earth_cef) {
+                    if let Ok(az_el_range) = ctx.almanac.azimuth_elevation_range_sez(
+                        sp3_state.orbit,
+                        rx_orbit,
+                        None,
+                        None,
+                    ) {
+                        let (lat_ddeg, long_ddeg, _) = sp3_state
+                            .orbit
                             .latlongalt()
                             .unwrap_or_else(|e| panic!("laglongalt: physical error: {}", e));
 
-                        if let Some(t_sp3) = t_sp3.get_mut(&sp3_sv) {
-                            t_sp3.push(t);
+                        if let Some(t_sp3) = t_sp3.get_mut(&sp3_state.satellite) {
+                            t_sp3.push(sp3_state.epoch);
                         } else {
-                            t_sp3.insert(sp3_sv, vec![t]);
+                            t_sp3.insert(sp3_state.satellite, vec![sp3_state.epoch]);
                         }
 
-                        if let Some(e) = elev_sp3.get_mut(&sp3_sv) {
+                        if let Some(e) = elev_sp3.get_mut(&sp3_state.satellite) {
                             e.push(az_el_range.elevation_deg);
                         } else {
-                            elev_sp3.insert(sp3_sv, vec![az_el_range.elevation_deg]);
+                            elev_sp3.insert(sp3_state.satellite, vec![az_el_range.elevation_deg]);
                         }
 
-                        if let Some(a) = azim_sp3.get_mut(&sp3_sv) {
+                        if let Some(a) = azim_sp3.get_mut(&sp3_state.satellite) {
                             a.push(az_el_range.azimuth_deg);
                         } else {
-                            azim_sp3.insert(sp3_sv, vec![az_el_range.azimuth_deg]);
+                            azim_sp3.insert(sp3_state.satellite, vec![az_el_range.azimuth_deg]);
                         }
 
-                        if let Some(lat) = sp3_lat_ddeg.get_mut(&sp3_sv) {
+                        if let Some(lat) = sp3_lat_ddeg.get_mut(&sp3_state.satellite) {
                             lat.push(lat_ddeg);
                         } else {
-                            sp3_lat_ddeg.insert(sp3_sv, vec![lat_ddeg]);
+                            sp3_lat_ddeg.insert(sp3_state.satellite, vec![lat_ddeg]);
                         }
 
-                        if let Some(lon) = sp3_long_ddeg.get_mut(&sp3_sv) {
+                        if let Some(lon) = sp3_long_ddeg.get_mut(&sp3_state.satellite) {
                             lon.push(long_ddeg);
                         } else {
-                            sp3_long_ddeg.insert(sp3_sv, vec![long_ddeg]);
+                            sp3_long_ddeg.insert(sp3_state.satellite, vec![long_ddeg]);
                         }
                     }
                 }

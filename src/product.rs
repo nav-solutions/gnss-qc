@@ -7,19 +7,24 @@ pub enum ProductType {
     /// GNSS carrier signal observation in the form
     /// of Observation RINEX data.
     Observation,
+
     /// Meteo sensors data wrapped as Meteo RINEX files.
     MeteoObservation,
-    /// DORIS measurements wrapped as special RINEX observation file.
-    DORIS,
+
+    // /// DORIS measurements wrapped as special RINEX observation file.
+    // DORIS,
     /// Broadcast Navigation message as contained in
     /// Navigation RINEX files.
     BroadcastNavigation,
+
     /// High precision orbital attitudes wrapped in Clock RINEX files.
     HighPrecisionClock,
+
     /// Antenna calibration information wrapped in ANTEX special RINEX files.
     ANTEX,
-    /// Precise Ionosphere state wrapped in IONEX special RINEX files.
-    IONEX,
+
+    // /// Precise Ionosphere state wrapped in IONEX special RINEX files.
+    // IONEX,
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     /// High precision clock data wrapped in SP3 files.
@@ -30,8 +35,8 @@ impl std::fmt::Display for ProductType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::ANTEX => write!(f, "ANTEX"),
-            Self::IONEX => write!(f, "IONEX"),
-            Self::DORIS => write!(f, "DORIS RINEX"),
+            // Self::IONEX => write!(f, "IONEX"),
+            // Self::DORIS => write!(f, "DORIS RINEX"),
             Self::Observation => write!(f, "Observation"),
             Self::MeteoObservation => write!(f, "Meteo"),
             Self::HighPrecisionClock => write!(f, "High Precision Clock"),
@@ -49,8 +54,8 @@ impl std::str::FromStr for ProductType {
         let lowered = trimmed.to_lowercase();
         match lowered.as_str() {
             "atx" | "antex" => Ok(Self::ANTEX),
-            "ionex" => Ok(Self::IONEX),
-            "doris" => Ok(Self::DORIS),
+            // "ionex" => Ok(Self::IONEX),
+            // "doris" => Ok(Self::DORIS),
             "obs" | "observation" => Ok(Self::Observation),
             "met" | "meteo" => Ok(Self::MeteoObservation),
             "nav" | "brdc" | "navigation" => Ok(Self::BroadcastNavigation),
@@ -69,9 +74,9 @@ impl From<RinexType> for ProductType {
             RinexType::NavigationData => Self::BroadcastNavigation,
             RinexType::MeteoData => Self::MeteoObservation,
             RinexType::ClockData => Self::HighPrecisionClock,
-            RinexType::IonosphereMaps => Self::IONEX,
+            // RinexType::IonosphereMaps => Self::IONEX,
             RinexType::AntennaData => Self::ANTEX,
-            RinexType::DORIS => Self::DORIS,
+            // RinexType::DORIS => Self::DORIS,
         }
     }
 }
