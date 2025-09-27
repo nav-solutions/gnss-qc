@@ -133,16 +133,16 @@ impl QcContext {
         if let Some(obs) = self.observation() {
             let first = obs.first_epoch()?;
             Some(first.time_scale)
-        } else if let Some(dor) = self.doris() {
-            let first = dor.first_epoch()?;
-            Some(first.time_scale)
+        // } else if let Some(dor) = self.doris() {
+        //     let first = dor.first_epoch()?;
+        //     Some(first.time_scale)
         } else if let Some(clk) = self.clock() {
             let first = clk.first_epoch()?;
             Some(first.time_scale)
         } else if self.meteo().is_some() {
             Some(TimeScale::UTC)
-        } else if self.ionex().is_some() {
-            Some(TimeScale::UTC)
+        // } else if self.ionex().is_some() {
+        //    Some(TimeScale::UTC)
         } else {
             #[cfg(feature = "sp3")]
             if let Some(sp3) = self.sp3() {
@@ -162,10 +162,10 @@ impl QcContext {
          */
         for product in [
             ProductType::Observation,
-            ProductType::DORIS,
+            // ProductType::DORIS,
             ProductType::BroadcastNavigation,
             ProductType::MeteoObservation,
-            ProductType::IONEX,
+            // ProductType::IONEX,
             ProductType::ANTEX,
             ProductType::HighPrecisionClock,
             #[cfg(feature = "sp3")]
@@ -287,10 +287,10 @@ impl QcContext {
         self.data(ProductType::Observation)?.as_rinex()
     }
 
-    /// Returns reference to inner [ProductType::DORIS] RINEX data
-    pub fn doris(&self) -> Option<&Rinex> {
-        self.data(ProductType::DORIS)?.as_rinex()
-    }
+    // /// Returns reference to inner [ProductType::DORIS] RINEX data
+    // pub fn doris(&self) -> Option<&Rinex> {
+    //     self.data(ProductType::DORIS)?.as_rinex()
+    // }
 
     /// Returns reference to inner [ProductType::BroadcastNavigation] data
     pub fn brdc_navigation(&self) -> Option<&Rinex> {
@@ -312,20 +312,20 @@ impl QcContext {
         self.data(ProductType::ANTEX)?.as_rinex()
     }
 
-    /// Returns reference to inner [ProductType::IONEX] data
-    pub fn ionex(&self) -> Option<&Rinex> {
-        self.data(ProductType::IONEX)?.as_rinex()
-    }
+    // /// Returns reference to inner [ProductType::IONEX] data
+    // pub fn ionex(&self) -> Option<&Rinex> {
+    //     self.data(ProductType::IONEX)?.as_rinex()
+    // }
 
     /// Returns mutable reference to inner [ProductType::Observation] data
     pub fn observation_mut(&mut self) -> Option<&mut Rinex> {
         self.data_mut(ProductType::Observation)?.as_mut_rinex()
     }
 
-    /// Returns mutable reference to inner [ProductType::DORIS] RINEX data
-    pub fn doris_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::DORIS)?.as_mut_rinex()
-    }
+    // /// Returns mutable reference to inner [ProductType::DORIS] RINEX data
+    // pub fn doris_mut(&mut self) -> Option<&mut Rinex> {
+    //     self.data_mut(ProductType::DORIS)?.as_mut_rinex()
+    // }
 
     /// Returns mutable reference to inner [ProductType::Observation] data
     pub fn brdc_navigation_mut(&mut self) -> Option<&mut Rinex> {
@@ -349,10 +349,10 @@ impl QcContext {
         self.data_mut(ProductType::ANTEX)?.as_mut_rinex()
     }
 
-    /// Returns mutable reference to inner [ProductType::IONEX] data
-    pub fn ionex_mut(&mut self) -> Option<&mut Rinex> {
-        self.data_mut(ProductType::IONEX)?.as_mut_rinex()
-    }
+    // /// Returns mutable reference to inner [ProductType::IONEX] data
+    // pub fn ionex_mut(&mut self) -> Option<&mut Rinex> {
+    //     self.data_mut(ProductType::IONEX)?.as_mut_rinex()
+    // }
 
     /// Returns true if [ProductType::Observation] are present in Self
     pub fn has_observation(&self) -> bool {
@@ -364,10 +364,10 @@ impl QcContext {
         self.brdc_navigation().is_some()
     }
 
-    /// Returns true if at least one [ProductType::DORIS] file is present
-    pub fn has_doris(&self) -> bool {
-        self.doris().is_some()
-    }
+    // /// Returns true if at least one [ProductType::DORIS] file is present
+    // pub fn has_doris(&self) -> bool {
+    //     self.doris().is_some()
+    // }
 
     /// Returns true if [ProductType::MeteoObservation] are present in Self
     pub fn has_meteo(&self) -> bool {
@@ -423,7 +423,8 @@ impl QcContext {
     /// Returns true if provided Input products allow Ionosphere bias
     /// model optimization
     pub fn iono_bias_model_optimization(&self) -> bool {
-        self.ionex().is_some() // TODO: BRDC V3 or V4
+        // self.ionex().is_some() // TODO: BRDC V3 or V4
+        false
     }
 
     /// Returns true if provided Input products allow Troposphere bias
@@ -441,18 +442,19 @@ impl QcContext {
         if let Some(data) = self.brdc_navigation_mut() {
             data.filter_mut(filter);
         }
-        if let Some(data) = self.doris_mut() {
-            data.filter_mut(filter);
-        }
+        // if let Some(data) = self.doris_mut() {
+        //    data.filter_mut(filter);
+        //}
         if let Some(data) = self.meteo_mut() {
             data.filter_mut(filter);
         }
         if let Some(data) = self.clock_mut() {
             data.filter_mut(filter);
         }
-        if let Some(data) = self.ionex_mut() {
-            data.filter_mut(filter);
-        }
+
+        // if let Some(data) = self.ionex_mut() {
+        //     data.filter_mut(filter);
+        // }
 
         #[cfg(feature = "sp3")]
         if let Some(data) = self.sp3_mut() {
@@ -505,7 +507,7 @@ impl std::fmt::Debug for QcContext {
             ProductType::BroadcastNavigation,
             ProductType::MeteoObservation,
             ProductType::HighPrecisionClock,
-            ProductType::IONEX,
+            // ProductType::IONEX,
             ProductType::ANTEX,
             #[cfg(feature = "sp3")]
             ProductType::HighPrecisionOrbit,

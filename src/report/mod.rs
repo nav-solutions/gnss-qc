@@ -60,8 +60,8 @@ impl ProductReport {
 
 fn html_id(product: &ProductType) -> &str {
     match product {
-        ProductType::IONEX => "ionex",
-        ProductType::DORIS => "doris",
+        // ProductType::IONEX => "ionex",
+        // ProductType::DORIS => "doris",
         ProductType::ANTEX => "antex",
         ProductType::Observation => "obs",
         ProductType::BroadcastNavigation => "brdc",
@@ -83,20 +83,20 @@ impl Render for ProductReport {
                         }
                     }
                 }
-                RINEXReport::Doris(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                }
-                RINEXReport::Ionex(report) => {
-                    html! {
-                        div class="section" {
-                            (report.render())
-                        }
-                    }
-                }
+                // RINEXReport::Doris(report) => {
+                //     html! {
+                //         div class="section" {
+                //             (report.render())
+                //         }
+                //     }
+                // }
+                // RINEXReport::Ionex(report) => {
+                //     html! {
+                //         div class="section" {
+                //             (report.render())
+                //         }
+                //     }
+                // }
                 RINEXReport::Nav(report) => {
                     html! {
                         div class="section" {
@@ -178,11 +178,11 @@ impl QcReport {
                     // one tab per RINEX product
                     for product in [
                         ProductType::Observation,
-                        ProductType::DORIS,
+                        // ProductType::DORIS,
                         ProductType::MeteoObservation,
                         ProductType::BroadcastNavigation,
                         ProductType::HighPrecisionClock,
-                        ProductType::IONEX,
+                        // ProductType::IONEX,
                         ProductType::ANTEX,
                     ] {
                         if let Some(rinex) = context.rinex(product) {
