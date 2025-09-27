@@ -1,16 +1,3 @@
-/*
- * All Post Proecessed Navigation support & feature dependent stuff.
- *
- * Authors: Guillaume W. Bres <guillaume.bressaix@gmail.com> et al.
- * (cf. https://github.com/rtk-rs/gnss-qc/graphs/contributors)
- * This framework is shipped under Mozilla Public V2 license.
- *
- * Documentation:
- * - https://github.com/rtk-rs/gnss-qc
- * - https://github.com/rtk-rs/rinex
- * - https://github.com/rtk-rs/sp3
- */
-
 use thiserror::Error;
 
 use log::error;
