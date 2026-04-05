@@ -12,6 +12,11 @@ use qc_traits::Merge;
 pub(crate) mod blob;
 use blob::BlobData;
 
+mod user;
+pub use user::QcUserPreferences;
+
+pub(crate) mod input;
+
 #[cfg(feature = "flate2")]
 #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
 mod flate2;
@@ -40,32 +45,35 @@ use crate::prelude::{Almanac, Frame};
 /// precise timing or atmosphere analysis.
 #[derive(Clone)]
 pub struct QcContext {
-    /// Files merged into this [QcContext]
-    pub(crate) files: HashMap<ProductType, Vec<PathBuf>>,
-
-    /// Context blob created by merging each members of each category
-    pub(crate) blob: HashMap<ProductType, BlobData>,
+    /// Provided [InputProducts]
+    input: input::InputProducts,
 
     #[cfg(feature = "navigation")]
     #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
     /// Latest [Almanac]
-    pub almanac: Almanac,
+    almanac: Almanac,
 
     #[cfg(feature = "navigation")]
     #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
     /// ECEF [Frame]
-    pub earth_cef: Frame,
+    earth_cef: Frame,
+
+    /// [UserPreferences]
+    #[cfg(feature = "navigation")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+    pub preferences: QcUserPreferences,
 }
 
 impl QcContext {
     /// Creates a new [QcContext] for GNSS post processing.
+    /// Pass [QcUserPreferences] customizations or update them later.
     ///
-    /// For people interested in Post Processed navigation:
-    /// - if the library was compiled with "embed_ephem" option, you are good
+    /// For people interested in navigation:
+    /// - when the library is compiled with the "embed_ephem" feature, you are good
     /// to go for high precision navigation. Otherwise, this method will require
     /// that a navigation cache is created and requires internet access on first deployment.
     /// - for people targeting ultra high navigation precision, you should
-    /// use the JPL BPC cache and keep it up to date, by using [Self::with_jpl_update],
+    /// use the JPL BPC cache and keep it up to date, by using [Self::with_jpl_navigation_cache],
     /// which requires internet access at all times.
     ///
     /// ```
@@ -81,13 +89,14 @@ impl QcContext {
     /// // do something
     /// assert_eq!(context.timescale(), Some(TimeScale::GPST));
     /// ```
-    pub fn new() -> Self {
+    pub fn new(preferences: Option<QcUserPreferences>) -> Self {
         #[cfg(feature = "navigation")]
         let (almanac, earth_cef) = Self::default_almanac_frame();
 
         Self {
             files: Default::default(),
             blob: Default::default(),
+            preferences: preferences.unwrap_or_default(),
             #[cfg(feature = "navigation")]
             almanac,
             #[cfg(feature = "navigation")]
@@ -95,62 +104,17 @@ impl QcContext {
         }
     }
 
-    /// Returns "main" [TimeScale] for current [QcContext].
-    ///
-    /// In case measurements where provided, they will always prevail:
-    /// ```
-    /// use gnss_qc::prelude::{QcContext, TimeScale};
-    ///
-    /// // create a new (empty) context
-    /// let mut context = QcContext::new();
-    ///
-    /// // load some data
-    /// context.load_rinex_file("data/OBS/V2/AJAC3550.21O")
-    ///     .unwrap();
-    ///
-    /// context.load_rinex_file("data/NAV/V2/amel0010.21g")
-    ///     .unwrap();
-    ///
-    /// assert_eq!(context.timescale(), Some(TimeScale::GPST));
-    /// ```
-    ///
-    /// SP3 files have unambiguous timescale definition as well.
-    /// So they will prevail as long as RINEX measurements were not provided:
-    ///
-    /// ```
-    /// use gnss_qc::prelude::{QcContext, TimeScale};
-    ///
-    /// // create a new (empty) context
-    /// let mut context = QcContext::new();
-    ///
-    /// // load some data
-    /// context.load_gzip_sp3_file("data/SP3/D/COD0MGXFIN_20230500000_01D_05M_ORB.SP3.gz")
-    ///     .unwrap();
-    ///
-    /// assert_eq!(context.timescale(), Some(TimeScale::GPST));
-    /// ```
-    pub fn timescale(&self) -> Option<TimeScale> {
-        if let Some(obs) = self.observation() {
-            let first = obs.first_epoch()?;
-            Some(first.time_scale)
-        // } else if let Some(dor) = self.doris() {
-        //     let first = dor.first_epoch()?;
-        //     Some(first.time_scale)
-        } else if let Some(clk) = self.clock() {
-            let first = clk.first_epoch()?;
-            Some(first.time_scale)
-        } else if self.meteo().is_some() {
-            Some(TimeScale::UTC)
-        // } else if self.ionex().is_some() {
-        //    Some(TimeScale::UTC)
-        } else {
-            #[cfg(feature = "sp3")]
-            if let Some(sp3) = self.sp3() {
-                return Some(sp3.header.timescale);
-            }
+    /// Returns a new [QcContext] with updated [QcUserPreferences],
+    /// at the expense of a context copy.
+    pub fn with_user_preferences(&self, preferences: QcUserPreferences) -> Self {
+        let mut s = self.clone();
+        s.preferences = preferences;
+        s
+    }
 
-            None
-        }
+    /// Returns reference to [QcInputProducts].
+    fn input(&self) -> &QcInputProducts {
+        self.input
     }
 
     /// Returns path to File considered as Primary product in this Context.
@@ -374,19 +338,80 @@ impl QcContext {
         self.meteo().is_some()
     }
 
-    /// Load a readable [Rinex] file into this [QcContext].
-    pub fn load_rinex_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
-        let rinex = Rinex::from_file(&path)?;
-        self.load_rinex(path, rinex)
+    /// Load a single file into this [QcContext].
+    /// Use this method to load files one by one.
+    /// Otherwise, prefer [QcContext::load_dir].
+    /// When loading files one by one, file format must be supported,
+    /// otherwise we notify the [QcContext] has not been updated with an [Error].
+    /// You might turn on the logs, for parsing information.
+    pub fn load<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
+        match self.load_rinex(path) {
+            Ok(_) => Ok(()),
+            Err(_) => {
+                #[cfg(feature = "nav")]
+                match self.load_sp3(path) {
+                    Ok(_) => Ok(()),
+                    Err(_) => Err(Error::NonSupportedFormat)
+                }
+                #[cfg(not(feature = "nav"))]
+                Err(Error::NonSupportedFormat(path.to_string()))
+            },
+        }
     }
 
-    /// Load a single [Rinex] file into this [QcContext].
-    /// File revision must be supported and must be correctly formatted
-    /// for this operation to be effective.
-    pub fn load_rinex<P: AsRef<Path>>(&mut self, path: P, rinex: Rinex) -> Result<(), Error> {
-        let prod_type = ProductType::from(rinex.header.rinex_type);
+    /// Recursively load files one by one from this root [Path].
+    /// Specify the max_depth search.
+    /// Turn on the logs for file (one by one) log messages.
+    /// Returns an [Error] when not a single valid file was picked up,
+    /// meaning the context has not been updated.
+    /// If only one or a few files are corrupt or invalid, you will need to 
+    /// browse the log report.
+    pub fn load_dir<P: AsRef<Path>>(&mut self, root: P, max_depth: usize) -> Result<(), Error> {
+        let mut ret = Err(Error::NonSupportedFormat("no valid file".to_string()));
 
-        let path_buf = path.as_ref().to_path_buf();
+        let mut walk = WalkDir::new(root)
+            .max(max_depth);
+
+        for e in walk {
+            match self.load(e) {
+                Ok(_) => ret = Ok(()),
+                Err(e) => {
+                    #[cfg(feature = "logs")]
+                    error!(e);
+                    ret = Err(Error(e.to_string()));
+                },
+            }
+        }
+
+        ret
+    }
+
+    /// Load [Rinex] file into this [QcContext].
+    /// File must be supported and correctly formatted.
+    /// Returns an [Error] if this RINEX format is not supported or file is corrupt,
+    /// meaning the context has not been updated.
+    pub fn load_rinex<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error> {
+
+        match rinex = Rinex::from_file(&path) {
+            Ok(rinex) => {
+                trace!("parsed RINEX file \"{}\"", path.to_string());
+                
+                match InputType::from(rinex.header.rinex_type) {
+                    Ok(input) => {
+
+                    },
+                    Err(e) => {
+                        error!("RINEX type not supported");
+                        Err(Error::NonSupportedFormat)
+                    },
+                }
+            },
+            Err(e) => {
+
+            },
+        }
+
+
 
         // extend context blob
         if let Some(paths) = self

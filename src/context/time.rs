@@ -3,6 +3,42 @@ use crate::prelude::{ProductType, QcContext, TimeScale};
 use qc_traits::{Merge, TimeCorrectionError, TimeCorrectionsDB, Timeshift};
 
 impl QcContext {
+    /// Returns an updated [QcContext] with new time window start.
+    /// Refer to [Self::set_time_window_start].
+    pub fn with_time_window_start(&self, start: Epoch) -> Self {
+        let mut s = self.clone();
+        s.set_time_window_start(start);
+        s
+    }
+    
+    /// Define the start of a custom temporal crop window (epoch 
+    /// will be included in future analysis, but not prior that time stamp).
+    /// The last epoch to be included is not modified:
+    /// - if it has been already customized, it is preserved.
+    /// - otherwise, it is the last timestamp available in the dataset.
+    pub fn set_time_window_start(&mut self, start: Epoch) {
+        match self.preferences.time_window {
+            Some(win) => {
+                
+            },
+            None => {
+                
+            }
+        }
+    }   
+
+    /// Returns the oldest [Epoch] available in the user dataset.
+    /// This can serve as the oldest [Epoch] of a temporal window.
+    pub fn first_dataset_epoch(&self) -> Option<Epoch> {
+        self.browser().temporal().first()
+    }
+    
+    /// Returns the latest [Epoch] available in the user dataset.
+    /// This can serve as the latest [Epoch] of a temporal window.
+    pub fn first_dataset_epoch(&self) -> Option<Epoch> {
+        self.browser().temporal().last()
+    }
+
     /// Collect a [TimeCorrectionDB] from this [QcContext], that you can then
     /// use for precise temporal correction. The database will contain
     /// all time corrections available and described by this dataset.

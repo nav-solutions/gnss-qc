@@ -61,7 +61,7 @@ pub mod prelude {
     pub use rinex::prelude::{Error as RinexError, Rinex};
 
     #[cfg(feature = "navigation")]
-    pub use anise::prelude::{Almanac, Frame, Orbit};
+    pub use anise::prelude::{Almanac, Frame, Orbit, Vector3};
 
     #[cfg(feature = "sp3")]
     pub use sp3::prelude::{Error as SP3Error, SP3};

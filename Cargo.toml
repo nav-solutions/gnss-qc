@@ -57,8 +57,9 @@ embed_ephem = [
 # ]
 
 [dependencies.rinex]
-git = "https://github.com/nav-solutions/rinex"
-rev = "a10b41abb0ccd6b804dff6acd560992cdcd4c639"
+# git = "https://github.com/nav-solutions/rinex"
+path = "/hdd/git/nav-sls/rinex"
+# rev = "a10b41abb0ccd6b804dff6acd560992cdcd4c639"
 features = [
     "qc", 
     "processing", 
@@ -72,14 +73,11 @@ features = [
 ]
 
 [dependencies.sp3]
-git = "https://github.com/nav-solutions/sp3"
-rev = "0ac81cff95466eb6a3f5c7654e278d12ada4aeb8"
+path = "/hdd/git/nav-sls/sp3"
+# git = "https://github.com/nav-solutions/sp3"
+# rev = "0ac81cff95466eb6a3f5c7654e278d12ada4aeb8"
 optional = true
-features = [
-    "qc", 
-    "processing", 
-    "serde"
-]
+features = ["qc", "processing", "serde"]
 
 [dependencies]
 thiserror = "2"
