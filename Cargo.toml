@@ -57,9 +57,9 @@ embed_ephem = [
 # ]
 
 [dependencies.rinex]
-# git = "https://github.com/nav-solutions/rinex"
-path = "/hdd/git/nav-sls/rinex"
-# rev = "a10b41abb0ccd6b804dff6acd560992cdcd4c639"
+git = "https://github.com/nav-solutions/rinex"
+rev = "55b21881f4a9d4e4d1939bfcfc79ce2c41193fc2"
+# path = "/hdd/git/nav-sls/rinex"
 features = [
     "qc", 
     "processing", 
@@ -73,11 +73,22 @@ features = [
 ]
 
 [dependencies.sp3]
-path = "/hdd/git/nav-sls/sp3"
-# git = "https://github.com/nav-solutions/sp3"
-# rev = "0ac81cff95466eb6a3f5c7654e278d12ada4aeb8"
+# path = "/hdd/git/nav-sls/sp3"
+git = "https://github.com/nav-solutions/sp3"
+rev = "fa1eb6c7bc98905b5a200e8dfa4719ff79f6ebf6"
 optional = true
 features = ["qc", "processing", "serde"]
+
+[dependencies.gnss-rs]
+git = "https://github.com/nav-solutions/gnss"
+rev = "83b2b9397d05a59a9d06b0ddf1fab73c7f1ab1c1"
+features = ["std", "domes", "cospar", "sbas"]
+
+[dependencies.gnss-qc-traits]
+git = "https://github.com/nav-solutions/qc-traits"
+rev = "3fddd9f447629e691538ed903790e9aeb09f92ef"
+optional = true
+features = ["html"]
 
 [dependencies]
 thiserror = "2"
@@ -85,12 +96,10 @@ maud = "0.26"
 plotly = "0.12"
 strum = "0.27"
 strum_macros = "0.26"
-itertools = "0.14.0"
+itertools = "0.14"
 log = { version = "0.4", optional = true }
-anise = { version = "0.5.3", optional = true }
-gnss-rs = { version = "2.5", features = ["serde"] }
-hifitime = { version = "4.1", features = ["serde", "std"] }
-gnss-qc-traits = { version = "0.4", features = ["processing"] }
+anise = { version = "0.9", optional = true }
+hifitime = { version = "4.2", features = ["serde", "std"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 [dev-dependencies]

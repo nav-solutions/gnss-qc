@@ -1,3 +1,4 @@
+//! Time corrections and related features
 use crate::prelude::{ProductType, QcContext, TimeScale};
 
 use qc_traits::{Merge, TimeCorrectionError, TimeCorrectionsDB, Timeshift};

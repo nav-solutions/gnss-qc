@@ -374,8 +374,10 @@ impl QcContext {
 
         for e in walk {
             match self.load(e) {
-                Ok(_) => ret = Ok(()),
-                Err(e) => {
+                Ok(_) => {
+                    ret = Ok(());
+                },
+                Err(e) => {
                     #[cfg(feature = "logs")]
                     error!(e);
                     ret = Err(Error(e.to_string()));
