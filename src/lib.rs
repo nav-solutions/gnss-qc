@@ -1,4 +1,6 @@
-#![doc(html_logo_url = "https://raw.githubusercontent.com/nav-solutions/.github/master/logos/logo2.jpg")]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/nav-solutions/.github/master/logos/logo2.jpg"
+)]
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -22,16 +24,16 @@ extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 
 mod cfg;
-mod context;
-mod product;
-mod report;
+// mod context;
+// mod product;
+// mod report;
 
-#[cfg(feature = "navigation")]
-#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-mod navigation;
+// #[cfg(feature = "navigation")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+// mod navigation;
 
-pub mod error;
-pub mod plot;
+// pub mod error;
+// pub mod plot;
 
 #[cfg(test)]
 mod tests;
@@ -39,19 +41,20 @@ mod tests;
 pub mod prelude {
     pub use crate::{
         cfg::{QcConfig, QcReportType},
-        context::QcContext,
-        error::Error,
-        product::ProductType,
-        report::{QcExtraPage, QcReport},
+        // context::QcContext,
+        // error::Error,
+        // product::ProductType,
+        // report::{QcExtraPage, QcReport},
     };
 
     pub use gnss::prelude::{Constellation, COSPAR, SV};
-    pub use hifitime::prelude::{Duration, Epoch, TimeScale};
 
-    #[cfg(feature = "navigation")]
-    pub use crate::navigation::{NavFilter, NavFilterType, ReferenceEcefPosition};
+    pub use hifitime::prelude::{Duration, Epoch, TimeScale, TimeSeries};
 
-    pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
+    // #[cfg(feature = "navigation")]
+    // pub use crate::navigation::{NavFilter, NavFilterType, ReferenceEcefPosition};
+
+    // pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
 
     pub use qc_traits::{
         Filter, FilterItem, MaskOperand, Preprocessing, Repair, RepairTrait, TimeCorrection,
@@ -61,7 +64,7 @@ pub mod prelude {
     pub use rinex::prelude::{Error as RinexError, Rinex};
 
     #[cfg(feature = "navigation")]
-    pub use anise::prelude::{Almanac, Frame, Orbit, Vector3};
+    pub use anise::prelude::{Almanac, Frame, Orbit};
 
     #[cfg(feature = "sp3")]
     pub use sp3::prelude::{Error as SP3Error, SP3};
