@@ -33,7 +33,9 @@ serde = [
     "dep:serde",
     "rinex/serde",
     "sp3?/serde",
+    "cggtts?/serde",
     "hifitime/serde",
+    "anise?/serde",
 ]
 
 # Unlock support of high precision SP3 files.
@@ -51,6 +53,12 @@ sp3 = ["dep:sp3"]
 #     "dep:log",
 # ]
 
+# Special Timing oriented navigation solutions.
+cggtts = [
+#    "navigation",
+    "dep:cggtts",
+]
+
 # Unlock "embedded ephemeris" option,
 # which removes the need of Internet access on very first (ever) deployment
 # in order to obtain the ANISE database
@@ -58,6 +66,16 @@ embed_ephem = [
     "dep:anise",
     "anise/embed_ephem",
 ]
+
+[dependencies.gnss-rs]
+git = "https://github.com/nav-solutions/gnss"
+rev = "9b9c18f60cf60045c4b702a411377469f9962e6"
+features = ["std", "domes", "cospar", "sbas"]
+
+[dependencies.gnss-qc-traits]
+git = "https://github.com/nav-solutions/qc-traits"
+rev = "338857514973a8682d93be3a7b54bb3444eb8741"
+features = ["html"]
 
 [dependencies.rinex]
 git = "https://github.com/nav-solutions/rinex"
@@ -71,7 +89,6 @@ features = [
     "meteo", 
     "clock", 
     "antex", 
-    "serde",
 ]
 
 [dependencies.sp3]
@@ -80,15 +97,10 @@ rev = "839b6cbac07c8ba5a3b89b47da2b24fbe6d92c40"
 optional = true
 features = ["qc", "processing", "serde"]
 
-[dependencies.gnss-rs]
-git = "https://github.com/nav-solutions/gnss"
-rev = "9b9c18f60cf60045c4b702a411377469f9962e6"
-features = ["std", "domes", "cospar", "sbas"]
-
-[dependencies.gnss-qc-traits]
-git = "https://github.com/nav-solutions/qc-traits"
-rev = "338857514973a8682d93be3a7b54bb3444eb8741"
-features = ["html"]
+[dependencies.sp3]
+git = "https://github.com/nav-solutions/cggtts"
+optional = true
+features = ["tracker"]
 
 [dependencies.anise]
 version = "0.9"
