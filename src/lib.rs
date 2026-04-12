@@ -16,7 +16,6 @@
  * - https://github.com/nav-solutions/sp3
  */
 
-#[cfg(feature = "navigation")]
 #[macro_use]
 extern crate log;
 

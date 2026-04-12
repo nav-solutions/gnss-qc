@@ -51,10 +51,20 @@ without this feature. At best it will take a lot longer to reach the same soluti
 feature we propose. This application enables features dedicated to post-processed navigation.
 It will automatically integrate our [GNSS-RTK Solver](https://github.com/nav-solutions/gnss-rtk) which
 
-QcContext
-=========
+Concepts
+========
 
 Amongst all objects contained in this library, the QcContext is the most fundamental.
+
+Terminology
+===========
+
+We define three sets of operation that the library will provide.
+
+The first one is actually the preprocessing and it takes place once
+the dataset has been formed and we contextualize it into a QcContext.
+The QcContext is then set and locked: algorithms and further analysis will digest
+the context with only read access.
 
 External libraries
 ==================

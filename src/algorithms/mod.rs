@@ -1,7 +1,9 @@
-/// List of supported [Algorithms].
+/// Supported [Algorithms].
+mod solutions;
 
 use crate::prelude::QcInputSource;
 
+/// All supported [Algorithms].
 pub enum Algorithms {
     #[cfg(feature = "navigation")]
     /// Navigation Solutions using PPP technique
@@ -15,6 +17,7 @@ pub enum Algorithms {
     /// to static rovers (reference station). The definition
     /// of reference stations does not impact this process, which has the
     /// sames requirements as [Algorithms::PppSolutions]
+    CggttsSolutions,
 
     #[cfg(feature = "navigation")]
     /// Requires to solve navigation solutions for each individual rovers
@@ -30,12 +33,7 @@ pub enum Algorithms {
     RtkSolutions,
     
     #[cfg(feature = "navigation")]
-    /// Resolve the state of the selected (must be unique) reference station,
-    /// by using either:
-    /// - RTK (prefered) if at least one more station is referenced
-    /// - PPP otherwise.
-    /// The tool will automatically pick up the calibration technique,
-    /// based on the provided data and selected preference.
-    /// !! NOT_AVAILABLE_YET !!
-    RtkBaseCalibration,
+    /// Requires to solve navigation solutions for each individual rovers.
+    AllRtkSolutions,
+
 }
