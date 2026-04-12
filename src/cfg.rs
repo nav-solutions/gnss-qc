@@ -20,6 +20,7 @@ pub enum QcReportType {
     /// of the report is to be generated. It is the lightest
     /// form we can generate.
     Summary,
+
     /// In [Full] mode, we generate the [CombinedReport] as well,
     /// which results from the consideration of all input [ProductType]s
     /// at the same time.

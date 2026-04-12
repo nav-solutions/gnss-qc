@@ -23,7 +23,10 @@ extern crate log;
 extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 
-mod cfg;
+mod dataset;
+mod context;
+
+// mod cfg;
 // mod context;
 // mod product;
 // mod report;
@@ -40,11 +43,6 @@ mod tests;
 
 pub mod prelude {
     pub use crate::{
-        cfg::{QcConfig, QcReportType},
-        // context::QcContext,
-        // error::Error,
-        // product::ProductType,
-        // report::{QcExtraPage, QcReport},
     };
 
     pub use gnss::prelude::{Constellation, COSPAR, SV};
@@ -56,10 +54,10 @@ pub mod prelude {
 
     // pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
 
-    pub use qc_traits::{
-        Filter, FilterItem, MaskOperand, Preprocessing, Repair, RepairTrait, TimeCorrection,
-        TimeCorrectionError, TimeCorrectionsDB, Timeshift,
-    };
+    // pub use qc_traits::{
+    //     Filter, FilterItem, MaskOperand, Preprocessing, Repair, RepairTrait, TimeCorrection,
+    //     TimeCorrectionError, TimeCorrectionsDB, Timeshift,
+    // };
 
     pub use rinex::prelude::{Error as RinexError, Rinex};
 
@@ -70,6 +68,4 @@ pub mod prelude {
     pub use sp3::prelude::{Error as SP3Error, SP3};
 
     pub use std::path::Path;
-
-    pub use maud::{html, Markup, Render};
 }

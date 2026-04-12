@@ -11,7 +11,7 @@ categories = ["science", "science::geo"]
 edition = "2021"
 
 [package.metadata]
-msrv = "1.82"
+msrv = "1.89"
 
 [package.metadata.docs.rs]
 features = ["sp3", "flate2", "navigation"]
@@ -28,20 +28,28 @@ flate2 = [
     "sp3?/flate2",
 ]
 
+# Structures serialization/deserialization
+serde = [
+    "dep:serde",
+    "rinex/serde",
+    "sp3?/serde",
+    "hifitime/serde",
+]
+
 # Unlock support of high precision SP3 files.
 # When targetting highest precision analysis and solutions, like in PPP,
 # Otherwise, your processing (and possible navigation) only relies on RINEX.
 sp3 = ["dep:sp3"]
 
-# Unlock Post Processed Navigation.
-# Without this option, you are limited to context setup & analysis (basic processing).
-# This option unlocks most advanced solvers.
-navigation = [
-    "dep:anise",
-    "rinex/nav",
-    "sp3?/anise",
-    "dep:log",
-]
+# # Unlock Post Processed Navigation.
+# # Without this option, you are limited to context setup & analysis (basic processing).
+# # This option unlocks most advanced solvers.
+# navigation = [
+#     "dep:anise",
+#     "rinex/nav",
+#     "sp3?/anise",
+#     "dep:log",
+# ]
 
 # Unlock "embedded ephemeris" option,
 # which removes the need of Internet access on very first (ever) deployment
@@ -51,15 +59,9 @@ embed_ephem = [
     "anise/embed_ephem",
 ]
 
-# Unlock graphical analysis (plots rendering), otherwise reports are solely text based
-# plot = [
-#     "dep:plotly", 
-# ]
-
 [dependencies.rinex]
 git = "https://github.com/nav-solutions/rinex"
-rev = "55b21881f4a9d4e4d1939bfcfc79ce2c41193fc2"
-# path = "/hdd/git/nav-sls/rinex"
+rev = "7b1443f83d72e304c595ee8ef79dc870bd3fd65b"
 features = [
     "qc", 
     "processing", 
@@ -73,37 +75,34 @@ features = [
 ]
 
 [dependencies.sp3]
-# path = "/hdd/git/nav-sls/sp3"
-# git = "https://github.com/nav-solutions/sp3"
-# rev = "fa1eb6c7bc98905b5a200e8dfa4719ff79f6ebf6"
-version = "1.4"
+git = "https://github.com/nav-solutions/sp3"
+rev = "839b6cbac07c8ba5a3b89b47da2b24fbe6d92c40"
 optional = true
 features = ["qc", "processing", "serde"]
 
 [dependencies.gnss-rs]
-# git = "https://github.com/nav-solutions/gnss"
-# rev = "83b2b9397d05a59a9d06b0ddf1fab73c7f1ab1c1"
-version = "2.6.0"
+git = "https://github.com/nav-solutions/gnss"
+rev = "9b9c18f60cf60045c4b702a411377469f9962e6"
 features = ["std", "domes", "cospar", "sbas"]
 
 [dependencies.gnss-qc-traits]
-# git = "https://github.com/nav-solutions/qc-traits"
-# rev = "3fddd9f447629e691538ed903790e9aeb09f92ef"
-version = "0.4"
-optional = true
+git = "https://github.com/nav-solutions/qc-traits"
+rev = "338857514973a8682d93be3a7b54bb3444eb8741"
 features = ["html"]
+
+[dependencies.anise]
+version = "0.9"
+optional = true
 
 [dependencies]
 thiserror = "2"
-maud = "0.26"
-plotly = "0.12"
-strum = "0.27"
-strum_macros = "0.26"
-itertools = "0.14"
-log = { version = "0.4", optional = true }
-anise = { version = "0.9", optional = true }
-hifitime = { version = "4.2", features = ["serde", "std"] }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
+# strum = "0.27"
+# strum_macros = "0.26"
+# itertools = "0.14"
+# log = { version = "0.4", optional = true }
+hifitime = { version = "4.2", features = ["std"] }
+
+serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
 [dev-dependencies]
 serde_json = "1"
