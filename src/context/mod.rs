@@ -1,7 +1,7 @@
 //! GNSS dataset definition.
 mod preferences;
 
-#[cfg(not(feature = "navigation")]
+#[cfg(not(feature = "navigation"))]
 mod default;
 
 use std::{

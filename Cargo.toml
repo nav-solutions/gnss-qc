@@ -35,7 +35,6 @@ serde = [
     "sp3?/serde",
     "cggtts?/serde",
     "hifitime/serde",
-    "anise?/serde",
 ]
 
 # Unlock support of high precision SP3 files.
@@ -79,7 +78,7 @@ features = ["html"]
 
 [dependencies.rinex]
 git = "https://github.com/nav-solutions/rinex"
-rev = "7b1443f83d72e304c595ee8ef79dc870bd3fd65b"
+rev = "49aeb63f261baf124ce434d7d72bd885aba6ea49"
 features = [
     "qc", 
     "processing", 
@@ -97,7 +96,7 @@ rev = "839b6cbac07c8ba5a3b89b47da2b24fbe6d92c40"
 optional = true
 features = ["qc", "processing", "serde"]
 
-[dependencies.sp3]
+[dependencies.cggtts]
 git = "https://github.com/nav-solutions/cggtts"
 optional = true
 features = ["tracker"]
