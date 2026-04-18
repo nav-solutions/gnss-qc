@@ -22,6 +22,7 @@ extern crate log;
 extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 
+pub mod metrics;
 pub mod utils;
 
 mod context;

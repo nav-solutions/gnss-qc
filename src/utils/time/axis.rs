@@ -1,4 +1,5 @@
 use crate::{
+    metrics::QcTemporalMetrics,
     prelude::{Duration, Epoch, TimeSeries},
     utils::time::TemporalArc,
 };
@@ -15,6 +16,11 @@ impl TemporalAxis {
         Self {
             args: Vec::with_capacity(size),
         }
+    }
+
+    /// Creates a new [TemporalAxis] that contains a single [TemporalArc].
+    pub fn from_temporal_arc(arc: TemporalArc) -> Self {
+        Self { arcs: vec![arc] }
     }
 
     /// Returns true if this [TemporalAxis] does not event contain
@@ -46,6 +52,20 @@ impl TemporalAxis {
 
         if is_wrapped {}
     }
+
+    /// Computes [QcTemporalMetrics] from this [TemporalAxis]
+    pub fn compute_metrics(&self) -> QcTemporalMetrics {
+        QcTemporalMetrics {
+            num_gaps,
+            largest_gap,
+            sampling_period: sampling_periods.mean()
+            stddev: sampling_periods.stddev(),
+            duty_cycle:
+        }
+    }
 }
 
-pub struct TemporalAxisIter<'a> {}
+pub struct TemporalAxisIter<'a> {
+    ptr: usize,
+    arcs: &'a [TemporalArc],
+}
