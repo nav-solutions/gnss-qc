@@ -22,8 +22,10 @@ extern crate log;
 extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 
-mod dataset;
+pub mod utils;
+
 mod context;
+mod dataset;
 
 // mod cfg;
 // mod context;
@@ -41,9 +43,6 @@ mod context;
 mod tests;
 
 pub mod prelude {
-    pub use crate::{
-    };
-
     pub use gnss::prelude::{Constellation, COSPAR, SV};
 
     pub use hifitime::prelude::{Duration, Epoch, TimeScale, TimeSeries};

@@ -1,6 +1,4 @@
 //! GNSS dataset definition.
-mod preferences;
-
 #[cfg(not(feature = "navigation"))]
 mod default;
 
@@ -40,7 +38,7 @@ use crate::prelude::{Rinex, TimeScale};
 use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
 
 //use crate::{
-//    error::Error, 
+//    error::Error,
 //    prelude::ProductType,
 //};
 
@@ -67,15 +65,11 @@ pub struct QcContext {
     /// ECEF [Frame]
     earth_cef: Frame,
 
-    // /// [QcContextPreferences]
-    // pub preferences: QcContextPreferences,
-
     /// Contextualized dataset, now read-only
     dataset: Arc<Dataset>,
 }
 
 impl QcContext {
-
     // /// Returns reference to [QcInputProducts].
     // fn input(&self) -> &QcInputProducts {
     //     self.input

@@ -12,4 +12,3 @@ pub enum QcInputProduct {
     #[cfg(feature = "sp3")]
     SP3,
 }
-

@@ -2,10 +2,7 @@
 mod products;
 mod source;
 
-use std::{
-    fs::Path,
-    collections::HashMap,
-};
+use std::{collections::HashMap, fs::Path};
 
 use walkdir::WalkDir;
 
@@ -34,7 +31,7 @@ pub struct QcDataIndex {
     pub source: QcInputSource,
 }
 
-/// [QcDataset] wrapps all static input products that 
+/// [QcDataset] wrapps all static input products that
 /// we index with [QcDataIndex] and gathered from local files.
 #[derive(Default, Clone)]
 pub struct QcDataset {
@@ -51,9 +48,12 @@ impl QcDataset {
             data: Arc::new(self.data),
         }
     }
-    
+
     #[cfg(feature = "navigation")]
-    pub fn contextualization(&self, preferences: Option<QcContextPreferences>) -> Result<QcContext, Error> {
+    pub fn contextualization(
+        &self,
+        preferences: Option<QcContextPreferences>,
+    ) -> Result<QcContext, Error> {
         let user_preferences = preferences.unwrap_or_default();
 
         // post-processed navigation will require the definition
@@ -63,10 +63,10 @@ impl QcDataset {
 
         QcContext {
             user_preferences,
-            
+
             #[cfg(feature = "navigation")]
             almanac,
-            
+
             #[cfg(feature = "navigation")]
             earth_cef,
 
