@@ -84,7 +84,7 @@ features = [
 [dependencies]
 thiserror = "2"
 maud = "0.26"
-plotly = "0.12"
+plotly = "0.14"
 strum = "0.27"
 strum_macros = "0.26"
 itertools = "0.14.0"
