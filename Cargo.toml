@@ -89,7 +89,7 @@ strum = "0.27"
 strum_macros = "0.26"
 itertools = "0.14.0"
 log = { version = "0.4", optional = true }
-anise = { version = "0.5.3", optional = true }
+anise = { version = "0.10.1", optional = true }
 gnss-rs = { version = "2.5", features = ["serde"] }
 hifitime = { version = "4.1", features = ["serde", "std"] }
 gnss-qc-traits = { version = "0.4", features = ["processing"] }
