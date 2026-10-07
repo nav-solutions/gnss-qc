@@ -3,6 +3,9 @@ use thiserror::Error;
 
 pub mod signal;
 pub mod meteo;
+    
+#[cfg(feature = "rtcm")]
+use rtcm_rs::msg::message::Message as RtcmMessage;
 
 mod preprocessing;
 
@@ -57,6 +60,10 @@ pub enum InputStream {
 
     /// [StateStream]s
     Ephemeris(EphemerisStream),
+
+    /// [RtcmMessage] stream
+    #[cfg(feature = "rtcm")]
+    RTCM(RtcMmessage),
 }
 
 

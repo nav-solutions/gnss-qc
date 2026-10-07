@@ -1,7 +1,7 @@
-use crate::input::types::InputProductType;
+use std::path::Path;
 use thiserror::Error;
 
-use std::path::Path;
+use crate::input::types::QcProductType;
 
 use hifitime::prelude::Epoch;
 
@@ -16,7 +16,7 @@ pub enum IndexingError {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub struct InputProductKey {
+pub struct QcProductKey {
     /// Name for this input product. For static text files
     /// like RINEX files, this is simply the file name.
     pub name: String,
@@ -24,43 +24,74 @@ pub struct InputProductKey {
     /// Alias used in complex indexing method.
     pub alias: String,
 
-    /// File creation date & time
-    pub datetime: Epoch,
-
-    /// Type of attached product
-    pub product_type: InputProductType,
+    /// Attached [QcProductType]
+    pub product_type: QcProductType,
 }
 
-impl InputProductKey {
-    /// Guess [InputProductKey] indexing method from a local file [Path].
-    /// This is not the most efficient classification technique because it will
-    /// attempt each supported data format (one by one) and select the one that passes internally,
-    /// and we deduce the product type from there.
-    pub fn guess_from_path<P: AsRef<Path>>(path: P) -> Result<Self, IndexingError> {
-        let path = path.as_ref();
+impl QcProductKey {}
 
-        let name = path
-            .file_name()
-            .ok_or(IndexingError::InputFileName)?
-            .to_str()
-            .ok_or(IndexingError::InputFileName)?;
-
-        let meta = path.metadata().map_err(|e| {
-            error!("file meta: {}", e);
-            IndexingError::InputFileMeta
-        })?;
-
-        let datetime = meta.created().map_err(|_| IndexingError::InputFileMeta)?;
-
-        let name_str = name.to_string();
-
-        Ok(Self {
-            name: name_str.clone(),
-            alias: name_str.clone(),
-            datetime: {
-                Epoch::from_unix_seconds(0.0) // TODO
-            },
-            product_type: InputProductType::RINEX,
-        })
-    }
-}
+// #[cfg(test)]
+// mod test {
+//     use crate::input::key::QcProductKey;
+//     use crate::input::types::QcProductType;
+//
+//     #[test]
+//     fn test_obs_v2_rinex_key_guessing() {
+//         let key = QcProductKey::guess_from_path("../../data/OBS/V2/wsra0010.21o")
+//             .unwrap_or_else(|e| {
+//                 panic!("Failed to guess InputProductKey for OBS/V2/wsra0010: {}", e);
+//             });
+//
+//         assert_eq!(key.name, "wsra0010.21o");
+//         assert_eq!(key.alias, "wsra0010.21o");
+//         assert_eq!(key.product_type, QcProductType::RINEX);
+//     }
+//
+//     #[test]
+//     fn test_obs_v3_rinex_key_guessing() {
+//         let key = QcProductKey::guess_from_path("../../data/OBS/V3/DUTH0630.22O")
+//             .unwrap_or_else(|e| {
+//                 panic!("Failed to guess InputProductKey for OBS/V3/DUTH0630: {}", e);
+//             });
+//
+//         assert_eq!(key.name, "DUTH0630.22O");
+//         assert_eq!(key.alias, "DUTH0630");
+//         assert_eq!(key.product_type, QcProductType::RINEX);
+//     }
+//
+//     #[test]
+//     fn test_sp3_a_key_guessing() {
+//         let key = QcProductKey::guess_from_path("../../data/SP3/A/emr08874.sp3")
+//             .unwrap_or_else(|e| {
+//                 panic!("Failed to guess InputProductKey for SP3/A/emr08874: {}", e);
+//             });
+//
+//         assert_eq!(key.name, "emr08874.sp3");
+//         assert_eq!(key.alias, "emr08874");
+//         assert_eq!(key.product_type, QcProductType::SP3);
+//     }
+//
+//     #[test]
+//     fn test_sp3_c_key_guessing() {
+//         let key = QcProductKey::guess_from_path("../../data/SP3/C/em108871.sp3")
+//             .unwrap_or_else(|e| {
+//                 panic!("Failed to guess InputProductKey for SP3/C/em108871: {}", e);
+//             });
+//
+//         assert_eq!(key.name, "em108871");
+//         assert_eq!(key.alias, "em108871");
+//         assert_eq!(key.product_type, QcProductType::SP3);
+//     }
+//
+//     #[test]
+//     fn test_sp3_d_key_guessing() {
+//         let key = QcProductKey::guess_from_path("../../data/SP3/D/Sta21114.sp3.gz")
+//             .unwrap_or_else(|e| {
+//                 panic!("Failed to guess InputProductKey for SP3/D/Sta21114.sp3: {}", e);
+//             });
+//
+//         assert_eq!(key.name, "Sta21114.sp3");
+//         assert_eq!(key.alias, "Sta21114");
+//         assert_eq!(key.product_type, QcProductType::SP3);
+//     }
+// }

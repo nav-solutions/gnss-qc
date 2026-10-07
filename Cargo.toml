@@ -14,19 +14,13 @@ edition = "2021"
 msrv = "1.82"
 
 [package.metadata.docs.rs]
-features = ["sp3", "flate2", "navigation"]
+features = ["sp3", "nav", "cggtts"]
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [features]
 # Supports SP3 files by default
 # Support Gzip compressed files by default
-default = ["sp3", "flate2"]
-
-# Support Gzip compressed files natively
-flate2 = [
-    "rinex/flate2",
-    "sp3?/flate2",
-]
+default = ["sp3"]
 
 # Unlock support of high precision SP3 files.
 # When targetting highest precision analysis and solutions, like in PPP,
@@ -63,31 +57,19 @@ features = [
     "clock", 
     "antex", 
     "serde",
-]
-
-[dependencies.sp3]
-git = "https://github.com/nav-solutions/sp3"
-rev = "0ac81cff95466eb6a3f5c7654e278d12ada4aeb8"
-optional = true
-features = [
-    "qc", 
-    "processing", 
-    "serde"
+    "flate2",
 ]
 
 [dependencies]
 thiserror = "2"
-maud = "0.26"
-plotly = "0.12"
-strum = "0.27"
-strum_macros = "0.26"
+# strum = "0.27"
+# strum_macros = "0.26"
 itertools = "0.14"
+cggtts = { version = "1", optional = true }
 log = { version = "0.4", optional = true }
 anise = { version = "0.9", optional = true }
 gnss-rs = { version = "2.7", features = ["serde"] }
 hifitime = { version = "4", features = ["serde", "std"] }
 gnss-qc-traits = { version = "0.5", features = ["processing"] }
 serde = { version = "1", default-features = false, features = ["derive"] }
-
-[dev-dependencies]
-serde_json = "1"
+sp3 = { version = "1", features = ["qc", "serde", "flate2", "processing"], optional = true }

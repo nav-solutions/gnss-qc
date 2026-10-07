@@ -14,15 +14,16 @@ use key::InputProductKey;
 /// [InputProduct] definition which is the starting point
 /// when arriving from static files (typical use case),
 /// and will provide data points that can be fed to the processing pipeline.
-pub enum InputProduct {
+pub enum QcInputProduct {
     /// Static [Rinex] file
     RINEX(Rinex),
 
     /// Static [SP3] file
+    #[cfg(feature = "sp3")]
     SP3(SP3),
 }
 
-impl InputProduct {
+impl QcInputProduct {
     /// Returns reference to underlying [Rinex] when that applies
     pub fn as_rinex(&self) -> Option<&Rinex> {
         match self {

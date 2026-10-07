@@ -24,6 +24,12 @@ to propose abstract and real time slots, which will apply to users that want to 
 to provide their custom data sources. It does not have to be integrated to this library to actually be usable
 as a valid data source.
 
+`gnss-qc` is not limited to input text files
+- RTCM binary streams will be supported (on RTCM crate feature)
+- BINEX streams will be supported (on BINEX crate feature)
+- UBX streams will be supported (on UBX crate feature)
+- Raw GNSS binary streams will be supported (on `protos` crate feature)
+
 Also, `gnss-qc` only streams the solutions of the preselected algorithm, it is up to the user to display
 and continue their processing. The idea is to propose an efficient, compelling and easy to use library
 that does the complex stuff for you. Also, data viewing and projection is once again very dependent on the use case.
@@ -52,9 +58,6 @@ and is licensed under the [Mozilla V2 Public](https://www.mozilla.org/en-US/MPL/
 requirements, the heaviest the library. The most advanced features being the combination of the `nav` and `cggtts` features.
 
 When compiled without any options, `gnss-qc` 
-
-By default, `gnss-qc` uses the Flate2 feature to supported Gzip compressed static files natively.
-But that can also be disabled for people not interested in that feature.
 
 Note that the CRINEX format is supported natively and is not tied to a specific feature.
 
