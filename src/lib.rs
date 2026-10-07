@@ -8,67 +8,48 @@
  * GNSS-Qc is part of the NAV-Solutions framework.
  * Authors: Guillaume W. Bres <guillaume.bressaix@gmail.com> et al.
  * (cf. https://github.com/nav-solutions/gnss-qc/graphs/contributors)
- * This framework is shipped under Mozilla Public V2 license.
+ * This framework is licensed under Mozilla Public V2 license.
  *
  * Documentation:
  * - https://github.com/nav-solutions/gnss-qc
  * - https://github.com/nav-solutions/rinex
  * - https://github.com/nav-solutions/sp3
+ * - https://github.com/nav-solutions/cggtts
  */
-
-#[cfg(feature = "navigation")]
-#[macro_use]
-extern crate log;
 
 extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 
-mod cfg;
-mod context;
-mod product;
-mod report;
-
-#[cfg(feature = "navigation")]
-#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-mod navigation;
-
-pub mod error;
-pub mod plot;
+pub mod cfg;
+pub mod engine;
+pub mod io;
+pub mod pipeline;
+pub mod processors;
+pub mod sync;
 
 #[cfg(test)]
 mod tests;
 
 pub mod prelude {
-    pub use crate::{
-        cfg::{QcConfig, QcReportType},
-        context::QcContext,
-        error::Error,
-        product::ProductType,
-        report::{QcExtraPage, QcReport},
+    pub use crate::engine::{
+        QcEngine, QcEngineBuilder, QcEngineError, QcEngineStats, QcEpochContext, QcEpochSignals,
+        QcProcessor, QcRunError, QcStatics,
     };
+    pub use crate::io::{
+        input::{cfg::QcInputConfig, indexing::QcIndexing, product::QcInputProducts},
+        output::{
+            QcEphemerisCoverage, QcFnSink, QcOutput, QcOutputItem, QcOutputQueue, QcSignalOutput,
+            QcSink,
+        },
+        source::{
+            QcChannelSource, QcEphemeris, QcInputItem, QcIterSource, QcPayload, QcPoll,
+            QcPreciseState, QcSignal, QcSource, QcSourceDescriptor, QcSourceError,
+        },
+    };
+    pub use crate::processors::{QcEphemerisCoverageProcessor, QcSignalProcessor};
+    pub use crate::sync::{QcBuffered, QcEphemerisStore, QcSvBuffer};
 
-    pub use gnss::prelude::{Constellation, COSPAR, SV};
+    // re-export
+    pub use gnss_rs::prelude::{Constellation, SV};
     pub use hifitime::prelude::{Duration, Epoch, TimeScale};
-
-    #[cfg(feature = "navigation")]
-    pub use crate::navigation::{NavFilter, NavFilterType, ReferenceEcefPosition};
-
-    pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
-
-    pub use qc_traits::{
-        Filter, FilterItem, MaskOperand, Preprocessing, Repair, RepairTrait, TimeCorrection,
-        TimeCorrectionError, TimeCorrectionsDB, Timeshift,
-    };
-
-    pub use rinex::prelude::{Error as RinexError, Rinex};
-
-    #[cfg(feature = "navigation")]
-    pub use anise::prelude::{Almanac, Frame, Orbit};
-
-    #[cfg(feature = "sp3")]
-    pub use sp3::prelude::{Error as SP3Error, SP3};
-
-    pub use std::path::Path;
-
-    pub use maud::{html, Markup, Render};
 }

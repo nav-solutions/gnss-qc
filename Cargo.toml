@@ -14,86 +14,56 @@ edition = "2021"
 msrv = "1.82"
 
 [package.metadata.docs.rs]
-features = ["sp3", "flate2", "navigation"]
+features = ["sp3", "nav", "cggtts"]
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [features]
-# Supports SP3 files by default
-# Support Gzip compressed files by default
-default = ["sp3", "flate2"]
+default = ["sp3", "log"]
 
-# Support Gzip compressed files natively
-flate2 = [
-    "rinex/flate2",
-    "sp3?/flate2",
+# Verbose logs
+log = ["dep:log"]
+
+serde = [
+  "dep:serde",
+  "hifitime/serde",
+  "gnss-rs/serde",
+  "rinex/serde",
+  "sp3?/serde",
 ]
 
 # Unlock support of high precision SP3 files.
-# When targetting highest precision analysis and solutions, like in PPP,
-# Otherwise, your processing (and possible navigation) only relies on RINEX.
 sp3 = ["dep:sp3"]
 
-# Unlock Post Processed Navigation.
-# Without this option, you are limited to context setup & analysis (basic processing).
-# This option unlocks most advanced solvers.
-navigation = [
-    "dep:anise",
-    "rinex/nav",
-    "sp3?/anise",
-    "dep:log",
-]
-
-# Unlock "embedded ephemeris" option,
-# which removes the need of Internet access on very first (ever) deployment
-# in order to obtain the ANISE database
-embed_ephem = [
-    "dep:anise",
-    "anise/embed_ephem",
-]
-
-# Unlock graphical analysis (plots rendering), otherwise reports are solely text based
-# plot = [
-#     "dep:plotly", 
-# ]
+# Navigation (work in progress): gnss-rtk integration comes in a dedicated patch.
+navigation = ["dep:anise"]
 
 [dependencies.rinex]
 git = "https://github.com/nav-solutions/rinex"
 rev = "a10b41abb0ccd6b804dff6acd560992cdcd4c639"
 features = [
-    "qc", 
-    "processing", 
-    "obs", 
-    "nav", 
-    "ut1", 
-    "meteo", 
-    "clock", 
-    "antex", 
-    "serde",
+    "qc",
+    "processing",
+    "obs",
+    "nav",
+    "meteo",
+    "clock",
+    "antex",
+    "flate2",
 ]
 
 [dependencies.sp3]
 git = "https://github.com/nav-solutions/sp3"
 rev = "0ac81cff95466eb6a3f5c7654e278d12ada4aeb8"
 optional = true
-features = [
-    "qc", 
-    "processing", 
-    "serde"
-]
+features = ["qc", "processing", "flate2"]
 
 [dependencies]
 thiserror = "2"
-maud = "0.26"
-plotly = "0.12"
-strum = "0.27"
-strum_macros = "0.26"
-itertools = "0.14.0"
+itertools = "0.14"
 log = { version = "0.4", optional = true }
+# Pinned: rinex@a10b41a does not build against gnss-rs >= 2.6
+gnss-rs = { version = "=2.5.0" }
+hifitime = { version = "4.1", features = ["std"] }
+gnss-qc-traits = { version = "=0.4.0", features = ["processing"] }
 anise = { version = "0.5.3", optional = true }
-gnss-rs = { version = "2.5", features = ["serde"] }
-hifitime = { version = "4.1", features = ["serde", "std"] }
-gnss-qc-traits = { version = "0.4", features = ["processing"] }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-
-[dev-dependencies]
-serde_json = "1"
+serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }

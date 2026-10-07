@@ -1,5 +1,5 @@
-GNSS Quality Control
-====================
+Geodetic processing pipeline & Quality Control
+==============================================
 
 [![Rust](https://github.com/nav-solutions/gnss-qc/actions/workflows/rust.yml/badge.svg)](https://github.com/nav-solutions/gnss-qc/actions/workflows/rust.yml)
 [![Rust](https://github.com/nav-solutions/gnss-qc/actions/workflows/daily.yml/badge.svg)](https://github.com/nav-solutions/gnss-qc/actions/workflows/daily.yml)
@@ -9,43 +9,81 @@ GNSS Quality Control
 [![MRSV](https://img.shields.io/badge/MSRV-1.82.0-orange?style=for-the-badge)](https://github.com/rust-lang/rust/releases/tag/1.82.0)
 [![License](https://img.shields.io/badge/license-MPL_2.0-orange?style=for-the-badge&logo=mozilla)](https://github.com/nav-solutions/qc-traits/blob/main/LICENSE)
 
-The GNSS Quality Control (QC) library is an advanced library that proposes
-from basic to advanced GNSS and Geodesy processing pipelines.
+The GNSS Quality Control (`gnss-qc`) is an advanced scalable Geodesic processor
+designed to manage the typical input streams required by GNSS applications,
+and deploy several algorithms.
 
-It is made possible by the complex combination of several frameworks and libraries.
-It is important to understand this library's features & options.
+This library is designed to answer the requirements for complex geodetic processing pipelines,
+that demand dealing with several data sources, of different format, sometimes statics or not,
+and deploy algorithms like post-processed navigations to obtain solutions.
+
+`gnss-qc` is not designed for post-processed applications specifically, and is not limited to
+static input sources. In particular, it takes advantage of the great Tokio framework
+to propose abstract and real time slots, which will apply to users that want to perform real time processing.
+
+`gnss-qc` is also flexible and exposes a few sets of Traits, which leaves the possibility for the users
+to provide their custom data sources. It does not have to be integrated to this library to actually be usable
+as a valid data source.
+
+`gnss-qc` is not limited to input text files
+- RTCM binary streams will be supported (on RTCM crate feature)
+- BINEX streams will be supported (on BINEX crate feature)
+- UBX streams will be supported (on UBX crate feature)
+- Raw GNSS binary streams will be supported (on `protos` crate feature)
+
+Also, `gnss-qc` only streams the solutions of the preselected algorithm, it is up to the user to display
+and continue their processing. The idea is to propose an efficient, compelling and easy to use library
+that does the complex stuff for you. Also, data viewing and projection is once again very dependent on the use case.
+People interested in large datasets will need to process many more results and will have to make design choices.
+While users only interested in basic quality control don't have such requirements. `gnss-qc` "deals" with that
+by leaving the solution up to the final user.
+
+## Framework
+
+`gnss-qc` achieves a complex task by taking combining and implementing correctly several
+complex core dependencies:
+
+- `gnss-qc` is fully part of the [NAV-solutions framework] and uses several
+underlying layers, in particular:
+    - capacity to deal with all standard input products, mostly thanks to our parsers
+    - Efficient [RINEX parser](https://github.com/nav-solutions/rinex)
+    - [SP3 parser](https://github.com/nav-solutions/sp3)
+    - [IONEX parser](https://github.com/nav-solutions/ionex)
+    - capacity to deploy our [navigation solver](https://github.com/nav-solutions/gnss-rtk) which
+covers the need to process P.V.T solutions
+- Rely on the [ANISE core](https://github.com/nyx-space/anise) for solar system astrodynamics and projections
+- Use the [Hifitime core](https://github.com/nyx-space/hifitime) for time scale definitions and processing
+
+## Licensing
 
 This library is part of the [NAV-Solutions framework](https://github.com/nav-solutions) 
 and is licensed under the [Mozilla V2 Public](https://www.mozilla.org/en-US/MPL/2.0) license.
 
-## Core level
+## Applications and proof of concept
 
-The fundammental blocks that we rely upon, at all times
+This very framework proposes two implemnetations of the `gnss-qc` core:
+- `rinex-cli` which is dedicated to RINEX files: merging, patching and fixing.
+- `sp3-cli` which is dedicated to SP3 files: merging..
+- `gnss-cli` which deploys this entire framework and is dedicated to post-processed
+navigation (mostly from input files).
 
-- [Hifitime by Nyx-Space](https://github.com/nyx-space/hifitime) 
-that provides Epoch and TimeScale definitions
-- [GNSS by NAV-solutions](https://github.com/nav-solutions/qc-traits) that provides
-Constellation and SV definitions
-- [Qc Traits by NAV-solutions](https://github.com/nav-solutions/qc-traits) that provides 
-shared behavior by all GNSS libraries
-- [The RINEX parser by NAV-solutions](https://github.com/nav-solutions/rinex) because we consider
-the RINEX files as the most fundamental. It is currently not possible to build
-this library without RINEX support (say: SP3 only application). But that could easily be changed.
+## Crate features
 
-## Basic and default features
+`gnss-qc` uses crate features extensively, to adapt to the user requirements. The most complex the user
+requirements, the heaviest the library. The most advanced features being the combination of the `nav` and `cggtts` features.
 
-- `flate2` is activated by default, and allows Gzip compressed files to be naturally supported.
-- `sp3` is activated by default, because we consider people interested in GNSS post processing
-are interested in high precision at all times. This is easily changed by de-activating this crate feature.
+When compiled without any options, `gnss-qc` 
 
-## Navigation feature
+Note that the CRINEX format is supported natively and is not tied to a specific feature.
 
-`nav` is the most advanced feature. It allows post processed navigation and is the heaviest option.
-This option relies on [ANISE by Nyx-Space](https://github.com/nyx-space/anise).
+## Abstractions
 
-If you are only interested in file processing and management, you should not activate Post Processed navigation support.
+The library offers abstraction, thanks to the `Traits` that you can implement
+to create your own input product or implement your own data stream. If you succeed in doing so,
+you can feed your own data to the solver :rocket:.
 
-## Deploying without navigation support
+The two general use cases being:
 
-Without navigation support, this library will allow GNSS context creation and basic processing.
-You will not access the most advanced solvers.
+- custom file format, with external decoder
+- custom network streams, processed by an external decoder
+
