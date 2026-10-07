@@ -57,8 +57,7 @@ embed_ephem = [
 # ]
 
 [dependencies.rinex]
-git = "https://github.com/nav-solutions/rinex"
-rev = "a10b41abb0ccd6b804dff6acd560992cdcd4c639"
+version = "0.23"
 features = [
     "qc", 
     "processing", 
@@ -89,10 +88,10 @@ strum = "0.27"
 strum_macros = "0.26"
 itertools = "0.14.0"
 log = { version = "0.4", optional = true }
-anise = { version = "0.5.3", optional = true }
-gnss-rs = { version = "2.5", features = ["serde"] }
-hifitime = { version = "4.1", features = ["serde", "std"] }
-gnss-qc-traits = { version = "0.4", features = ["processing"] }
+anise = { version = "0.9", optional = true }
+gnss-rs = { version = "2.7", features = ["serde"] }
+hifitime = { version = "4", features = ["serde", "std"] }
+gnss-qc-traits = { version = "0.5", features = ["processing"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 [dev-dependencies]

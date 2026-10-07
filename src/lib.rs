@@ -23,52 +23,54 @@ extern crate log;
 extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 
-mod cfg;
-mod context;
-mod product;
-mod report;
+pub mod input;
 
-#[cfg(feature = "navigation")]
-#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-mod navigation;
+// mod cfg;
+// pub mod context;
+// mod product;
+// mod report;
 
-pub mod error;
-pub mod plot;
+// #[cfg(feature = "navigation")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+// mod navigation;
+
+// pub mod error;
+// pub mod plot;
 
 #[cfg(test)]
 mod tests;
 
 pub mod prelude {
-    pub use crate::{
-        cfg::{QcConfig, QcReportType},
-        context::QcContext,
-        error::Error,
-        product::ProductType,
-        report::{QcExtraPage, QcReport},
-    };
+    // pub use crate::{
+    //     cfg::{QcConfig, QcReportType},
+    //     context::QcContext,
+    //     error::Error,
+    //     product::ProductType,
+    //     report::{QcExtraPage, QcReport},
+    // };
 
-    pub use gnss::prelude::{Constellation, COSPAR, SV};
-    pub use hifitime::prelude::{Duration, Epoch, TimeScale};
+    // pub use gnss::prelude::{Constellation, COSPAR, SV};
+    // pub use hifitime::prelude::{Duration, Epoch, TimeScale};
 
-    #[cfg(feature = "navigation")]
-    pub use crate::navigation::{NavFilter, NavFilterType, ReferenceEcefPosition};
+    // #[cfg(feature = "navigation")]
+    // pub use crate::navigation::{NavFilter, NavFilterType, ReferenceEcefPosition};
 
-    pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
+    // pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
 
-    pub use qc_traits::{
-        Filter, FilterItem, MaskOperand, Preprocessing, Repair, RepairTrait, TimeCorrection,
-        TimeCorrectionError, TimeCorrectionsDB, Timeshift,
-    };
+    // pub use qc_traits::{
+    //     Filter, FilterItem, MaskOperand, Preprocessing, Repair, RepairTrait, TimeCorrection,
+    //     TimeCorrectionError, TimeCorrectionsDB, Timeshift,
+    // };
 
-    pub use rinex::prelude::{Error as RinexError, Rinex};
+    // pub use rinex::prelude::{Error as RinexError, Rinex};
 
-    #[cfg(feature = "navigation")]
-    pub use anise::prelude::{Almanac, Frame, Orbit};
+    // #[cfg(feature = "navigation")]
+    // pub use anise::prelude::{Almanac, Frame, Orbit};
 
-    #[cfg(feature = "sp3")]
-    pub use sp3::prelude::{Error as SP3Error, SP3};
+    // #[cfg(feature = "sp3")]
+    // pub use sp3::prelude::{Error as SP3Error, SP3};
 
-    pub use std::path::Path;
+    // pub use std::path::Path;
 
-    pub use maud::{html, Markup, Render};
+    // pub use maud::{html, Markup, Render};
 }

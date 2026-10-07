@@ -1,39 +1,39 @@
 //! GNSS processing context definition.
-use std::{
-    collections::HashMap,
-    ffi::OsStr,
-    path::{Path, PathBuf},
-};
-
-use crate::prelude::{Rinex, TimeScale};
-
-use qc_traits::Merge;
-
-pub(crate) mod blob;
-use blob::BlobData;
-
-#[cfg(feature = "flate2")]
-#[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
-mod flate2;
-
-#[cfg(feature = "sp3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-mod sp3;
-
-#[cfg(feature = "navigation")]
-#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-mod navigation;
-
-#[cfg(feature = "navigation")]
-#[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-pub mod time;
-
-use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
-
-use crate::{error::Error, prelude::ProductType};
-
-#[cfg(feature = "navigation")]
-use crate::prelude::{Almanac, Frame};
+// use std::{
+//     collections::HashMap,
+//     ffi::OsStr,
+//     path::{Path, PathBuf},
+// };
+// 
+// use crate::prelude::{Rinex, TimeScale};
+// 
+// use qc_traits::Merge;
+// 
+// pub(crate) mod blob;
+// use blob::BlobData;
+// 
+// #[cfg(feature = "flate2")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
+// mod flate2;
+// 
+// #[cfg(feature = "sp3")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
+// mod sp3;
+// 
+// #[cfg(feature = "navigation")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+// mod navigation;
+// 
+// #[cfg(feature = "navigation")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
+// pub mod time;
+// 
+// use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
+// 
+// use crate::{error::Error, prelude::ProductType};
+// 
+// #[cfg(feature = "navigation")]
+// use crate::prelude::{Almanac, Frame};
 
 /// [QcContext] is a general structure capable to store most common
 /// GNSS data. It is dedicated to post processing workflows,
