@@ -15,8 +15,8 @@ use thiserror::Error;
 pub enum InputStreamError {}
 
 pub enum QcStreamItem {
-    // /// [SignalObservation]
-    // Observation(SignalObservation),
+    /// [SignalObservation]
+    Observation(QcSignalObservation),
 
     // /// [MeteoObservation] for precise atmospheric modeling
     // MeteoObservation(MeteoObservation),
@@ -37,6 +37,10 @@ pub trait QcStream {
     /// otherwhise this framework will return an error and will not process, avoiding
     /// generating invalid results.
     fn next(&mut self) -> Result<Option<QcStreamItem>, Self::Error>;
+}
+
+pub struct QcInputProductsStreamer {
+    pub obs_stream: QcInputObservationsStream,
 }
 
 // impl Stream for InputStream {

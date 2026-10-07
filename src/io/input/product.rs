@@ -67,6 +67,10 @@ pub struct QcInputProducts {
 }
 
 impl QcInputProducts {
+    /// Deploy a new Product streamer, which is capable of serializing each data points
+    /// to process them in a complex pipeline.
+    pub fn to_stream(&self) -> QcInputProductsStreamer {}
+
     /// Load local readable [Path] into [QcInputProducts] database, ready to be processed.
     /// File format must be supported.
     pub fn load_file<P: AsRef<Path>>(
