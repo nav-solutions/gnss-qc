@@ -1,7 +1,7 @@
 use std::path::Path;
 use thiserror::Error;
 
-use crate::input::types::QcProductType;
+use crate::io::input::{indexing::QcIndexing, types::QcProductType};
 
 use hifitime::prelude::Epoch;
 
@@ -17,15 +17,11 @@ pub enum IndexingError {
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct QcProductKey {
-    /// Name for this input product. For static text files
-    /// like RINEX files, this is simply the file name.
-    pub name: String,
+    /// File name of this input product.
+    pub file_name: String,
 
-    /// Alias used in complex indexing method.
+    /// Custom alias used in complex indexing method.
     pub alias: String,
-
-    /// Attached [QcProductType]
-    pub product_type: QcProductType,
 }
 
 impl QcProductKey {}

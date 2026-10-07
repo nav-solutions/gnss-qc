@@ -50,7 +50,7 @@ impl Default for QcInputConfig {
 
 #[cfg(test)]
 mod test {
-    use crate::input::cfg::{QcIndexingConfig, QcInputConfig};
+    use crate::io::input::cfg::{QcIndexingConfig, QcInputConfig};
 
     #[test]
     fn test_default() {

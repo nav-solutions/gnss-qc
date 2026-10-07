@@ -53,7 +53,7 @@ impl QcIndexing {
 
 #[cfg(test)]
 mod test {
-    use crate::input::indexing::QcIndexing;
+    use crate::io::input::indexing::QcIndexing;
 
     #[test]
     fn test_antenna_indexing() {
