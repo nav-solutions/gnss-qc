@@ -5,7 +5,9 @@ use std::path::Path;
 
 #[derive(Debug, Error)]
 pub enum IndexingError {
-
+    /// InputFileName could not be determined (OS issue)
+    #[error("could not determine input file name")]
+    InputFileName,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -28,7 +30,11 @@ impl InputProductKey {
     /// and we deduce the product type from there.
     pub fn guess_from_path<P: AsRef<Path>>(path: P) -> Result<Self, IndexingError> {
         let path = path.as_ref();
-        let fname = path.file_name()?;
+
+        let fname = path.file_name()
+            .ok_or(IndexingError::InputFileName)?
+            .to_str()
+            .ok_or(IndexingError::InputFileName)?;
         
         Ok(Self {
             name: fname.to_string(),
