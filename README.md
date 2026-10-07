@@ -57,3 +57,9 @@ By default, `gnss-qc` uses the Flate2 feature to supported Gzip compressed stati
 But that can also be disabled for people not interested in that feature.
 
 Note that the CRINEX format is supported natively and is not tied to a specific feature.
+
+## Applications
+
+This very framework proposes two implemnetations of the `gnss-qc` core:
+- `rinex-cli` which is dedicated to static RINEX files: merging, patching and fixing.
+- `sp3-cli` which is dedicated to SP3 files: merging..

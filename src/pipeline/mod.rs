@@ -17,9 +17,15 @@ pub enum QcAlgorithm {
     #[cfg(feature = "nav")]
     RealTimeKinematics,
 
-    /// [QcAlgorithm::SignalAnalysis] will serialize all input signal observations
-    /// into individual tokens that you can further analyze.
-    SignalAnalysis,
+    /// [QcAlgorithm::SignalObservations] will serialize all input signal observations
+    /// into individual tokens that you can further analyze. One signal observation must exist
+    /// for an item to be streamed.
+    SignalObservations,
+
+    /// [QcAlgorithm::ClockObservations] will serialize all input clock (either ground or spaceborn)
+    /// information from each indiviaul data source into indivial tokens that you can further
+    /// analyze. One clock must exist for an item to be streamed.
+    ClockObservations,
 
     /// [QcAlgorithm::KeplerSolver] will serialize all ephemeris message and resolve
     /// satellite orbital state of each individual message source.
@@ -32,7 +38,7 @@ pub enum QcAlgorithm {
     CGGTTS,
 
     /// [QcAlgorithm::TEC] will solve Total Electronic Content of the ionosphere
-    /// using all dual frequency observations
+    /// using all dual frequency observations.
     TEC,
     
     /// [QcAlgorithm::IPP] will solve the ionosphere pierce point coordinates in 3D space
