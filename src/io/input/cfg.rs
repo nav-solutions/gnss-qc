@@ -1,4 +1,5 @@
 //! Input user preferences
+use rinex::prelude::RinexType;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -21,7 +22,17 @@ pub enum QcIndexingConfig {
     Agency,
 
     /// Custom name
-    Custom,
+    Custom(String),
+}
+
+impl QcIndexingConfig {
+    /// Returns default [QcIndexingConfig] preference for given [RinexType]
+    pub fn from_rinex_type(rtype: RinexType) -> Self {
+        match rtype {
+            RinexType::ObservationData => Self::Receiver,
+            _ => Self::Agency,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
