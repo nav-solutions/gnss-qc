@@ -5,7 +5,10 @@ use hifitime::prelude::Epoch;
 use serde::{Serialize, Deserialize};
 
 pub struct SignalToken {
+    /// Sampling [Epoch]
     pub epoch: Epoch,
+
+    /// Satellite signal source, as [SV]
     pub satellite: SV,
 }
 

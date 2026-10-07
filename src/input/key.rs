@@ -10,6 +10,9 @@ pub enum IndexingError {
     /// InputFileName could not be determined (OS issue)
     #[error("could not determine input file name")]
     InputFileName,
+
+    #[error("could not determine input file creation meta")]
+    InputFileMeta,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -23,7 +26,7 @@ pub struct InputProductKey {
 
     /// File creation date & time
     pub datetime: Epoch,
-    
+
     /// Type of attached product
     pub product_type: InputProductType,
 }
@@ -36,27 +39,28 @@ impl InputProductKey {
     pub fn guess_from_path<P: AsRef<Path>>(path: P) -> Result<Self, IndexingError> {
         let path = path.as_ref();
 
-        let name = path.file_name()
+        let name = path
+            .file_name()
             .ok_or(IndexingError::InputFileName)?
             .to_str()
             .ok_or(IndexingError::InputFileName)?;
 
-        let meta = path.file_meta()
-            .ok_or(IndexingError::InputFileMeta)?;
+        let meta = path.metadata().map_err(|e| {
+            error!("file meta: {}", e);
+            IndexingError::InputFileMeta
+        })?;
 
-        let datetime = meta.created()
-            .map_err(|_| IndexingError::InputFileMeta)?;
+        let datetime = meta.created().map_err(|_| IndexingError::InputFileMeta)?;
 
         let name_str = name.to_string();
-        
+
         Ok(Self {
-            name: name_str,
+            name: name_str.clone(),
             alias: name_str.clone(),
             datetime: {
-                 
+                Epoch::from_unix_seconds(0.0) // TODO
             },
             product_type: InputProductType::RINEX,
         })
     }
-    
 }

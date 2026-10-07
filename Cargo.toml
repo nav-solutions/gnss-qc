@@ -51,11 +51,6 @@ embed_ephem = [
     "anise/embed_ephem",
 ]
 
-# Unlock graphical analysis (plots rendering), otherwise reports are solely text based
-# plot = [
-#     "dep:plotly", 
-# ]
-
 [dependencies.rinex]
 version = "0.23"
 features = [
@@ -86,13 +81,13 @@ maud = "0.26"
 plotly = "0.12"
 strum = "0.27"
 strum_macros = "0.26"
-itertools = "0.14.0"
+itertools = "0.14"
 log = { version = "0.4", optional = true }
 anise = { version = "0.9", optional = true }
 gnss-rs = { version = "2.7", features = ["serde"] }
 hifitime = { version = "4", features = ["serde", "std"] }
 gnss-qc-traits = { version = "0.5", features = ["processing"] }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde = { version = "1", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 serde_json = "1"

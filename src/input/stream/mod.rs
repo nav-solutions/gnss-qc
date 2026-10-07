@@ -2,6 +2,9 @@
 use thiserror::Error;
 
 pub mod signal;
+pub mod meteo;
+
+mod preprocessing;
 
 use signal::SignalStream;
 
@@ -12,9 +15,18 @@ pub enum InputStreamError {
 
 /// [StreamToken]s are only temporal data points that we can manage.
 /// The data source is expected to push them in chronological order.
-pub enum StreamToken {
-    Observation(SignalToken),
-    Ephemeris(EphemerisToken)
+pub enum StreamItem {
+    /// [SignalObservation]
+    Observation(SignalObservation),
+
+    /// [MeteoObservation] for precise atmospheric modeling
+    MeteoObservation(MeteoObservation),
+
+    /// [EphemerisMessage]
+    Ephemeris(EphemerisMessage),
+
+    #[cfg(feature = "rtcm")]
+    RTCM(RtcmMessage),
 }
 
 pub trait Stream {
