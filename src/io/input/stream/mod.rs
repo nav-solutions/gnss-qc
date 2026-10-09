@@ -1,6 +1,11 @@
 //! Input Streams definition
 use thiserror::Error;
 
+use crate::io::{
+    input::QcInputItem,
+    stream::{QcStream, QcSynchronousItem, QcSynchronousStream},
+};
+
 // pub mod signal;
 // pub mod meteo;
 //
@@ -28,25 +33,16 @@ pub enum QcStreamItem {
     // OrbitalState(Orbit),
 }
 
-pub trait QcStream {
-    type Error;
-
-    /// Attempts to pull a new [StreamItem] from this [Stream],
-    /// returning None on the end of stream.
-    /// For temporal data points, the data source is expected to push items in chronological order,
-    /// otherwhise this framework will return an error and will not process, avoiding
-    /// generating invalid results.
-    fn next(&mut self) -> Result<Option<QcStreamItem>, Self::Error>;
-}
-
 pub struct QcInputProductsStreamer {
     // pub obs_stream: QcInputObservationsStream,
 }
 
-impl QcStream for InputStream {
+impl QcStream for QcInputProductsStreamer {
+    type Item = QcInputItem;
+
     type Error = InputStreamError;
 
-    fn next(&mut self) -> Result<Option<StreamToken>, Self::Error> {
+    fn next(&mut self) -> Result<Option<QcStreamItem>, Self::Error> {
         Ok(None)
     }
 

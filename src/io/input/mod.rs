@@ -37,6 +37,6 @@ pub enum QcInputError {
     /// When a classification method has been selected (infaillible for each supported format),
     /// the new entry must be merged into the existing table, extending the table with new data
     /// points. This error rises if the extension step fails for some reason.
-    #[error("rinex file stacking issue: {0}")]
-    RinexMerge(MergeError),
+    #[error("file stacking issue: {0}")]
+    Merge(MergeError),
 }

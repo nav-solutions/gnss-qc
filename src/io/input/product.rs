@@ -98,46 +98,44 @@ impl QcInputProducts {
     ) -> Result<(), QcInputError> {
         let path = path.as_ref();
 
-        let file_stem = path.file_stem().ok_or({
-            error!("failed to determine {} file stem", path.display());
-            Err(QcInputError::FileStemIssue)
-        })?;
+        let file_stem = path
+            .file_stem()
+            .ok_or({
+                error!("failed to determine {} file stem", path.display());
+                QcInputError::FileStemIssue
+            })?
+            .to_str()
+            .ok_or(QcInputError::FileStemIssue)?;
 
         let prefered = cfg.rinex_type_preference(&rinex.header.rinex_type);
 
         // tries matching preferences
         let indexing = match prefered {
             Some(QcIndexingConfig::Antenna) => match rinex.header.rcvr_antenna {
-                Some(ant) => QcIndexing::Antenna(ant.model.to_string()),
+                Some(ant) => Some(QcIndexing::Antenna(ant.model.to_string())),
                 None => None,
             },
             Some(QcIndexingConfig::Receiver) => match rinex.header.rcvr {
-                Some(rx) => QcIndexing::Receiver(rx.model.to_string()),
+                Some(rx) => Some(QcIndexing::Receiver(rx.model.to_string())),
                 None => None,
             },
             Some(QcIndexingConfig::Agency) => match rinex.header.agency {
-                Some(agency) => QcIndexing::Agency(agency.clone()),
+                Some(agency) => Some(QcIndexing::Agency(agency.clone())),
                 None => None,
             },
             Some(QcIndexingConfig::Operator) => match rinex.header.observer {
-                Some(observer) => QcIndexing::Operator(observer.clone()),
+                Some(observer) => Some(QcIndexing::Operator(observer.clone())),
                 None => None,
             },
-            None => {
-                // no preferences for this format
-                // select classification method internally (infaillible)
-                QcIndexing::from_rinex_file(file_stem, rinex)
-            }
+            None => None,
         };
 
         let key = match indexing {
-            Some(matched) => {
-                // preferences have been met
-                matched
-            }
+            Some(indexing) => indexing,
             None => {
-                // automatically deduce, by order of internal preferences
-                QcIndexing::from_rinex_file(&rinex)
+                // no preferences for this format
+                // => select classification method internally (infaillible)
+                QcIndexing::from_rinex_file(file_stem, &rinex)
             }
         };
 

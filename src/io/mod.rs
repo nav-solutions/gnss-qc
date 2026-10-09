@@ -1,5 +1,6 @@
-mod input;
-mod output;
+pub mod input;
+pub mod output;
+pub mod stream;
 
 use input::QcInputError;
 
@@ -9,5 +10,5 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum QcIoErrors {
     #[error("input error: {0}")]
-    Input(QcInputErrors),
+    Input(QcInputError),
 }

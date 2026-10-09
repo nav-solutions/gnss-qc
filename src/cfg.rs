@@ -1,7 +1,7 @@
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::input::cfg::InputConfig;
+use crate::io::input::cfg::InputConfig;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
