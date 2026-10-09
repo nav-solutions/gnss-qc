@@ -45,6 +45,24 @@ pub struct QcInputConfig {
     /// Prefered Indexing method for ephemeris streams.
     /// When set to none, the library will index automatically based on the input stream.
     pub nav_rinex_indexing: Option<QcIndexingConfig>,
+
+    /// Prefered Indexing method for Meteo RIENX data (meteo sensor observations)
+    pub meteo_rinex_indexing: Option<QcIndexingConfig>,
+
+    /// Prefered Indexing method for RINEX Clock data (ground or spaceborn clocks description).
+    pub clk_rinex_indexing: Option<QcIndexingConfig>,
+}
+
+impl QcIndexingConfig {
+    /// Returns [QcIndexingConfig] preference for given Rinex format.
+    pub fn rinex_type_preference(&self, format: &RinexType) -> Option<QcIndexingConfig> {
+        match format {
+            RinexType::ObservationData => self.obs_rinex_indexing,
+            RinexType::NavigationData => self.nav_rinex_indexing,
+            RinexType::MeteoData => self.meteo_rinex_indexing,
+            RinexType::ClockData => self.clk_rinex_indexing,
+        }
+    }
 }
 
 impl Default for QcInputConfig {

@@ -39,13 +39,19 @@ by leaving the solution up to the final user.
 
 ## Framework
 
-`gnss-qc` achieve this complex task by taking advantage of several key elements and frameworks
+`gnss-qc` achieves a complex task by taking combining and implementing correctly several
+complex core dependencies:
 
-- `gnss-qc` is fully part of the [NAV-solutions framework]
-- `gnss-qc` is capable of deploying our [GNSS-RTK solver](https://github.com/nav-solutions/gnss-rtk) which
+- `gnss-qc` is fully part of the [NAV-solutions framework] and uses several
+underlying layers, in particular:
+    - capacity to deal with all standard input products, mostly thanks to our parsers
+    - Efficient [RINEX parser](https://github.com/nav-solutions/rinex)
+    - [SP3 parser](https://github.com/nav-solutions/sp3)
+    - [IONEX parser](https://github.com/nav-solutions/ionex)
+    - capacity to deploy our [navigation solver](https://github.com/nav-solutions/gnss-rtk) which
 covers the need to process P.V.T solutions
-- The library relies on the [ANISE](https://github.com/nyx-space/anise) core for solar system astrodynamics and projections
-- Our framework relis on [Hifitime](https://github.com/nyx-space/hifitime) for time scale definitions and processing
+- Rely on the [ANISE core](https://github.com/nyx-space/anise) for solar system astrodynamics and projections
+- Use the [Hifitime core](https://github.com/nyx-space/hifitime) for time scale definitions and processing
 
 ## Licensing
 
@@ -61,7 +67,18 @@ When compiled without any options, `gnss-qc`
 
 Note that the CRINEX format is supported natively and is not tied to a specific feature.
 
-## Applications
+## Abstractions
+
+The library offers abstraction, thanks to the `Traits` that you can implement
+to create your own input product or implement your own data stream. If you succeed in doing so,
+you can feed your own data to the solver :rocket:.
+
+The two general use cases being:
+
+- custom file format, with external decoder
+- custom network streams, processed by an external decoder
+
+## Applications and proof of concept
 
 This very framework proposes two implemnetations of the `gnss-qc` core:
 - `rinex-cli` which is dedicated to static RINEX files: merging, patching and fixing.

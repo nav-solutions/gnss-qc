@@ -67,9 +67,6 @@ pub struct QcInputProducts {
 }
 
 impl QcInputProducts {
-    /// Deploy a new Product streamer, which is capable of serializing each data points
-    /// to process them in a complex pipeline.
-    pub fn to_stream(&self) -> QcInputProductsStreamer {}
 
     /// Load local readable [Path] into [QcInputProducts] database, ready to be processed.
     /// File format must be supported.
@@ -79,7 +76,7 @@ impl QcInputProducts {
         path: P,
     ) -> Result<(), QcInputError> {
         if let Ok(rinex) = Rinex::from_file(path) {
-            Self::load_rinex(cfg, path)?;
+            Self::load_rinex(cfg, path, rinex)?;
             Ok(())
         } else {
             Err(QcInputError::FileNotSupported(""))
@@ -91,13 +88,9 @@ impl QcInputProducts {
     /// - indexing: [QcIndexing] preference (if any); otherwise this is deduced from dataset
     /// automatically
     /// - rinex: input [Rinex]
-    pub fn load_rinex(&mut self, cfg: QcInputConfig, rinex: Rinex) -> Result<(), QcInputError> {
-        let prefered = match rinex.header.rinex_type {
-            RinexType::ObservationData => {}
-            RinexType::NavigationData => {}
-            Some(preferences) => preferences,
-            None => QcIndexingConfig::from_rinex_type(rinex.header.rinex_type),
-        };
+    pub fn load_rinex<P: AsRef<Path>>(&mut self, cfg: QcInputConfig, path: P, rinex: Rinex) -> Result<(), QcInputError> {
+
+        let prefered = cfg.rinex_type_preference(&rinex.header.rinex_type);
 
         // tries matching preferences
         let indexing = match prefered {
@@ -111,6 +104,10 @@ impl QcInputProducts {
             },
             QcIndexingConfig::Agency => match rinex.header.agency {
                 Some(agency) => Some(QcIndexing::Agency(agency.clone())),
+                None => None,
+            },
+            QcIndexingConfig::Operator => match rinex.header.observer {
+                Some(observer) => Some(QcIndexing::Operator(observer.clone())),
                 None => None,
             },
             QcIndexingConfig::Custom(value) => {
