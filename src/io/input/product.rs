@@ -16,6 +16,9 @@ use rinex::prelude::{Rinex, RinexType};
 #[cfg(feature = "sp3")]
 use sp3::prelude::SP3;
 
+#[cfg(feature = "log")]
+use log::error;
+
 // impl QcInputProduct {
 //     /// Returns reference to underlying [Rinex] when that applies
 //     pub fn as_rinex(&self) -> Option<&Rinex> {
@@ -67,7 +70,6 @@ pub struct QcInputProducts {
 }
 
 impl QcInputProducts {
-
     /// Load local readable [Path] into [QcInputProducts] database, ready to be processed.
     /// File format must be supported.
     pub fn load_file<P: AsRef<Path>>(
@@ -75,11 +77,11 @@ impl QcInputProducts {
         cfg: QcInputConfig,
         path: P,
     ) -> Result<(), QcInputError> {
-        if let Ok(rinex) = Rinex::from_file(path) {
-            Self::load_rinex(cfg, path, rinex)?;
+        if let Ok(rinex) = Rinex::from_file(&path) {
+            self.load_rinex(cfg, path, rinex)?;
             Ok(())
         } else {
-            Err(QcInputError::FileNotSupported(""))
+            Err(QcInputError::FormatNotSupported)
         }
     }
 
@@ -88,31 +90,43 @@ impl QcInputProducts {
     /// - indexing: [QcIndexing] preference (if any); otherwise this is deduced from dataset
     /// automatically
     /// - rinex: input [Rinex]
-    pub fn load_rinex<P: AsRef<Path>>(&mut self, cfg: QcInputConfig, path: P, rinex: Rinex) -> Result<(), QcInputError> {
+    pub fn load_rinex<P: AsRef<Path>>(
+        &mut self,
+        cfg: QcInputConfig,
+        path: P,
+        rinex: Rinex,
+    ) -> Result<(), QcInputError> {
+        let path = path.as_ref();
+
+        let file_stem = path.file_stem().ok_or({
+            error!("failed to determine {} file stem", path.display());
+            Err(QcInputError::FileStemIssue)
+        })?;
 
         let prefered = cfg.rinex_type_preference(&rinex.header.rinex_type);
 
         // tries matching preferences
         let indexing = match prefered {
-            QcIndexingConfig::Antenna => match rinex.header.rcvr_antenna {
-                Some(ant) => Some(QcIndexing::Antenna(ant.model.to_string())),
+            Some(QcIndexingConfig::Antenna) => match rinex.header.rcvr_antenna {
+                Some(ant) => QcIndexing::Antenna(ant.model.to_string()),
                 None => None,
             },
-            QcIndexingConfig::Receiver => match rinex.header.rcvr {
-                Some(rx) => Some(QcIndexing::Receiver(rx.model.to_string())),
+            Some(QcIndexingConfig::Receiver) => match rinex.header.rcvr {
+                Some(rx) => QcIndexing::Receiver(rx.model.to_string()),
                 None => None,
             },
-            QcIndexingConfig::Agency => match rinex.header.agency {
-                Some(agency) => Some(QcIndexing::Agency(agency.clone())),
+            Some(QcIndexingConfig::Agency) => match rinex.header.agency {
+                Some(agency) => QcIndexing::Agency(agency.clone()),
                 None => None,
             },
-            QcIndexingConfig::Operator => match rinex.header.observer {
-                Some(observer) => Some(QcIndexing::Operator(observer.clone())),
+            Some(QcIndexingConfig::Operator) => match rinex.header.observer {
+                Some(observer) => QcIndexing::Operator(observer.clone()),
                 None => None,
             },
-            QcIndexingConfig::Custom(value) => {
-                // always applies
-                Some(QcIndexing::Custom(value))
+            None => {
+                // no preferences for this format
+                // select classification method internally (infaillible)
+                QcIndexing::from_rinex_file(file_stem, rinex)
             }
         };
 

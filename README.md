@@ -58,6 +58,14 @@ covers the need to process P.V.T solutions
 This library is part of the [NAV-Solutions framework](https://github.com/nav-solutions) 
 and is licensed under the [Mozilla V2 Public](https://www.mozilla.org/en-US/MPL/2.0) license.
 
+## Applications and proof of concept
+
+This very framework proposes two implemnetations of the `gnss-qc` core:
+- `rinex-cli` which is dedicated to RINEX files: merging, patching and fixing.
+- `sp3-cli` which is dedicated to SP3 files: merging..
+- `gnss-cli` which deploys this entire framework and is dedicated to post-processed
+navigation (mostly from input files).
+
 ## Crate features
 
 `gnss-qc` uses crate features extensively, to adapt to the user requirements. The most complex the user
@@ -78,8 +86,3 @@ The two general use cases being:
 - custom file format, with external decoder
 - custom network streams, processed by an external decoder
 
-## Applications and proof of concept
-
-This very framework proposes two implemnetations of the `gnss-qc` core:
-- `rinex-cli` which is dedicated to static RINEX files: merging, patching and fixing.
-- `sp3-cli` which is dedicated to SP3 files: merging..

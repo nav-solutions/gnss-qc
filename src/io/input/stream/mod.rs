@@ -15,17 +15,17 @@ use thiserror::Error;
 pub enum InputStreamError {}
 
 pub enum QcStreamItem {
-    /// [SignalObservation]
-    Observation(QcSignalObservation),
+    // /// [SignalObservation]
+    // Observation(QcSignalObservation),
 
-    // /// [MeteoObservation] for precise atmospheric modeling
-    // MeteoObservation(MeteoObservation),
+    // // /// [MeteoObservation] for precise atmospheric modeling
+    // // MeteoObservation(MeteoObservation),
 
-    // /// [EphemerisMessage]
-    // Ephemeris(EphemerisMessage),
-    /// Resolved [Orbital] state
-    #[cfg(feature = "nav")]
-    OrbitalState(Orbit),
+    // // /// [EphemerisMessage]
+    // // Ephemeris(EphemerisMessage),
+    // /// Resolved [Orbital] state
+    // #[cfg(feature = "nav")]
+    // OrbitalState(Orbit),
 }
 
 pub trait QcStream {
@@ -40,16 +40,20 @@ pub trait QcStream {
 }
 
 pub struct QcInputProductsStreamer {
-    pub obs_stream: QcInputObservationsStream,
+    // pub obs_stream: QcInputObservationsStream,
 }
 
-// impl Stream for InputStream {
-//     type Error = InputStreamError;
-//
-//     fn next(&mut self) -> Result<Option<StreamToken>, Self::Error> {
-//         match self {
-//             Self::Ephemeris(eph) => eph.next(),
-//             Self::Observation(obs) => obs.next(),
-//         }
-//     }
-// }
+impl QcStream for InputStream {
+    type Error = InputStreamError;
+
+    fn next(&mut self) -> Result<Option<StreamToken>, Self::Error> {
+        Ok(None)
+    }
+
+    // fn next(&mut self) -> Result<Option<StreamToken>, Self::Error> {
+    //     match self {
+    //         Self::Ephemeris(eph) => eph.next(),
+    //         Self::Observation(obs) => obs.next(),
+    //     }
+    // }
+}

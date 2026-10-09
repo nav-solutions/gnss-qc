@@ -53,14 +53,15 @@ pub struct QcInputConfig {
     pub clk_rinex_indexing: Option<QcIndexingConfig>,
 }
 
-impl QcIndexingConfig {
+impl QcInputConfig {
     /// Returns [QcIndexingConfig] preference for given Rinex format.
     pub fn rinex_type_preference(&self, format: &RinexType) -> Option<QcIndexingConfig> {
         match format {
-            RinexType::ObservationData => self.obs_rinex_indexing,
-            RinexType::NavigationData => self.nav_rinex_indexing,
-            RinexType::MeteoData => self.meteo_rinex_indexing,
-            RinexType::ClockData => self.clk_rinex_indexing,
+            RinexType::ObservationData => self.obs_rinex_indexing.clone(),
+            RinexType::NavigationData => self.nav_rinex_indexing.clone(),
+            RinexType::MeteoData => self.meteo_rinex_indexing.clone(),
+            RinexType::ClockData => self.clk_rinex_indexing.clone(),
+            _ => unimplemented!("oops"),
         }
     }
 }
@@ -73,6 +74,8 @@ impl Default for QcInputConfig {
         Self {
             nav_rinex_indexing: Some(QcIndexingConfig::Agency),
             obs_rinex_indexing: Some(QcIndexingConfig::Receiver),
+            meteo_rinex_indexing: Some(QcIndexingConfig::Agency),
+            clk_rinex_indexing: Some(QcIndexingConfig::Agency),
         }
     }
 }
