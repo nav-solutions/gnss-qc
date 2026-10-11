@@ -95,16 +95,25 @@ pub enum QcAlgorithm {
 impl QcAlgorithm {
     /// Returns true if this [QcAlgorithm] requires initialization of an [Almanac]
     fn needs_almanac(&self) -> bool {
-        match self {
-            Self::PPP
-            | Self::RTK
-            | Self::CGGTTS
-            | Self::StateResiduals
-            | Self::TEC
-            | Self::IPP
-            | Self::SignalProj => true,
-            _ => false,
+        let mut needs_almanac = false;
+
+        #[cfg(feature = "nav")]
+        {
+            match self {
+                Self::PPP
+                | Self::RTK
+                | Self::CGGTTS
+                | Self::StateResiduals
+                | Self::TEC
+                | Self::IPP
+                | Self::SignalProj => {
+                    needs_almanac = true;
+                }
+                _ => {}
+            }
         }
+
+        needs_almanac
     }
 }
 
@@ -120,7 +129,7 @@ impl QcProcessor {
     /// - it is not possible to combine PPP to RTK to simplify internal logic.
     pub fn new(operations: Vec<QcAlgorithm>) -> Result<Self, QcPipelineSetupError> {
         Self::validate_operations(&operations);
-        Self { operations }
+        Ok(Self { operations })
     }
 
     /// Validates list of operations

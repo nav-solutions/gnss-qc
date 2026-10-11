@@ -41,7 +41,7 @@ pub struct QcAnalyzer {
 }
 
 impl QcAnalyzer {
-    pub fn new(analysis: Vec<QcAnalysis>) {
+    pub fn new(analysis: Vec<QcAnalysis>) -> Self {
         Self { analysis }
     }
 }

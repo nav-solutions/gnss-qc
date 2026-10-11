@@ -8,7 +8,7 @@
  * GNSS-Qc is part of the NAV-Solutions framework.
  * Authors: Guillaume W. Bres <guillaume.bressaix@gmail.com> et al.
  * (cf. https://github.com/nav-solutions/gnss-qc/graphs/contributors)
- * This framework is shipped under Mozilla Public V2 license.
+ * This framework is licensed under Mozilla Public V2 license.
  *
  * Documentation:
  * - https://github.com/nav-solutions/gnss-qc

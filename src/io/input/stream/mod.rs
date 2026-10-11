@@ -1,10 +1,7 @@
 //! Input Streams definition
 use thiserror::Error;
 
-use crate::io::{
-    input::QcInputItem,
-    stream::{QcStream, QcSynchronousItem, QcSynchronousStream},
-};
+use crate::io::stream::{QcStream, QcSynchronousItem, QcSynchronousStream};
 
 // pub mod signal;
 // pub mod meteo;
@@ -37,19 +34,19 @@ pub struct QcInputProductsStreamer {
     // pub obs_stream: QcInputObservationsStream,
 }
 
-impl QcStream for QcInputProductsStreamer {
-    type Item = QcInputItem;
-
-    type Error = InputStreamError;
-
-    fn next(&mut self) -> Result<Option<QcStreamItem>, Self::Error> {
-        Ok(None)
-    }
-
-    // fn next(&mut self) -> Result<Option<StreamToken>, Self::Error> {
-    //     match self {
-    //         Self::Ephemeris(eph) => eph.next(),
-    //         Self::Observation(obs) => obs.next(),
-    //     }
-    // }
-}
+// impl QcStream for QcInputProductsStreamer {
+//     type Item = QcInputItem;
+//
+//     type Error = InputStreamError;
+//
+//     fn next(&mut self) -> Result<Option<QcStreamItem>, Self::Error> {
+//         Ok(None)
+//     }
+//
+//     // fn next(&mut self) -> Result<Option<StreamToken>, Self::Error> {
+//     //     match self {
+//     //         Self::Ephemeris(eph) => eph.next(),
+//     //         Self::Observation(obs) => obs.next(),
+//     //     }
+//     // }
+// }
