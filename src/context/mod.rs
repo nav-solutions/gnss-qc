@@ -1,72 +1,35 @@
-//! GNSS processing context definition.
-// use std::{
-//     collections::HashMap,
-//     ffi::OsStr,
-//     path::{Path, PathBuf},
-// };
-// 
-// use crate::prelude::{Rinex, TimeScale};
-// 
-// use qc_traits::Merge;
-// 
-// pub(crate) mod blob;
-// use blob::BlobData;
-// 
-// #[cfg(feature = "flate2")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
-// mod flate2;
-// 
-// #[cfg(feature = "sp3")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-// mod sp3;
-// 
-// #[cfg(feature = "navigation")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-// mod navigation;
-// 
-// #[cfg(feature = "navigation")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-// pub mod time;
-// 
-// use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
-// 
-// use crate::{error::Error, prelude::ProductType};
-// 
-// #[cfg(feature = "navigation")]
-// use crate::prelude::{Almanac, Frame};
+use crate::{
+    io::input::QcInputProducts,
+    cfg::QcConfig,
+};
 
 /// [QcContext] is a general structure capable to store most common
 /// GNSS data. It is dedicated to post processing workflows,
 /// precise timing or atmosphere analysis.
 #[derive(Clone)]
 pub struct QcContext {
-    /// Files merged into this [QcContext]
-    pub(crate) files: HashMap<ProductType, Vec<PathBuf>>,
+    /// User [QcConfig]
+    pub(crate) config: QcInputConfig,
 
-    /// Context blob created by merging each members of each category
-    pub(crate) blob: HashMap<ProductType, BlobData>,
+    /// Input products: static data sources, usually, text files.
+    pub(crate) input_products: QcInputProducts,
 
+    /// [Almanac] definition
     #[cfg(feature = "navigation")]
     #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-    /// Latest [Almanac]
     pub almanac: Almanac,
 
+    /// Refrence ECEF [Frame]
     #[cfg(feature = "navigation")]
     #[cfg_attr(docsrs, doc(cfg(feature = "navigation")))]
-    /// ECEF [Frame]
     pub earth_cef: Frame,
 }
 
 impl QcContext {
     /// Creates a new [QcContext] for GNSS post processing.
-    ///
-    /// For people interested in Post Processed navigation:
-    /// - if the library was compiled with "embed_ephem" option, you are good
-    /// to go for high precision navigation. Otherwise, this method will require
-    /// that a navigation cache is created and requires internet access on first deployment.
-    /// - for people targeting ultra high navigation precision, you should
-    /// use the JPL BPC cache and keep it up to date, by using [Self::with_jpl_update],
-    /// which requires internet access at all times.
+    /// The [QcConfig]uration is set at definition time and cannot be modified.
+    /// In particular, because all further data indexing depends on those preferences.
+    /// The library does not offer flexible reindexing of a previously defined dataset.
     ///
     /// ```
     /// use gnss_qc::prelude::{QcContext, TimeScale};
@@ -81,13 +44,16 @@ impl QcContext {
     /// // do something
     /// assert_eq!(context.timescale(), Some(TimeScale::GPST));
     /// ```
-    pub fn new() -> Self {
+    pub fn new(config: QcConfig) -> Self {
+
+        let input_products: QcInputProducts::default();
+        
         #[cfg(feature = "navigation")]
         let (almanac, earth_cef) = Self::default_almanac_frame();
 
         Self {
-            files: Default::default(),
-            blob: Default::default(),
+            config,
+            input_products,
             #[cfg(feature = "navigation")]
             almanac,
             #[cfg(feature = "navigation")]

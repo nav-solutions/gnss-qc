@@ -1,9 +1,4 @@
-use std::path::Path;
 use thiserror::Error;
-
-use crate::io::input::{indexing::QcIndexing, types::QcProductType};
-
-use hifitime::prelude::Epoch;
 
 #[derive(Debug, Error)]
 pub enum IndexingError {

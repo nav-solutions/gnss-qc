@@ -17,10 +17,6 @@
  * - https://github.com/nav-solutions/cggtts
  */
 
-#[cfg(feature = "navigation")]
-#[macro_use]
-extern crate log;
-
 extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
 

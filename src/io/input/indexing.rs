@@ -3,8 +3,6 @@ use thiserror::Error;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use hifitime::Epoch;
-
 use rinex::prelude::{Rinex, RinexType};
 
 /// Errors that may arise during the process of input products indexing.
@@ -88,20 +86,20 @@ impl QcIndexing {
                                     None => {
                                         // 4. File stem by default
                                         Self::Custom(file_stem.to_string())
-                                    }
+                                    },
                                 }
-                            }
+                            },
                         }
-                    }
+                    },
                 }
-            }
+            },
             _ => {
                 // prefered is agency
                 match &rinex.header.agency {
                     Some(agency) => Self::Agency(agency.clone()),
                     None => Self::Custom(file_stem.to_string()),
                 }
-            }
+            },
         }
     }
 }

@@ -9,8 +9,9 @@ Geodetic processing pipeline & Quality Control
 [![MRSV](https://img.shields.io/badge/MSRV-1.82.0-orange?style=for-the-badge)](https://github.com/rust-lang/rust/releases/tag/1.82.0)
 [![License](https://img.shields.io/badge/license-MPL_2.0-orange?style=for-the-badge&logo=mozilla)](https://github.com/nav-solutions/qc-traits/blob/main/LICENSE)
 
-The GNSS Quality Control (`gnss-qc`) is an advanced (pure Rust) library that 
-to answer the complex requirements of geodesy processing pipelines.
+The GNSS Quality Control (`gnss-qc`) is an advanced scalable Geodesic processor
+designed to manage the typical input streams required by GNSS applications,
+and deploy several algorithms.
 
 This library is designed to answer the requirements for complex geodetic processing pipelines,
 that demand dealing with several data sources, of different format, sometimes statics or not,

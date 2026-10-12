@@ -108,8 +108,8 @@ impl QcAlgorithm {
                 | Self::IPP
                 | Self::SignalProj => {
                     needs_almanac = true;
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
