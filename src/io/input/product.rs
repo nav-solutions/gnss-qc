@@ -111,22 +111,23 @@ impl QcInputProducts {
 
         // tries matching preferences
         let indexing = match prefered {
-            Some(QcIndexingConfig::Antenna) => match rinex.header.rcvr_antenna {
+            Some(QcIndexingConfig::Antenna) => match &rinex.header.rcvr_antenna {
                 Some(ant) => Some(QcIndexing::Antenna(ant.model.to_string())),
                 None => None,
             },
-            Some(QcIndexingConfig::Receiver) => match rinex.header.rcvr {
+            Some(QcIndexingConfig::Receiver) => match &rinex.header.rcvr {
                 Some(rx) => Some(QcIndexing::Receiver(rx.model.to_string())),
                 None => None,
             },
-            Some(QcIndexingConfig::Agency) => match rinex.header.agency {
+            Some(QcIndexingConfig::Agency) => match &rinex.header.agency {
                 Some(agency) => Some(QcIndexing::Agency(agency.clone())),
                 None => None,
             },
-            Some(QcIndexingConfig::Operator) => match rinex.header.observer {
+            Some(QcIndexingConfig::Operator) => match &rinex.header.observer {
                 Some(observer) => Some(QcIndexing::Operator(observer.clone())),
                 None => None,
             },
+            Some(QcIndexingConfig::Custom(alias)) => Some(QcIndexing::Custom(alias)),
             None => None,
         };
 

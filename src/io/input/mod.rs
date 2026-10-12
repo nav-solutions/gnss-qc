@@ -38,5 +38,5 @@ pub enum QcInputError {
     /// the new entry must be merged into the existing table, extending the table with new data
     /// points. This error rises if the extension step fails for some reason.
     #[error("file stacking issue: {0}")]
-    Merge(MergeError),
+    Merge(#[from] MergeError),
 }
