@@ -20,7 +20,11 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [features]
 # Supports SP3 files by default
 # Support Gzip compressed files by default
-default = ["sp3"]
+# Logs by default (debug)
+default = ["sp3", "log"]
+
+# Verbose logs
+log = ["dep:log"]
 
 serde = [
   "dep:serde",
@@ -38,9 +42,6 @@ sp3 = ["dep:sp3"]
 
 # IONEX (Ionosphere Maps) support
 ionex = ["dep:ionex"]
-
-# Verbose logs
-log = ["dep:log"]
 
 # Unlock Post Processed Navigation.
 # Without this option, you are limited to context setup & analysis (basic processing).
@@ -61,7 +62,8 @@ embed_ephem = [
 ]
 
 [dependencies.rinex]
-version = "0.24"
+git = "https://github.com/nav-solutions/rinex"
+rev = "3ddb6f42d78fb1ab7fea0cd6723d072af82e85f7"
 features = [
     "qc", 
     "processing", 
@@ -74,17 +76,28 @@ features = [
     "flate2",
 ]
 
+[dependencies.gnss-qc-traits]
+git = "https://github.com/nav-solutions/qc-traits"
+rev = "1a62a6d00ce7dd56386e871105b09423ad30691c"
+features = ["processing"]
+
+[dependencies.ionex]
+git = "https://github.com/nav-solutions/ionex"
+rev = "bcb917199f701fa2604b2c3deee152a8c02f77c3"
+optional = true
+
 [dependencies]
 thiserror = "2"
+
 # strum = "0.27"
 # strum_macros = "0.26"
+
 gnss-rs = "2.7"
 itertools = "0.14"
 cggtts = { version = "1", optional = true }
 log = { version = "0.4", optional = true }
 anise = { version = "0.9", optional = true }
 hifitime = { version = "4", features = ["std"] }
-gnss-qc-traits = { version = "0.5", features = ["processing"] }
 sp3 = { version = "1", features = ["qc", "flate2", "processing"], optional = true }
-ionex = { version = "0.1", features = ["flate2"], optional = true }
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
+
