@@ -11,7 +11,10 @@ use std::{collections::VecDeque, convert::Infallible, sync::mpsc::Sender};
 use gnss_rs::prelude::SV;
 use hifitime::Epoch;
 
-use rinex::prelude::obs::{EpochFlag, SignalObservation};
+use rinex::{
+    navigation::Ephemeris,
+    prelude::obs::{EpochFlag, SignalObservation},
+};
 
 use crate::io::input::indexing::QcIndexing;
 
@@ -50,6 +53,240 @@ pub struct QcSignalOutput {
     pub signal: SignalObservation,
 }
 
+/// Radio ephemeris, streamed out as is.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcEphemerisOutput {
+    /// Ephemeris source
+    pub source: QcIndexing,
+
+    /// Satellite
+    pub sv: SV,
+
+    /// Time of Clock
+    pub toc: Epoch,
+
+    /// Ephemeris frame
+    pub ephemeris: Box<Ephemeris>,
+}
+
+/// P.V.T solution, resolved for one receiver
+#[cfg(feature = "navigation")]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcPvtSolution {
+    /// Receiver (rover)
+    pub receiver: QcIndexing,
+
+    /// Solution
+    pub solution: gnss_rtk::prelude::PVTSolution,
+}
+
+#[cfg(feature = "navigation")]
+impl PartialEq for QcPvtSolution {
+    fn eq(&self, rhs: &Self) -> bool {
+        self.receiver == rhs.receiver
+            && self.solution.epoch == rhs.solution.epoch
+            && self.solution.solution_type == rhs.solution.solution_type
+            && self.solution.pos_m == rhs.solution.pos_m
+            && self.solution.vel_m_s == rhs.solution.vel_m_s
+            && self.solution.clock_offset_s == rhs.solution.clock_offset_s
+    }
+}
+
+/// Navigation summary, emitted once all signal sources ended
+#[cfg(feature = "navigation")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcNavigationReport {
+    /// Receiver (rover)
+    pub receiver: QcIndexing,
+
+    /// Number of epochs presented to the solver
+    pub epochs: usize,
+
+    /// Last epoch presented to the solver
+    pub last_epoch: Option<Epoch>,
+
+    /// Number of solutions
+    pub solutions: usize,
+
+    /// Failures, per reason
+    pub failures: std::collections::BTreeMap<String, usize>,
+
+    /// Orbital states served from precise products
+    pub precise_orbits: usize,
+
+    /// Orbital states served from broadcast ephemerides
+    pub broadcast_orbits: usize,
+}
+
+#[cfg(feature = "navigation")]
+impl QcNavigationReport {
+    /// New (empty) report for this receiver
+    pub fn new(receiver: QcIndexing) -> Self {
+        Self {
+            receiver,
+            epochs: 0,
+            last_epoch: None,
+            solutions: 0,
+            failures: Default::default(),
+            precise_orbits: 0,
+            broadcast_orbits: 0,
+        }
+    }
+}
+
+/// CGGTTS track, resolved for one receiver
+#[cfg(feature = "cggtts")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcCggttsTrack {
+    /// Receiver
+    pub receiver: QcIndexing,
+
+    /// CGGTTS track (boxed: large compared to the other results)
+    pub track: Box<cggtts::prelude::Track>,
+}
+
+/// CGGTTS summary, emitted once all signal sources ended
+#[cfg(feature = "cggtts")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcCggttsReport {
+    /// Receiver
+    pub receiver: QcIndexing,
+
+    /// Number of tracks released
+    pub tracks: usize,
+
+    /// Satellites tracked for less than the minimal track duration
+    /// (rising, setting, data gaps): no track
+    pub short_tracks: usize,
+
+    /// Fit failures
+    pub fit_errors: usize,
+}
+
+#[cfg(feature = "cggtts")]
+impl QcCggttsReport {
+    /// New (empty) report for this receiver
+    pub fn new(receiver: QcIndexing) -> Self {
+        Self {
+            receiver,
+            tracks: 0,
+            short_tracks: 0,
+            fit_errors: 0,
+        }
+    }
+}
+
+/// Ionospheric Pierce Point of one line of sight
+#[cfg(feature = "ionex")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcIppOutput {
+    /// Receiver
+    pub receiver: QcIndexing,
+
+    /// Satellite
+    pub sv: SV,
+
+    /// Orbital product the satellite position was resolved from
+    pub orbit: crate::orbit::QcOrbitKind,
+
+    /// Elevation of the line of sight, at the receiver (degrees)
+    pub elevation_deg: f64,
+
+    /// Azimuth of the line of sight, at the receiver (degrees)
+    pub azimuth_deg: f64,
+
+    /// Latitude of the pierce point (degrees)
+    pub latitude_deg: f64,
+
+    /// Longitude of the pierce point (degrees)
+    pub longitude_deg: f64,
+
+    /// Altitude of the ionospheric shell (km)
+    pub altitude_km: f64,
+
+    /// Obliquity (slant) factor at the pierce point: STEC = factor x VTEC
+    pub obliquity_factor: f64,
+}
+
+/// Observation residual: A - B, for one satellite and one observable
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcObservationResidual {
+    /// Receiver A (minuend)
+    pub lhs: QcIndexing,
+
+    /// Receiver B (subtrahend)
+    pub rhs: QcIndexing,
+
+    /// Satellite
+    pub sv: SV,
+
+    /// Observable (identical for both receivers)
+    pub observable: rinex::prelude::Observable,
+
+    /// A - B, in the unit of the observable: pseudo range (m), phase range (cycles),
+    /// Doppler (Hz), signal strength (dB-Hz)
+    pub residual: f64,
+
+    /// Epoch of receiver B (the output epoch is the epoch of receiver A)
+    pub rhs_epoch: Epoch,
+}
+
+/// Orbit residual: A - B between two orbital products, for one satellite
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcOrbitResidual {
+    /// Satellite
+    pub sv: SV,
+
+    /// Source (agency) of product A
+    pub lhs_source: QcIndexing,
+
+    /// Kind of product A
+    pub lhs_kind: crate::orbit::QcOrbitKind,
+
+    /// Time of clock of the broadcast ephemeris (product A is broadcast)
+    pub lhs_toc: Option<Epoch>,
+
+    /// Source (agency) of product B
+    pub rhs_source: QcIndexing,
+
+    /// Kind of product B
+    pub rhs_kind: crate::orbit::QcOrbitKind,
+
+    /// Time of clock of the broadcast ephemeris (product B is broadcast)
+    pub rhs_toc: Option<Epoch>,
+
+    /// Position residual A - B, ECEF (m)
+    pub ecef_m: (f64, f64, f64),
+
+    /// Radial component (m)
+    pub radial_m: f64,
+
+    /// Along track component (m)
+    pub along_track_m: f64,
+
+    /// Cross track component (m)
+    pub cross_track_m: f64,
+
+    /// Clock residual A - B (s), when both products provide the clock
+    pub clock_s: Option<f64>,
+}
+
+impl QcOrbitResidual {
+    /// 3D position residual (m)
+    pub fn norm_m(&self) -> f64 {
+        let (x, y, z) = self.ecef_m;
+        (x * x + y * y + z * z).sqrt()
+    }
+}
+
 /// Results produced by the built-in processors.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -60,6 +297,35 @@ pub enum QcOutput {
 
     /// Ephemeris coverage change
     EphemerisCoverage(QcEphemerisCoverage),
+
+    /// Radio ephemeris (passthrough)
+    Ephemeris(QcEphemerisOutput),
+
+    /// Observation residual
+    ObservationResidual(QcObservationResidual),
+
+    /// Orbit residual
+    OrbitResidual(QcOrbitResidual),
+
+    /// P.V.T solution
+    #[cfg(feature = "navigation")]
+    PVTSolution(QcPvtSolution),
+
+    /// Navigation summary
+    #[cfg(feature = "navigation")]
+    NavigationReport(QcNavigationReport),
+
+    /// Ionospheric Pierce Point
+    #[cfg(feature = "ionex")]
+    IPP(QcIppOutput),
+
+    /// CGGTTS track
+    #[cfg(feature = "cggtts")]
+    CggttsTrack(QcCggttsTrack),
+
+    /// CGGTTS summary
+    #[cfg(feature = "cggtts")]
+    CggttsReport(QcCggttsReport),
 }
 
 /// Time tagged result.

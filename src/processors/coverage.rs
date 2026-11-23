@@ -48,7 +48,7 @@ impl<O: From<QcOutput>> QcProcessor<O> for QcEphemerisCoverageProcessor {
                     (Some(None), None) => false,
                     (Some(Some((src, toc))), Some((new_src, eph))) => {
                         *toc != eph.toc || src != new_src
-                    },
+                    }
                     _ => true,
                 };
 

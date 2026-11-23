@@ -99,6 +99,9 @@ pub struct QcPreciseState {
     /// Satellite
     pub sv: SV,
 
+    /// State [Epoch]
+    pub epoch: Epoch,
+
     /// Position in km, ECEF
     pub position_km: (f64, f64, f64),
 
@@ -155,6 +158,24 @@ impl QcInputItem {
         }
     }
 
+    /// Builds a new precise state item.
+    pub fn precise_state(
+        epoch: Epoch,
+        sv: SV,
+        position_km: (f64, f64, f64),
+        clock_offset_s: Option<f64>,
+    ) -> Self {
+        Self {
+            epoch,
+            payload: QcPayload::PreciseState(QcPreciseState {
+                sv,
+                epoch,
+                position_km,
+                clock_offset_s,
+            }),
+        }
+    }
+
     /// Builds a new receiver clock item.
     pub fn receiver_clock(epoch: Epoch, clock: ClockObservation) -> Self {
         Self {
@@ -170,11 +191,15 @@ impl QcInputItem {
 ///   (otherwise the epoch might be incomplete);
 /// - sources providing context data (ephemerides, precise states) must cover the
 ///   epoch being processed plus the lookahead window.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct QcSourceDescriptor {
     /// How this source is identified (receiver, agency..).
     /// Data points are stored and presented to the processors with this identity.
     pub indexing: QcIndexing,
+
+    /// Reference position of the antenna (ARP), ECEF meters, when known.
+    /// Signal sources only (ground stations, RTK bases).
+    pub reference_position_ecef_m: Option<(f64, f64, f64)>,
 
     /// This source delivers signal observations
     pub signals: bool,
@@ -191,10 +216,17 @@ impl QcSourceDescriptor {
     pub fn new(indexing: QcIndexing) -> Self {
         Self {
             indexing,
+            reference_position_ecef_m: None,
             signals: false,
             ephemerides: false,
             precise_states: false,
         }
+    }
+
+    /// Defines the reference position of the antenna (ARP), ECEF meters
+    pub fn with_reference_position_ecef_m(mut self, position: (f64, f64, f64)) -> Self {
+        self.reference_position_ecef_m = Some(position);
+        self
     }
 
     /// Signal source (observation RINEX, receiver stream..)
@@ -292,5 +324,83 @@ impl QcSource for QcChannelSource {
             Err(TryRecvError::Empty) => QcPoll::Pending,
             Err(TryRecvError::Disconnected) => QcPoll::EndOfStream,
         })
+    }
+}
+
+/// Concatenates several sources that follow each other in time
+/// (for example: daily files of the same receiver), into a single source.
+/// Each source is drained before moving to the next one, so combined with [QcLazySource],
+/// only one file is held in memory at a time, whatever the session duration.
+pub struct QcChainSource {
+    descriptor: QcSourceDescriptor,
+    sources: std::collections::VecDeque<Box<dyn QcSource>>,
+}
+
+impl QcChainSource {
+    /// Builds a new [QcChainSource]. Sources must be sorted in chronological order.
+    /// The `descriptor` applies to all of them.
+    pub fn new(descriptor: QcSourceDescriptor, sources: Vec<Box<dyn QcSource>>) -> Self {
+        Self {
+            descriptor,
+            sources: sources.into(),
+        }
+    }
+}
+
+impl QcSource for QcChainSource {
+    fn descriptor(&self) -> &QcSourceDescriptor {
+        &self.descriptor
+    }
+
+    fn poll(&mut self) -> Result<QcPoll<QcInputItem>, QcSourceError> {
+        while let Some(source) = self.sources.front_mut() {
+            match source.poll()? {
+                QcPoll::EndOfStream => {
+                    self.sources.pop_front();
+                }
+                other => return Ok(other),
+            }
+        }
+        Ok(QcPoll::EndOfStream)
+    }
+}
+
+/// Defers the creation of a source (typically: opening and parsing a file)
+/// until the engine pulls its first item.
+pub struct QcLazySource<F: FnOnce() -> Result<Box<dyn QcSource>, QcSourceError>> {
+    descriptor: QcSourceDescriptor,
+    opener: Option<F>,
+    source: Option<Box<dyn QcSource>>,
+}
+
+impl<F: FnOnce() -> Result<Box<dyn QcSource>, QcSourceError>> QcLazySource<F> {
+    pub fn new(descriptor: QcSourceDescriptor, opener: F) -> Self {
+        Self {
+            descriptor,
+            opener: Some(opener),
+            source: None,
+        }
+    }
+
+    /// Returns true once the source has been opened
+    pub fn is_open(&self) -> bool {
+        self.source.is_some()
+    }
+}
+
+impl<F: FnOnce() -> Result<Box<dyn QcSource>, QcSourceError>> QcSource for QcLazySource<F> {
+    fn descriptor(&self) -> &QcSourceDescriptor {
+        &self.descriptor
+    }
+
+    fn poll(&mut self) -> Result<QcPoll<QcInputItem>, QcSourceError> {
+        if let Some(opener) = self.opener.take() {
+            self.source = Some(opener()?);
+        }
+
+        match &mut self.source {
+            Some(source) => source.poll(),
+            None => Ok(QcPoll::EndOfStream),
+        }
     }
 }

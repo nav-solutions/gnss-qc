@@ -22,7 +22,16 @@ extern crate gnss_rs as gnss;
 
 pub mod cfg;
 pub mod engine;
+pub mod geodesy;
+
+#[cfg(all(feature = "sp3", feature = "flate2"))]
+pub mod guide;
 pub mod io;
+pub mod orbit;
+
+#[cfg(feature = "navigation")]
+pub mod navigation;
+
 pub mod pipeline;
 pub mod processors;
 pub mod sync;
@@ -36,18 +45,62 @@ pub mod prelude {
         QcProcessor, QcRunError, QcStatics,
     };
     pub use crate::io::{
-        input::{cfg::QcInputConfig, indexing::QcIndexing, product::QcInputProducts},
-        output::{
-            QcEphemerisCoverage, QcFnSink, QcOutput, QcOutputItem, QcOutputQueue, QcSignalOutput,
-            QcSink,
+        input::{
+            cfg::{QcIndexingConfig, QcInputConfig},
+            indexing::QcIndexing,
+            product::{QcInputProducts, QcProductSources},
         },
+        output::{
+            QcEphemerisCoverage, QcEphemerisOutput, QcFnSink, QcObservationResidual,
+            QcOrbitResidual, QcOutput, QcOutputItem, QcOutputQueue, QcSignalOutput, QcSink,
+        },
+        rinex::{QcRinexNavSource, QcRinexObsSource, QcRinexSourceError},
         source::{
-            QcChannelSource, QcEphemeris, QcInputItem, QcIterSource, QcPayload, QcPoll,
-            QcPreciseState, QcSignal, QcSource, QcSourceDescriptor, QcSourceError,
+            QcChainSource, QcChannelSource, QcEphemeris, QcInputItem, QcIterSource, QcLazySource,
+            QcPayload, QcPoll, QcPreciseState, QcSignal, QcSource, QcSourceDescriptor,
+            QcSourceError,
         },
     };
-    pub use crate::processors::{QcEphemerisCoverageProcessor, QcSignalProcessor};
-    pub use crate::sync::{QcBuffered, QcEphemerisStore, QcSvBuffer};
+    pub use crate::processors::{
+        QcEphemerisCoverageProcessor, QcEphemerisProcessor, QcObservationResidualConfig,
+        QcObservationResidualProcessor, QcOrbitProduct, QcOrbitResidualConfig,
+        QcOrbitResidualProcessor, QcSignalProcessor,
+    };
+    pub use crate::sync::{
+        QcBuffered, QcEphemerisStore, QcInterpolatedState, QcPreciseStore, QcSvBuffer,
+    };
+
+    #[cfg(feature = "sp3")]
+    pub use crate::io::sp3::QcSp3Source;
+
+    #[cfg(feature = "navigation")]
+    pub use crate::{
+        io::output::{QcNavigationReport, QcPvtSolution},
+        navigation::{
+            Almanac, ClockProfile, MetaAlmanac, Method, PVTSolution, PVTSolutionType,
+            QcNavigationConfig, QcNavigationError, QcNavigationProcessor, QcNavigationTechnique,
+            QcSolverConfig, UserParameters, UserProfile,
+        },
+    };
+
+    #[cfg(feature = "ionex")]
+    pub use crate::{
+        io::output::QcIppOutput,
+        processors::{QcIppConfig, QcIppProcessor},
+    };
+
+    pub use crate::orbit::{QcOrbitKind, QcOrbitPreference};
+
+    #[cfg(feature = "cggtts")]
+    pub use crate::{
+        io::output::{QcCggttsReport, QcCggttsTrack},
+        navigation::{QcCggttsConfig, QcCggttsError, QcCggttsProcessor},
+    };
+
+    #[cfg(feature = "cggtts")]
+    pub use cggtts::prelude::{
+        CommonViewCalendar, CommonViewClass, CommonViewPeriod, Track as CggttsTrack, CGGTTS,
+    };
 
     // re-export
     pub use gnss_rs::prelude::{Constellation, SV};

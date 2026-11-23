@@ -20,7 +20,13 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [features]
 # Supports SP3 files by default
 # Support Gzip compressed files by default
-default = ["sp3", "flate2"]
+default = ["sp3", "flate2", "cggtts"]
+
+# Verbose logs
+log = ["dep:log"]
+
+# Serialization of the input configuration, indexing and output stream
+serde = ["dep:serde", "gnss-rtk?/serde", "cggtts?/serde"]
 
 # Support Gzip compressed files natively
 flate2 = [
@@ -36,49 +42,44 @@ sp3 = ["dep:sp3"]
 # Unlock Post Processed Navigation.
 # Without this option, you are limited to context setup & analysis (basic processing).
 # This option unlocks most advanced solvers.
+# Relies on the GNSS-RTK solver (anise v0.10).
 navigation = [
     "dep:anise",
-    "rinex/nav",
-    "sp3?/anise",
-    "dep:log",
+    "dep:gnss-rtk",
+    "log",
+]
+
+# CGGTTS solutions (common view time transfer): P.V.T solutions (SPP, CPP, PPP)
+# post-fitted over standardized tracking periods, with the CGGTTS library.
+cggtts = [
+    "navigation",
+    "dep:cggtts",
+]
+
+# Ionospheric Pierce Points (IPP) of the lines of sight, with the IONEX library.
+ionex = [
+    "dep:ionex",
 ]
 
 # Unlock "embedded ephemeris" option,
 # which removes the need of Internet access on very first (ever) deployment
 # in order to obtain the ANISE database
 embed_ephem = [
-    "dep:anise",
+    "navigation",
     "anise/embed_ephem",
 ]
 
-# Unlock graphical analysis (plots rendering), otherwise reports are solely text based
-# plot = [
-#     "dep:plotly", 
-# ]
-
 [dependencies.rinex]
-git = "https://github.com/nav-solutions/rinex"
-rev = "a10b41abb0ccd6b804dff6acd560992cdcd4c639"
+version = "0.25.0-alpha"
 features = [
     "qc", 
     "processing", 
     "obs", 
-    "nav", 
     "ut1", 
     "meteo", 
     "clock", 
     "antex", 
     "serde",
-]
-
-[dependencies.sp3]
-git = "https://github.com/nav-solutions/sp3"
-rev = "0ac81cff95466eb6a3f5c7654e278d12ada4aeb8"
-optional = true
-features = [
-    "qc", 
-    "processing", 
-    "serde"
 ]
 
 [dependencies]
@@ -88,12 +89,57 @@ plotly = "0.12"
 strum = "0.27"
 strum_macros = "0.26"
 itertools = "0.14.0"
+gnss-rtk = { version = "0.9", optional = true }
 log = { version = "0.4", optional = true }
-anise = { version = "0.5.3", optional = true }
-gnss-rs = { version = "2.5", features = ["serde"] }
-hifitime = { version = "4.1", features = ["serde", "std"] }
-gnss-qc-traits = { version = "0.4", features = ["processing"] }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
+anise = { version = "0.10", optional = true }
+cggtts = { version = "4", optional = true, features = ["tracker", "scheduler"] }
+ionex = { version = "0.2", optional = true, default-features = false }
+gnss-rs = { version = "2", features = ["serde"] }
+hifitime = { version = "4", features = ["serde", "std"] }
+gnss-qc-traits = { version = "0.6", features = ["processing"] }
+sp3 = { version = "1.5", optional = true, features = ["serde", "qc", "processing"] }
+serde = { version = "1", optional = true, default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 serde_json = "1"
+
+[[example]]
+name = "context"
+required-features = ["sp3"]
+
+[[example]]
+name = "miso"
+
+[[example]]
+name = "realtime"
+
+[[example]]
+name = "spp"
+required-features = ["navigation", "sp3"]
+
+[[example]]
+name = "cpp"
+required-features = ["navigation", "sp3"]
+
+[[example]]
+name = "ppp"
+required-features = ["navigation", "sp3"]
+
+[[example]]
+name = "rtk_ppp"
+required-features = ["navigation", "sp3"]
+
+[[example]]
+name = "cggtts"
+required-features = ["cggtts", "sp3"]
+
+[[example]]
+name = "ipp"
+required-features = ["ionex", "sp3"]
+
+[[example]]
+name = "observation_residuals"
+
+[[example]]
+name = "orbit_residuals"
+required-features = ["sp3"]
