@@ -35,4 +35,8 @@ pub enum QcInputError {
     /// points. This error rises if the extension step fails for some reason.
     #[error("file stacking issue: {0}")]
     Merge(#[from] MergeError),
+
+    /// SP3 files stacking issue
+    #[error("sp3 stacking issue: {0}")]
+    Sp3Merge(String),
 }

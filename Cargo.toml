@@ -26,7 +26,7 @@ default = ["sp3", "flate2"]
 log = ["dep:log"]
 
 # Serialization of the input configuration, indexing and output stream
-serde = ["dep:serde"]
+serde = ["dep:serde", "gnss-rtk?/serde"]
 
 # Support Gzip compressed files natively
 flate2 = [
@@ -37,15 +37,15 @@ flate2 = [
 # Unlock support of high precision SP3 files.
 # When targetting highest precision analysis and solutions, like in PPP,
 # Otherwise, your processing (and possible navigation) only relies on RINEX.
-sp3 = ["dep:sp3"]
+sp3 = ["dep:sp3", "dep:sp3-qc-traits"]
 
 # Unlock Post Processed Navigation.
 # Without this option, you are limited to context setup & analysis (basic processing).
 # This option unlocks most advanced solvers.
+# Relies on the GNSS-RTK solver (anise v0.10).
 navigation = [
     "dep:anise",
-    "rinex/nav",
-    "sp3?/anise",
+    "dep:gnss-rtk",
     "log",
 ]
 
@@ -53,7 +53,7 @@ navigation = [
 # which removes the need of Internet access on very first (ever) deployment
 # in order to obtain the ANISE database
 embed_ephem = [
-    "dep:anise",
+    "navigation",
     "anise/embed_ephem",
 ]
 
@@ -64,12 +64,12 @@ embed_ephem = [
 
 [dependencies.rinex]
 git = "https://github.com/nav-solutions/rinex"
-rev = "a10b41abb0ccd6b804dff6acd560992cdcd4c639"
+# aligned with gnss-rtk: gnss-rs >= 2.8 (std), anise 0.10
+rev = "8a6b7259"
 features = [
     "qc", 
     "processing", 
     "obs", 
-    "nav", 
     "ut1", 
     "meteo", 
     "clock", 
@@ -79,13 +79,19 @@ features = [
 
 [dependencies.sp3]
 git = "https://github.com/nav-solutions/sp3"
-rev = "0ac81cff95466eb6a3f5c7654e278d12ada4aeb8"
+rev = "12fba37"
 optional = true
 features = [
     "qc", 
     "processing", 
     "serde"
 ]
+
+[dependencies.gnss-rtk]
+git = "https://github.com/nav-solutions/gnss-rtk"
+# "ppp" branch
+rev = "21a42466148d8517700cdb2b1621b50c46bec2b2"
+optional = true
 
 [dependencies]
 thiserror = "2"
@@ -95,10 +101,13 @@ strum = "0.27"
 strum_macros = "0.26"
 itertools = "0.14.0"
 log = { version = "0.4", optional = true }
-anise = { version = "0.5.3", optional = true }
+# ANISE version must match GNSS-RTK (rinex uses its own, internally)
+anise = { version = "0.10", optional = true }
 gnss-rs = { version = "2.5", features = ["serde"] }
 hifitime = { version = "4.1", features = ["serde", "std"] }
-gnss-qc-traits = { version = "0.4", features = ["processing"] }
+gnss-qc-traits = { version = "0.6", features = ["processing"] }
+# SP3 implements an older version of the Merge trait
+sp3-qc-traits = { package = "gnss-qc-traits", version = "0.5", optional = true }
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 
 [dev-dependencies]

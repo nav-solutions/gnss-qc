@@ -16,6 +16,8 @@ use rinex::{
 
 use thiserror::Error;
 
+use crate::geodesy::enu_to_ecef_vector;
+
 use crate::io::{
     input::indexing::QcIndexing,
     source::{QcInputItem, QcPoll, QcSource, QcSourceDescriptor, QcSourceError},
@@ -51,14 +53,38 @@ impl QcRinexObsSource {
     pub fn new(indexing: QcIndexing, rinex: Rinex) -> Result<Self, QcRinexSourceError> {
         let rinex_type = rinex.header.rinex_type;
 
+        let mut descriptor = QcSourceDescriptor::new(indexing).with_signals();
+
+        if let Some(arp) = Self::antenna_reference_point(&rinex) {
+            descriptor = descriptor.with_reference_position_ecef_m(arp);
+        }
+
         match rinex.record {
             Record::ObsRecord(record) => Ok(Self {
-                descriptor: QcSourceDescriptor::new(indexing).with_signals(),
+                descriptor,
                 record: record.into_iter(),
                 current: None,
             }),
             _ => Err(QcRinexSourceError::NotObservation(rinex_type)),
         }
+    }
+
+    /// Antenna Reference Point (ECEF m): marker position (header)
+    /// plus antenna eccentricities (height, east, north), when described.
+    pub fn antenna_reference_point(rinex: &Rinex) -> Option<(f64, f64, f64)> {
+        let marker = rinex.header.rx_position?;
+
+        let (h, e, n) = match &rinex.header.rcvr_antenna {
+            Some(antenna) => (
+                antenna.height.unwrap_or_default(),
+                antenna.eastern.unwrap_or_default(),
+                antenna.northern.unwrap_or_default(),
+            ),
+            None => (0.0, 0.0, 0.0),
+        };
+
+        let delta = enu_to_ecef_vector(marker, (e, n, h));
+        Some((marker.0 + delta.0, marker.1 + delta.1, marker.2 + delta.2))
     }
 
     fn epoch_item(key: &ObsKey, flag: EpochFlag, signal: SignalObservation) -> QcInputItem {

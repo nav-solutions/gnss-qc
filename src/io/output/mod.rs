@@ -70,6 +70,73 @@ pub struct QcEphemerisOutput {
     pub ephemeris: Box<Ephemeris>,
 }
 
+/// P.V.T solution, resolved for one receiver
+#[cfg(feature = "navigation")]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcPvtSolution {
+    /// Receiver (rover)
+    pub receiver: QcIndexing,
+
+    /// Solution
+    pub solution: gnss_rtk::prelude::PVTSolution,
+}
+
+#[cfg(feature = "navigation")]
+impl PartialEq for QcPvtSolution {
+    fn eq(&self, rhs: &Self) -> bool {
+        self.receiver == rhs.receiver
+            && self.solution.epoch == rhs.solution.epoch
+            && self.solution.solution_type == rhs.solution.solution_type
+            && self.solution.pos_m == rhs.solution.pos_m
+            && self.solution.vel_m_s == rhs.solution.vel_m_s
+            && self.solution.clock_offset_s == rhs.solution.clock_offset_s
+    }
+}
+
+/// Navigation summary, emitted once all signal sources ended
+#[cfg(feature = "navigation")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcNavigationReport {
+    /// Receiver (rover)
+    pub receiver: QcIndexing,
+
+    /// Number of epochs presented to the solver
+    pub epochs: usize,
+
+    /// Last epoch presented to the solver
+    pub last_epoch: Option<Epoch>,
+
+    /// Number of solutions
+    pub solutions: usize,
+
+    /// Failures, per reason
+    pub failures: std::collections::BTreeMap<String, usize>,
+
+    /// Orbital states served from precise products
+    pub precise_orbits: usize,
+
+    /// Orbital states served from broadcast ephemerides
+    pub broadcast_orbits: usize,
+}
+
+#[cfg(feature = "navigation")]
+impl QcNavigationReport {
+    /// New (empty) report for this receiver
+    pub fn new(receiver: QcIndexing) -> Self {
+        Self {
+            receiver,
+            epochs: 0,
+            last_epoch: None,
+            solutions: 0,
+            failures: Default::default(),
+            precise_orbits: 0,
+            broadcast_orbits: 0,
+        }
+    }
+}
+
 /// Results produced by the built-in processors.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -83,6 +150,14 @@ pub enum QcOutput {
 
     /// Radio ephemeris (passthrough)
     Ephemeris(QcEphemerisOutput),
+
+    /// P.V.T solution
+    #[cfg(feature = "navigation")]
+    PVTSolution(QcPvtSolution),
+
+    /// Navigation summary
+    #[cfg(feature = "navigation")]
+    NavigationReport(QcNavigationReport),
 }
 
 /// Time tagged result.

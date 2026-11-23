@@ -99,6 +99,9 @@ pub struct QcPreciseState {
     /// Satellite
     pub sv: SV,
 
+    /// State [Epoch]
+    pub epoch: Epoch,
+
     /// Position in km, ECEF
     pub position_km: (f64, f64, f64),
 
@@ -155,6 +158,24 @@ impl QcInputItem {
         }
     }
 
+    /// Builds a new precise state item.
+    pub fn precise_state(
+        epoch: Epoch,
+        sv: SV,
+        position_km: (f64, f64, f64),
+        clock_offset_s: Option<f64>,
+    ) -> Self {
+        Self {
+            epoch,
+            payload: QcPayload::PreciseState(QcPreciseState {
+                sv,
+                epoch,
+                position_km,
+                clock_offset_s,
+            }),
+        }
+    }
+
     /// Builds a new receiver clock item.
     pub fn receiver_clock(epoch: Epoch, clock: ClockObservation) -> Self {
         Self {
@@ -170,11 +191,15 @@ impl QcInputItem {
 ///   (otherwise the epoch might be incomplete);
 /// - sources providing context data (ephemerides, precise states) must cover the
 ///   epoch being processed plus the lookahead window.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct QcSourceDescriptor {
     /// How this source is identified (receiver, agency..).
     /// Data points are stored and presented to the processors with this identity.
     pub indexing: QcIndexing,
+
+    /// Reference position of the antenna (ARP), ECEF meters, when known.
+    /// Signal sources only (ground stations, RTK bases).
+    pub reference_position_ecef_m: Option<(f64, f64, f64)>,
 
     /// This source delivers signal observations
     pub signals: bool,
@@ -191,10 +216,17 @@ impl QcSourceDescriptor {
     pub fn new(indexing: QcIndexing) -> Self {
         Self {
             indexing,
+            reference_position_ecef_m: None,
             signals: false,
             ephemerides: false,
             precise_states: false,
         }
+    }
+
+    /// Defines the reference position of the antenna (ARP), ECEF meters
+    pub fn with_reference_position_ecef_m(mut self, position: (f64, f64, f64)) -> Self {
+        self.reference_position_ecef_m = Some(position);
+        self
     }
 
     /// Signal source (observation RINEX, receiver stream..)

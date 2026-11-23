@@ -49,8 +49,22 @@ use crate::{
             QcInputItem, QcPayload, QcPoll, QcSignal, QcSource, QcSourceDescriptor, QcSourceError,
         },
     },
-    sync::QcEphemerisStore,
+    sync::{QcEphemerisStore, QcPreciseStore},
 };
+
+/// Context data stores, synchronized by the engine
+#[derive(Debug, Default)]
+struct QcStores {
+    ephemerides: QcEphemerisStore,
+    precise_states: QcPreciseStore,
+}
+
+impl QcStores {
+    fn prune(&mut self, t: Epoch) {
+        self.ephemerides.prune(t);
+        self.precise_states.prune(t);
+    }
+}
 
 /// Errors raised by the engine.
 #[derive(Debug, Error)]
@@ -101,6 +115,9 @@ pub struct QcEpochSignals {
     /// Receiver clock state, if provided
     pub clock: Option<ClockObservation>,
 
+    /// Reference position of the antenna (ECEF m), if known (see [QcSourceDescriptor])
+    pub reference_position_ecef_m: Option<(f64, f64, f64)>,
+
     /// Signal observations
     pub signals: Vec<SignalObservation>,
 }
@@ -115,6 +132,9 @@ pub struct QcEpochContext<'a> {
 
     /// Radio ephemerides, synchronized to this epoch
     pub ephemerides: &'a QcEphemerisStore,
+
+    /// Precise states, synchronized to this epoch (interpolation window)
+    pub precise_states: &'a QcPreciseStore,
 
     /// Session wide data
     pub statics: &'a QcStatics,
@@ -215,7 +235,7 @@ impl SourceSlot {
     /// Pulls one item and routes it.
     fn pull(
         &mut self,
-        ephemerides: &mut QcEphemerisStore,
+        stores: &mut QcStores,
         last_epoch: Option<Epoch>,
         stats: &mut QcEngineStats,
     ) -> Result<Pull, QcEngineError> {
@@ -249,10 +269,9 @@ impl SourceSlot {
             QcPayload::ReceiverClock(clock) => {
                 self.push_observation(epoch, RxItem::Clock(clock), is_late, stats)
             }
-            QcPayload::Ephemeris(eph) => ephemerides.push(&self.descriptor.indexing, eph),
-            QcPayload::PreciseState(_) => {
-                // TODO: precise states buffering & interpolation (SP3 patch)
-                stats.unhandled_items += 1;
+            QcPayload::Ephemeris(eph) => stores.ephemerides.push(&self.descriptor.indexing, eph),
+            QcPayload::PreciseState(state) => {
+                stores.precise_states.push(&self.descriptor.indexing, state)
             }
         }
 
@@ -302,6 +321,7 @@ pub struct QcEngineBuilder<O = QcOutput> {
     statics: QcStatics,
     lookahead: Duration,
     idle_sleep: StdDuration,
+    window: (Option<Epoch>, Option<Epoch>),
 }
 
 impl<O> Default for QcEngineBuilder<O> {
@@ -310,8 +330,9 @@ impl<O> Default for QcEngineBuilder<O> {
             sources: Vec::new(),
             processors: Vec::new(),
             statics: Default::default(),
-            lookahead: Duration::from_hours(2.0),
+            lookahead: Duration::from_hours(3.0),
             idle_sleep: StdDuration::from_millis(1),
+            window: (None, None),
         }
     }
 }
@@ -350,9 +371,18 @@ impl<O> QcEngineBuilder<O> {
     }
 
     /// Defines how far ahead of the epoch being processed context sources are pulled.
-    /// Default is 2 hours, which suits radio ephemerides.
+    /// Default is 3 hours: suits radio ephemerides, and precise products interpolation
+    /// at the beginning of a file (order 10 at 15' sampling requires 2h30 of data).
     pub fn with_lookahead(mut self, lookahead: Duration) -> Self {
         self.lookahead = lookahead;
+        self
+    }
+
+    /// Restricts the processing to [start, end] (both included, both optional).
+    /// Epochs before `start` are consumed but not processed (context data is
+    /// still synchronized), the session ends after `end`.
+    pub fn with_time_window(mut self, start: Option<Epoch>, end: Option<Epoch>) -> Self {
+        self.window = (start, end);
         self
     }
 
@@ -399,7 +429,8 @@ impl<O> QcEngineBuilder<O> {
             statics: self.statics,
             lookahead: self.lookahead,
             idle_sleep: self.idle_sleep,
-            ephemerides: Default::default(),
+            window: self.window,
+            stores: Default::default(),
             output: Default::default(),
             epoch_signals: Vec::with_capacity(nb_receivers),
             last_epoch: None,
@@ -416,7 +447,8 @@ pub struct QcEngine<O = QcOutput> {
     statics: QcStatics,
     lookahead: Duration,
     idle_sleep: StdDuration,
-    ephemerides: QcEphemerisStore,
+    window: (Option<Epoch>, Option<Epoch>),
+    stores: QcStores,
     output: QcOutputQueue<O>,
     epoch_signals: Vec<QcEpochSignals>,
     last_epoch: Option<Epoch>,
@@ -442,7 +474,12 @@ impl<O> QcEngine<O> {
 
     /// Ephemerides currently buffered
     pub fn ephemerides(&self) -> &QcEphemerisStore {
-        &self.ephemerides
+        &self.stores.ephemerides
+    }
+
+    /// Precise states currently buffered
+    pub fn precise_states(&self) -> &QcPreciseStore {
+        &self.stores.precise_states
     }
 
     /// Non blocking: returns the next result if one is available,
@@ -496,7 +533,8 @@ impl<O> QcEngine<O> {
             processors,
             statics,
             lookahead,
-            ephemerides,
+            window,
+            stores,
             output,
             epoch_signals,
             last_epoch,
@@ -508,7 +546,7 @@ impl<O> QcEngine<O> {
         // 1. each live signal source must expose its next observation
         for slot in slots.iter_mut().filter(|s| s.is_signal_source()) {
             while slot.observations.is_empty() && !slot.eos {
-                if let Pull::Pending = slot.pull(ephemerides, *last_epoch, stats)? {
+                if let Pull::Pending = slot.pull(stores, *last_epoch, stats)? {
                     return Ok(Step::Pending);
                 }
             }
@@ -516,8 +554,8 @@ impl<O> QcEngine<O> {
 
         // 2. next epoch to process
         let t = match slots.iter().filter_map(|s| s.front_epoch()).min() {
-            Some(t) => t,
-            None => {
+            Some(t) if window.1.is_none_or(|end| t <= end) => t,
+            _ => {
                 for processor in processors.iter_mut() {
                     processor.finalize(output);
                 }
@@ -529,7 +567,7 @@ impl<O> QcEngine<O> {
         // 3. epoch must be complete for every live signal source
         for slot in slots.iter_mut().filter(|s| s.is_signal_source()) {
             while !slot.eos && slot.watermark.is_none_or(|w| w <= t) {
-                if let Pull::Pending = slot.pull(ephemerides, *last_epoch, stats)? {
+                if let Pull::Pending = slot.pull(stores, *last_epoch, stats)? {
                     return Ok(Step::Pending);
                 }
             }
@@ -540,14 +578,14 @@ impl<O> QcEngine<O> {
 
         for slot in slots.iter_mut().filter(|s| s.descriptor.provides_context()) {
             while !slot.eos && slot.watermark.is_none_or(|w| w <= horizon) {
-                match slot.pull(ephemerides, *last_epoch, stats)? {
+                match slot.pull(stores, *last_epoch, stats)? {
                     Pull::Item => {}
                     Pull::Pending | Pull::EndOfStream => break,
                 }
             }
         }
 
-        ephemerides.prune(t);
+        stores.prune(t);
 
         // 5. gather this epoch, per receiver (buffers are reused)
         let mut nb_active = 0;
@@ -562,6 +600,7 @@ impl<O> QcEngine<O> {
                     receiver: slot.descriptor.indexing.clone(),
                     flag: EpochFlag::default(),
                     clock: None,
+                    reference_position_ecef_m: None,
                     signals: Vec::with_capacity(64),
                 });
             }
@@ -573,6 +612,7 @@ impl<O> QcEngine<O> {
             }
 
             entry.clock = None;
+            entry.reference_position_ecef_m = slot.descriptor.reference_position_ecef_m;
             entry.signals.clear();
 
             let mut first = true;
@@ -595,13 +635,19 @@ impl<O> QcEngine<O> {
         }
 
         *last_epoch = Some(t);
+
+        if window.0.is_some_and(|start| t < start) {
+            return Ok(Step::Processed);
+        }
+
         stats.epochs += 1;
 
         // 6. run processors
         let ctx = QcEpochContext {
             epoch: t,
             receivers: &epoch_signals[..nb_active],
-            ephemerides,
+            ephemerides: &stores.ephemerides,
+            precise_states: &stores.precise_states,
             statics,
         };
 
@@ -621,7 +667,7 @@ impl<O> QcEngine<O> {
             slots,
             processors,
             statics,
-            ephemerides,
+            stores,
             output,
             last_epoch,
             stats,
@@ -657,11 +703,11 @@ impl<O> QcEngine<O> {
                 if epoch != t {
                     break;
                 }
-                slot.pull(ephemerides, *last_epoch, stats)?;
+                slot.pull(stores, *last_epoch, stats)?;
             }
         }
 
-        ephemerides.prune(t);
+        stores.prune(t);
 
         *last_epoch = Some(t);
         stats.epochs += 1;
@@ -669,7 +715,8 @@ impl<O> QcEngine<O> {
         let ctx = QcEpochContext {
             epoch: t,
             receivers: &[],
-            ephemerides,
+            ephemerides: &stores.ephemerides,
+            precise_states: &stores.precise_states,
             statics,
         };
 

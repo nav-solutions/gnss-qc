@@ -22,7 +22,12 @@ extern crate gnss_rs as gnss;
 
 pub mod cfg;
 pub mod engine;
+pub mod geodesy;
 pub mod io;
+
+#[cfg(feature = "navigation")]
+pub mod navigation;
+
 pub mod pipeline;
 pub mod processors;
 pub mod sync;
@@ -55,7 +60,22 @@ pub mod prelude {
     pub use crate::processors::{
         QcEphemerisCoverageProcessor, QcEphemerisProcessor, QcSignalProcessor,
     };
-    pub use crate::sync::{QcBuffered, QcEphemerisStore, QcSvBuffer};
+    pub use crate::sync::{
+        QcBuffered, QcEphemerisStore, QcInterpolatedState, QcPreciseStore, QcSvBuffer,
+    };
+
+    #[cfg(feature = "sp3")]
+    pub use crate::io::sp3::QcSp3Source;
+
+    #[cfg(feature = "navigation")]
+    pub use crate::{
+        io::output::{QcNavigationReport, QcPvtSolution},
+        navigation::{
+            Almanac, ClockProfile, Method, PVTSolution, PVTSolutionType, QcNavigationConfig,
+            QcNavigationError, QcNavigationProcessor, QcNavigationTechnique, QcOrbitPreference,
+            QcSolverConfig, UserParameters, UserProfile,
+        },
+    };
 
     // re-export
     pub use gnss_rs::prelude::{Constellation, SV};

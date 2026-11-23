@@ -51,6 +51,14 @@ pub fn load_products(cfg: &QcInputConfig, files: &[&str]) -> QcInputProducts {
     let mut products = QcInputProducts::default();
     for file in files {
         let path = data_path(file);
+
+        #[cfg(feature = "sp3")]
+        if file.starts_with("SP3/") {
+            let sp3 = sp3::prelude::SP3::from_gzip_file(&path).unwrap();
+            products.load_sp3(sp3).unwrap();
+            continue;
+        }
+
         let rinex = load_rinex(file);
         products.load_rinex(cfg, &path, rinex).unwrap();
     }
