@@ -313,6 +313,14 @@ impl QcPreciseStore {
         self.sources.get(source)?.fifo(sv)
     }
 
+    /// Satellites described by this source
+    pub fn satellites_of(&self, source: &QcIndexing) -> Vec<SV> {
+        self.sources
+            .get(source)
+            .map(|buffer| buffer.satellites().collect())
+            .unwrap_or_default()
+    }
+
     /// Precise states sources that delivered something.
     pub fn sources(&self) -> impl Iterator<Item = &QcIndexing> {
         self.sources.keys()
@@ -373,6 +381,14 @@ impl QcEphemerisStore {
         self.sources
             .iter()
             .flat_map(|(source, buffer)| buffer.iter().map(move |eph| (source, eph)))
+    }
+
+    /// Satellites described by this source
+    pub fn satellites_of(&self, source: &QcIndexing) -> Vec<SV> {
+        self.sources
+            .get(source)
+            .map(|buffer| buffer.satellites().collect())
+            .unwrap_or_default()
     }
 
     /// Ephemeris sources that delivered something.

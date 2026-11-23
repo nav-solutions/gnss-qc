@@ -8,6 +8,7 @@
 //! - [processors]: built-in processors, writing your own
 //! - `navigation`: P.V.T solutions (`navigation` feature), CGGTTS (`cggtts` feature)
 //! - `ipp`: Ionospheric Pierce Points (`ionex` feature)
+//! - `residuals`: observation and orbit residuals (A − B)
 //! - [testing]: test data and running the tests
 
 #[doc = include_str!("../docs/context.md")]
@@ -25,6 +26,16 @@ pub mod testing {}
 #[cfg(all(feature = "ionex", feature = "sp3"))]
 #[doc = include_str!("../docs/ipp.md")]
 pub mod ipp {}
+
+#[cfg(feature = "sp3")]
+#[doc = include_str!("../docs/residuals/README.md")]
+pub mod residuals {
+    #[doc = include_str!("../docs/residuals/observations.md")]
+    pub mod observations {}
+
+    #[doc = include_str!("../docs/residuals/orbits.md")]
+    pub mod orbits {}
+}
 
 #[cfg(all(feature = "navigation", feature = "sp3"))]
 #[doc = include_str!("../docs/navigation/README.md")]

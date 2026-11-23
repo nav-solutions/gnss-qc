@@ -102,7 +102,11 @@ Observations that arrive after their epoch was processed are dropped
 (`QcEngineStats::late_items`).
 
 When no source provides signals (a navigation file alone for example), the epochs are driven
-by the context data points themselves (*context only session*).
+by the context data points themselves (*context only session*): each distinct epoch of the
+context products (precise products samples, broadcast times of clock) is processed once, in
+chronological order, every context source being read up to the lookahead beyond that epoch.
+Several context products can then be compared at the same instants, without any observation
+file, see [orbit residuals](residuals/orbits.md).
 
 ### Per satellite buffers
 
@@ -192,6 +196,8 @@ Built-in processors produce `QcOutput`:
 | `PVTSolution`, `NavigationReport` | `QcNavigationProcessor` (`navigation` feature) |
 | `CggttsTrack`, `CggttsReport` | `QcCggttsProcessor` (`cggtts` feature) |
 | `IPP` | `QcIppProcessor` (`ionex` feature) |
+| `ObservationResidual` | `QcObservationResidualProcessor` |
+| `OrbitResidual` | `QcOrbitResidualProcessor` |
 
 The output type is generic: applications define their own type (`O: From<QcOutput>`)
 to stack their processors with the built-in ones, see [Processors](processors.md).

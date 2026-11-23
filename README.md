@@ -104,6 +104,9 @@ see the [navigation guide](docs/navigation/README.md).
 | ↳ [RTK](docs/navigation/rtk.md) | Differential navigation: RTK-SPP, RTK-CPP, RTK-PPP |
 | ↳ [CGGTTS](docs/navigation/cggtts.md) | Common view time transfer: P.V.T solutions post-fitted into CGGTTS tracks |
 | [Ionospheric Pierce Points](docs/ipp.md) | Pierce points of the lines of sight in the ionosphere, over time |
+| [Residual analysis](docs/residuals/README.md) | A − B analyses of standard products, available by default |
+| ↳ [Observation residuals](docs/residuals/observations.md) | Receiver A − receiver B: relative clock behavior, receiver artifacts |
+| ↳ [Orbit residuals](docs/residuals/orbits.md) | Agency A − agency B, broadcast − precise, NAV − NAV |
 | [Tests and data](docs/testing.md) | Test data, ANISE data, running the tests |
 
 The API documentation is available on [docs.rs](https://docs.rs/gnss-qc/), where this guide
@@ -124,6 +127,8 @@ Runnable examples, based on the `data` submodule (run them from the repository r
 | [rtk_ppp](examples/rtk_ppp.rs) | Differential navigation (RTK-PPP) |
 | [cggtts](examples/cggtts.rs) | CGGTTS solutions, formatted into a CGGTTS file |
 | [ipp](examples/ipp.rs) | Ionospheric Pierce Points time series |
+| [observation_residuals](examples/observation_residuals.rs) | PolaRx5 − GNSS-SDR observation residuals (common antenna) |
+| [orbit_residuals](examples/orbit_residuals.rs) | GRG − IAC and NAV − GRG orbit residuals |
 
 ```bash
 git submodule update --init

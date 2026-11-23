@@ -23,7 +23,8 @@
 //! - context buffers are pruned (expired data points are dropped).
 //!
 //! When no source provides signals (context only session, for example
-//! a navigation file alone), epochs are driven by the context data points themselves.
+//! a navigation file alone), epochs are driven by the context data points themselves:
+//! the epochs of the data points ingested so far, with the same lookahead.
 use std::{collections::HashMap, time::Duration as StdDuration};
 
 use hifitime::{Duration, Epoch};
@@ -430,6 +431,7 @@ impl<O> QcEngineBuilder<O> {
             lookahead: self.lookahead,
             idle_sleep: self.idle_sleep,
             window: self.window,
+            pending_epochs: Default::default(),
             stores: Default::default(),
             output: Default::default(),
             epoch_signals: Vec::with_capacity(nb_receivers),
@@ -448,6 +450,7 @@ pub struct QcEngine<O = QcOutput> {
     lookahead: Duration,
     idle_sleep: StdDuration,
     window: (Option<Epoch>, Option<Epoch>),
+    pending_epochs: std::collections::BTreeSet<Epoch>,
     stores: QcStores,
     output: QcOutputQueue<O>,
     epoch_signals: Vec<QcEpochSignals>,
@@ -672,23 +675,35 @@ impl<O> QcEngine<O> {
             last_epoch,
             stats,
             finalized,
+            lookahead,
+            window,
+            pending_epochs,
             ..
         } = self;
 
-        // 1. next epoch: every live source must expose its next item
-        let mut next: Option<Epoch> = None;
+        // 1. epochs to process are the epochs of the data points ingested so far
+        if pending_epochs.is_empty() {
+            let mut pending = false;
 
-        for slot in slots.iter_mut() {
-            match slot.peek()? {
-                QcPoll::Ready(t) => next = Some(next.map_or(t, |n| n.min(t))),
-                QcPoll::Pending => return Ok(Step::Pending),
-                QcPoll::EndOfStream => {}
+            for slot in slots.iter_mut() {
+                match slot.peek()? {
+                    QcPoll::Ready(epoch) => {
+                        pending_epochs.insert(epoch);
+                        slot.pull(stores, *last_epoch, stats)?;
+                    }
+                    QcPoll::Pending => pending = true,
+                    QcPoll::EndOfStream => {}
+                }
+            }
+
+            if pending_epochs.is_empty() && pending {
+                return Ok(Step::Pending);
             }
         }
 
-        let t = match next {
-            Some(t) => t,
-            None => {
+        let t = match pending_epochs.first() {
+            Some(t) if window.1.is_none_or(|end| *t <= end) => *t,
+            _ => {
                 for processor in processors.iter_mut() {
                     processor.finalize(output);
                 }
@@ -697,19 +712,27 @@ impl<O> QcEngine<O> {
             }
         };
 
-        // 2. ingest everything at t (never blocking)
+        // 2. context must cover t + lookahead (never blocking)
+        let horizon = t + *lookahead;
+
         for slot in slots.iter_mut() {
             while let QcPoll::Ready(epoch) = slot.peek()? {
-                if epoch != t {
+                if epoch > horizon {
                     break;
                 }
+                pending_epochs.insert(epoch);
                 slot.pull(stores, *last_epoch, stats)?;
             }
         }
 
+        pending_epochs.remove(&t);
         stores.prune(t);
-
         *last_epoch = Some(t);
+
+        if window.0.is_some_and(|start| t < start) {
+            return Ok(Step::Processed);
+        }
+
         stats.epochs += 1;
 
         let ctx = QcEpochContext {

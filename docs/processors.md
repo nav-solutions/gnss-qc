@@ -1,7 +1,7 @@
 Processors
 ==========
 
-[← MISO engine](miso.md) · [README](../README.md) · [Navigation →](navigation/README.md) · [IPP →](ipp.md)
+[← MISO engine](miso.md) · [README](../README.md) · [Navigation →](navigation/README.md) · [IPP →](ipp.md) · [Residuals →](residuals/README.md)
 
 Processors are the algorithms run by the engine. At each epoch, every processor receives the
 synchronized `QcEpochContext` and produces results into the output queue.
@@ -16,6 +16,8 @@ synchronized `QcEpochContext` and produces results into the output queue.
 | `QcNavigationProcessor` | `QcOutput::PVTSolution`, `QcOutput::NavigationReport` | P.V.T solutions (`navigation` feature), see [Navigation](navigation/README.md) |
 | `QcCggttsProcessor` | `QcOutput::CggttsTrack`, `QcOutput::CggttsReport` | CGGTTS solutions (`cggtts` feature), see [CGGTTS](navigation/cggtts.md) |
 | `QcIppProcessor` | `QcOutput::IPP` | Ionospheric Pierce Points (`ionex` feature), see [IPP](ipp.md) |
+| `QcObservationResidualProcessor` | `QcOutput::ObservationResidual` | Observation residuals between two receivers (A − B), see [Observation residuals](residuals/observations.md) |
+| `QcOrbitResidualProcessor` | `QcOutput::OrbitResidual` | Orbit residuals between two orbital products: agencies, broadcast / precise, two NAV sources, see [Orbit residuals](residuals/orbits.md) |
 
 ## The epoch context
 

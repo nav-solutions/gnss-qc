@@ -214,6 +214,79 @@ pub struct QcIppOutput {
     pub obliquity_factor: f64,
 }
 
+/// Observation residual: A - B, for one satellite and one observable
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcObservationResidual {
+    /// Receiver A (minuend)
+    pub lhs: QcIndexing,
+
+    /// Receiver B (subtrahend)
+    pub rhs: QcIndexing,
+
+    /// Satellite
+    pub sv: SV,
+
+    /// Observable (identical for both receivers)
+    pub observable: rinex::prelude::Observable,
+
+    /// A - B, in the unit of the observable: pseudo range (m), phase range (cycles),
+    /// Doppler (Hz), signal strength (dB-Hz)
+    pub residual: f64,
+
+    /// Epoch of receiver B (the output epoch is the epoch of receiver A)
+    pub rhs_epoch: Epoch,
+}
+
+/// Orbit residual: A - B between two orbital products, for one satellite
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcOrbitResidual {
+    /// Satellite
+    pub sv: SV,
+
+    /// Source (agency) of product A
+    pub lhs_source: QcIndexing,
+
+    /// Kind of product A
+    pub lhs_kind: crate::orbit::QcOrbitKind,
+
+    /// Time of clock of the broadcast ephemeris (product A is broadcast)
+    pub lhs_toc: Option<Epoch>,
+
+    /// Source (agency) of product B
+    pub rhs_source: QcIndexing,
+
+    /// Kind of product B
+    pub rhs_kind: crate::orbit::QcOrbitKind,
+
+    /// Time of clock of the broadcast ephemeris (product B is broadcast)
+    pub rhs_toc: Option<Epoch>,
+
+    /// Position residual A - B, ECEF (m)
+    pub ecef_m: (f64, f64, f64),
+
+    /// Radial component (m)
+    pub radial_m: f64,
+
+    /// Along track component (m)
+    pub along_track_m: f64,
+
+    /// Cross track component (m)
+    pub cross_track_m: f64,
+
+    /// Clock residual A - B (s), when both products provide the clock
+    pub clock_s: Option<f64>,
+}
+
+impl QcOrbitResidual {
+    /// 3D position residual (m)
+    pub fn norm_m(&self) -> f64 {
+        let (x, y, z) = self.ecef_m;
+        (x * x + y * y + z * z).sqrt()
+    }
+}
+
 /// Results produced by the built-in processors.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -227,6 +300,12 @@ pub enum QcOutput {
 
     /// Radio ephemeris (passthrough)
     Ephemeris(QcEphemerisOutput),
+
+    /// Observation residual
+    ObservationResidual(QcObservationResidual),
+
+    /// Orbit residual
+    OrbitResidual(QcOrbitResidual),
 
     /// P.V.T solution
     #[cfg(feature = "navigation")]

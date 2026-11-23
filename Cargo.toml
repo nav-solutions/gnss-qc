@@ -160,3 +160,10 @@ required-features = ["cggtts", "sp3"]
 [[example]]
 name = "ipp"
 required-features = ["ionex", "sp3"]
+
+[[example]]
+name = "observation_residuals"
+
+[[example]]
+name = "orbit_residuals"
+required-features = ["sp3"]

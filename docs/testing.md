@@ -50,6 +50,7 @@ Test suites:
 | `tests::miso` | single OBS / CRINEX / NAV files, 48h combinations (merged, chained), coverage, RTK pair, real-time replay |
 | `tests::navigation` | Keplerian solving against SP3, SPP, CPP, PPP, RTK-CPP, RTK-PPP scenarios, precise products coverage loss |
 | `tests::navigation::cggtts` | CGGTTS (SPP, CPP, PPP): schedule, REFSYS / REFSV / MDTR against independent references, CGGTTS file round trip, RTK rejection |
+| `tests::residuals` | observation residuals against `Rinex::observations_substract`, receiver clock analysis (PolaRx5 − GNSS-SDR), misaligned receivers, orbit residuals GRG − IAC, NAV − SP3, NAV − NAV |
 | `tests::ipp`, `tests::navigation::ipp` | pierce points: precise versus broadcast orbits, geometry, time series, lines of sight against the navigation solver |
 
 Release builds are much faster to run the data based tests:

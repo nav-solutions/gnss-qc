@@ -51,8 +51,8 @@ pub mod prelude {
             product::{QcInputProducts, QcProductSources},
         },
         output::{
-            QcEphemerisCoverage, QcEphemerisOutput, QcFnSink, QcOutput, QcOutputItem,
-            QcOutputQueue, QcSignalOutput, QcSink,
+            QcEphemerisCoverage, QcEphemerisOutput, QcFnSink, QcObservationResidual,
+            QcOrbitResidual, QcOutput, QcOutputItem, QcOutputQueue, QcSignalOutput, QcSink,
         },
         rinex::{QcRinexNavSource, QcRinexObsSource, QcRinexSourceError},
         source::{
@@ -62,7 +62,9 @@ pub mod prelude {
         },
     };
     pub use crate::processors::{
-        QcEphemerisCoverageProcessor, QcEphemerisProcessor, QcSignalProcessor,
+        QcEphemerisCoverageProcessor, QcEphemerisProcessor, QcObservationResidualConfig,
+        QcObservationResidualProcessor, QcOrbitProduct, QcOrbitResidualConfig,
+        QcOrbitResidualProcessor, QcSignalProcessor,
     };
     pub use crate::sync::{
         QcBuffered, QcEphemerisStore, QcInterpolatedState, QcPreciseStore, QcSvBuffer,
