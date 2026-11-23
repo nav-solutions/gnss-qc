@@ -294,3 +294,81 @@ impl QcSource for QcChannelSource {
         })
     }
 }
+
+/// Concatenates several sources that follow each other in time
+/// (for example: daily files of the same receiver), into a single source.
+/// Each source is drained before moving to the next one, so combined with [QcLazySource],
+/// only one file is held in memory at a time, whatever the session duration.
+pub struct QcChainSource {
+    descriptor: QcSourceDescriptor,
+    sources: std::collections::VecDeque<Box<dyn QcSource>>,
+}
+
+impl QcChainSource {
+    /// Builds a new [QcChainSource]. Sources must be sorted in chronological order.
+    /// The `descriptor` applies to all of them.
+    pub fn new(descriptor: QcSourceDescriptor, sources: Vec<Box<dyn QcSource>>) -> Self {
+        Self {
+            descriptor,
+            sources: sources.into(),
+        }
+    }
+}
+
+impl QcSource for QcChainSource {
+    fn descriptor(&self) -> &QcSourceDescriptor {
+        &self.descriptor
+    }
+
+    fn poll(&mut self) -> Result<QcPoll<QcInputItem>, QcSourceError> {
+        while let Some(source) = self.sources.front_mut() {
+            match source.poll()? {
+                QcPoll::EndOfStream => {
+                    self.sources.pop_front();
+                }
+                other => return Ok(other),
+            }
+        }
+        Ok(QcPoll::EndOfStream)
+    }
+}
+
+/// Defers the creation of a source (typically: opening and parsing a file)
+/// until the engine pulls its first item.
+pub struct QcLazySource<F: FnOnce() -> Result<Box<dyn QcSource>, QcSourceError>> {
+    descriptor: QcSourceDescriptor,
+    opener: Option<F>,
+    source: Option<Box<dyn QcSource>>,
+}
+
+impl<F: FnOnce() -> Result<Box<dyn QcSource>, QcSourceError>> QcLazySource<F> {
+    pub fn new(descriptor: QcSourceDescriptor, opener: F) -> Self {
+        Self {
+            descriptor,
+            opener: Some(opener),
+            source: None,
+        }
+    }
+
+    /// Returns true once the source has been opened
+    pub fn is_open(&self) -> bool {
+        self.source.is_some()
+    }
+}
+
+impl<F: FnOnce() -> Result<Box<dyn QcSource>, QcSourceError>> QcSource for QcLazySource<F> {
+    fn descriptor(&self) -> &QcSourceDescriptor {
+        &self.descriptor
+    }
+
+    fn poll(&mut self) -> Result<QcPoll<QcInputItem>, QcSourceError> {
+        if let Some(opener) = self.opener.take() {
+            self.source = Some(opener()?);
+        }
+
+        match &mut self.source {
+            Some(source) => source.poll(),
+            None => Ok(QcPoll::EndOfStream),
+        }
+    }
+}

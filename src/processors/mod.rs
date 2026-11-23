@@ -3,7 +3,9 @@
 //! Every processor implements [QcProcessor](crate::engine::QcProcessor) for any output
 //! type `O: From<QcOutput>`, so they can be stacked next to application specific processors.
 mod coverage;
+mod ephemeris;
 mod signal;
 
 pub use coverage::QcEphemerisCoverageProcessor;
+pub use ephemeris::QcEphemerisProcessor;
 pub use signal::QcSignalProcessor;

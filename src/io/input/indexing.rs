@@ -80,13 +80,25 @@ impl QcIndexing {
         Self::Operator(name.to_string())
     }
 
+    /// Defines a [QcIndexing::Receiver] from receiver model and serial number.
+    /// The serial number is required to distinguish two identical receivers
+    /// (typically, an RTK base and rover of the same model).
+    pub fn from_receiver_model_sn(model: &str, sn: &str) -> Self {
+        let (model, sn) = (model.trim(), sn.trim());
+        if sn.is_empty() {
+            Self::Receiver(model.to_string())
+        } else {
+            Self::Receiver(format!("{} #{}", model, sn))
+        }
+    }
+
     /// Select a [QcIndexing] method for this [Rinex] file (infaillible)
     pub fn from_rinex_file(file_stem: &str, rinex: &Rinex) -> Self {
         match rinex.header.rinex_type {
             RinexType::ObservationData => {
                 // 1. prefered is Receiver model
                 match &rinex.header.rcvr {
-                    Some(rx) => Self::Receiver(rx.model.to_string()),
+                    Some(rx) => Self::from_receiver_model_sn(&rx.model, &rx.sn),
                     None => {
                         // 2. Antenna model comes 2nd
                         match &rinex.header.rcvr_antenna {
@@ -98,20 +110,20 @@ impl QcIndexing {
                                     None => {
                                         // 4. File stem by default
                                         Self::Custom(file_stem.to_string())
-                                    },
+                                    }
                                 }
-                            },
+                            }
                         }
-                    },
+                    }
                 }
-            },
+            }
             _ => {
                 // prefered is agency
                 match &rinex.header.agency {
                     Some(agency) => Self::Agency(agency.clone()),
                     None => Self::Custom(file_stem.to_string()),
                 }
-            },
+            }
         }
     }
 }
@@ -130,6 +142,18 @@ mod test {
     fn test_receiver_indexing() {
         let test = QcIndexing::receiver_indexing("super-model");
         assert_eq!(test, QcIndexing::Receiver("super-model".to_string()));
+    }
+
+    #[test]
+    fn test_receiver_model_sn_indexing() {
+        let test = QcIndexing::from_receiver_model_sn("SEPT POLARX5", "3047937");
+        assert_eq!(
+            test,
+            QcIndexing::Receiver("SEPT POLARX5 #3047937".to_string())
+        );
+
+        let test = QcIndexing::from_receiver_model_sn("SEPT POLARX5", "  ");
+        assert_eq!(test, QcIndexing::Receiver("SEPT POLARX5".to_string()));
     }
 
     #[test]

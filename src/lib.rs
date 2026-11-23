@@ -36,17 +36,25 @@ pub mod prelude {
         QcProcessor, QcRunError, QcStatics,
     };
     pub use crate::io::{
-        input::{cfg::QcInputConfig, indexing::QcIndexing, product::QcInputProducts},
-        output::{
-            QcEphemerisCoverage, QcFnSink, QcOutput, QcOutputItem, QcOutputQueue, QcSignalOutput,
-            QcSink,
+        input::{
+            cfg::QcInputConfig,
+            indexing::QcIndexing,
+            product::{QcInputProducts, QcProductSources},
         },
+        output::{
+            QcEphemerisCoverage, QcEphemerisOutput, QcFnSink, QcOutput, QcOutputItem,
+            QcOutputQueue, QcSignalOutput, QcSink,
+        },
+        rinex::{QcRinexNavSource, QcRinexObsSource, QcRinexSourceError},
         source::{
-            QcChannelSource, QcEphemeris, QcInputItem, QcIterSource, QcPayload, QcPoll,
-            QcPreciseState, QcSignal, QcSource, QcSourceDescriptor, QcSourceError,
+            QcChainSource, QcChannelSource, QcEphemeris, QcInputItem, QcIterSource, QcLazySource,
+            QcPayload, QcPoll, QcPreciseState, QcSignal, QcSource, QcSourceDescriptor,
+            QcSourceError,
         },
     };
-    pub use crate::processors::{QcEphemerisCoverageProcessor, QcSignalProcessor};
+    pub use crate::processors::{
+        QcEphemerisCoverageProcessor, QcEphemerisProcessor, QcSignalProcessor,
+    };
     pub use crate::sync::{QcBuffered, QcEphemerisStore, QcSvBuffer};
 
     // re-export

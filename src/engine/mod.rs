@@ -21,6 +21,9 @@
 //! - every live context source is pulled until it covers `t + lookahead`. In real-time,
 //!   a pending context source never blocks processing.
 //! - context buffers are pruned (expired data points are dropped).
+//!
+//! When no source provides signals (context only session, for example
+//! a navigation file alone), epochs are driven by the context data points themselves.
 use std::{collections::HashMap, time::Duration as StdDuration};
 
 use hifitime::{Duration, Epoch};
@@ -37,7 +40,10 @@ use log::{debug, warn};
 
 use crate::{
     io::{
-        input::indexing::QcIndexing,
+        input::{
+            indexing::QcIndexing,
+            product::{QcInputProducts, QcProductSources},
+        },
         output::{QcOutput, QcOutputItem, QcOutputQueue, QcSink},
         source::{
             QcInputItem, QcPayload, QcPoll, QcSignal, QcSource, QcSourceDescriptor, QcSourceError,
@@ -49,10 +55,9 @@ use crate::{
 /// Errors raised by the engine.
 #[derive(Debug, Error)]
 pub enum QcEngineError {
-    /// Processing is driven by signal observations:
-    /// at least one source must provide signals.
-    #[error("no source provides signal observations")]
-    NoSignalSource,
+    /// At least one source is required.
+    #[error("no input source")]
+    NoSource,
 
     /// Two signal sources share the same identity:
     /// they must be merged (or indexed differently) prior processing.
@@ -155,6 +160,7 @@ struct SourceSlot {
     source: Box<dyn QcSource>,
     watermark: Option<Epoch>,
     eos: bool,
+    peeked: Option<QcInputItem>,
     observations: std::collections::VecDeque<(Epoch, RxItem)>,
 }
 
@@ -169,6 +175,43 @@ impl SourceSlot {
         self.observations.front().map(|(t, _)| *t)
     }
 
+    /// Polls the next raw item (peeked item first).
+    fn poll_raw(&mut self) -> Result<QcPoll<QcInputItem>, QcEngineError> {
+        if let Some(item) = self.peeked.take() {
+            return Ok(QcPoll::Ready(item));
+        }
+
+        if self.eos {
+            return Ok(QcPoll::EndOfStream);
+        }
+
+        match self.source.poll() {
+            Ok(QcPoll::EndOfStream) => {
+                #[cfg(feature = "log")]
+                debug!("{}: end of stream", self.descriptor);
+                self.eos = true;
+                Ok(QcPoll::EndOfStream)
+            }
+            Ok(other) => Ok(other),
+            Err(error) => Err(QcEngineError::Source {
+                indexing: self.descriptor.indexing.clone(),
+                error,
+            }),
+        }
+    }
+
+    /// Epoch of the next item, without consuming it.
+    fn peek(&mut self) -> Result<QcPoll<Epoch>, QcEngineError> {
+        if self.peeked.is_none() {
+            match self.poll_raw()? {
+                QcPoll::Ready(item) => self.peeked = Some(item),
+                QcPoll::Pending => return Ok(QcPoll::Pending),
+                QcPoll::EndOfStream => return Ok(QcPoll::EndOfStream),
+            }
+        }
+        Ok(QcPoll::Ready(self.peeked.as_ref().unwrap().epoch))
+    }
+
     /// Pulls one item and routes it.
     fn pull(
         &mut self,
@@ -176,25 +219,10 @@ impl SourceSlot {
         last_epoch: Option<Epoch>,
         stats: &mut QcEngineStats,
     ) -> Result<Pull, QcEngineError> {
-        if self.eos {
-            return Ok(Pull::EndOfStream);
-        }
-
-        let item = match self.source.poll() {
-            Ok(QcPoll::Ready(item)) => item,
-            Ok(QcPoll::Pending) => return Ok(Pull::Pending),
-            Ok(QcPoll::EndOfStream) => {
-                #[cfg(feature = "log")]
-                debug!("{}: end of stream", self.descriptor);
-                self.eos = true;
-                return Ok(Pull::EndOfStream);
-            },
-            Err(error) => {
-                return Err(QcEngineError::Source {
-                    indexing: self.descriptor.indexing.clone(),
-                    error,
-                })
-            },
+        let item = match self.poll_raw()? {
+            QcPoll::Ready(item) => item,
+            QcPoll::Pending => return Ok(Pull::Pending),
+            QcPoll::EndOfStream => return Ok(Pull::EndOfStream),
         };
 
         stats.items += 1;
@@ -208,7 +236,7 @@ impl SourceSlot {
                     "{}: source is not time ordered ({} < {})",
                     self.descriptor, epoch, w
                 );
-            },
+            }
             _ => self.watermark = Some(epoch),
         }
 
@@ -217,15 +245,15 @@ impl SourceSlot {
         match payload {
             QcPayload::Signal(signal) => {
                 self.push_observation(epoch, RxItem::Signal(signal), is_late, stats)
-            },
+            }
             QcPayload::ReceiverClock(clock) => {
                 self.push_observation(epoch, RxItem::Clock(clock), is_late, stats)
-            },
+            }
             QcPayload::Ephemeris(eph) => ephemerides.push(&self.descriptor.indexing, eph),
             QcPayload::PreciseState(_) => {
                 // TODO: precise states buffering & interpolation (SP3 patch)
                 stats.unhandled_items += 1;
-            },
+            }
         }
 
         Ok(Pull::Item)
@@ -247,7 +275,7 @@ impl SourceSlot {
             Some((last, _)) if *last > epoch => {
                 let pos = self.observations.partition_point(|(t, _)| *t <= epoch);
                 self.observations.insert(pos, (epoch, item));
-            },
+            }
             _ => self.observations.push_back((epoch, item)),
         }
     }
@@ -313,6 +341,14 @@ impl<O> QcEngineBuilder<O> {
         self
     }
 
+    /// Adds all sources and session wide data obtained from a [QcInputProducts] table.
+    pub fn with_products(mut self, products: QcInputProducts) -> Self {
+        let QcProductSources { sources, antex } = products.into_sources();
+        self.sources.extend(sources);
+        self.statics.antex.extend(antex);
+        self
+    }
+
     /// Defines how far ahead of the epoch being processed context sources are pulled.
     /// Default is 2 hours, which suits radio ephemerides.
     pub fn with_lookahead(mut self, lookahead: Duration) -> Self {
@@ -346,14 +382,15 @@ impl<O> QcEngineBuilder<O> {
                 source,
                 watermark: None,
                 eos: false,
+                peeked: None,
                 observations: Default::default(),
             });
         }
 
         let nb_receivers = slots.iter().filter(|s| s.is_signal_source()).count();
 
-        if nb_receivers == 0 {
-            return Err(QcEngineError::NoSignalSource);
+        if slots.is_empty() {
+            return Err(QcEngineError::NoSource);
         }
 
         Ok(QcEngine {
@@ -426,7 +463,7 @@ impl<O> QcEngine<O> {
                         Some(item) => QcPoll::Ready(item),
                         None => QcPoll::EndOfStream,
                     })
-                },
+                }
             }
         }
     }
@@ -448,6 +485,10 @@ impl<O> QcEngine<O> {
     fn step(&mut self) -> Result<Step, QcEngineError> {
         if self.finalized {
             return Ok(Step::Done);
+        }
+
+        if !self.slots.iter().any(|s| s.is_signal_source()) {
+            return self.step_context_only();
         }
 
         let Self {
@@ -482,7 +523,7 @@ impl<O> QcEngine<O> {
                 }
                 *finalized = true;
                 return Ok(Step::Done);
-            },
+            }
         };
 
         // 3. epoch must be complete for every live signal source
@@ -500,7 +541,7 @@ impl<O> QcEngine<O> {
         for slot in slots.iter_mut().filter(|s| s.descriptor.provides_context()) {
             while !slot.eos && slot.watermark.is_none_or(|w| w <= horizon) {
                 match slot.pull(ephemerides, *last_epoch, stats)? {
-                    Pull::Item => {},
+                    Pull::Item => {}
                     Pull::Pending | Pull::EndOfStream => break,
                 }
             }
@@ -545,7 +586,7 @@ impl<O> QcEngine<O> {
                             first = false;
                         }
                         entry.signals.push(signal.signal);
-                    },
+                    }
                     RxItem::Clock(clock) => entry.clock = Some(clock),
                 }
             }
@@ -560,6 +601,74 @@ impl<O> QcEngine<O> {
         let ctx = QcEpochContext {
             epoch: t,
             receivers: &epoch_signals[..nb_active],
+            ephemerides,
+            statics,
+        };
+
+        for processor in processors.iter_mut() {
+            processor.process(&ctx, output);
+        }
+
+        Ok(Step::Processed)
+    }
+}
+
+impl<O> QcEngine<O> {
+    /// Context only session (no signal source, for example: ephemerides analysis).
+    /// Epochs are driven by the context data points themselves.
+    fn step_context_only(&mut self) -> Result<Step, QcEngineError> {
+        let Self {
+            slots,
+            processors,
+            statics,
+            ephemerides,
+            output,
+            last_epoch,
+            stats,
+            finalized,
+            ..
+        } = self;
+
+        // 1. next epoch: every live source must expose its next item
+        let mut next: Option<Epoch> = None;
+
+        for slot in slots.iter_mut() {
+            match slot.peek()? {
+                QcPoll::Ready(t) => next = Some(next.map_or(t, |n| n.min(t))),
+                QcPoll::Pending => return Ok(Step::Pending),
+                QcPoll::EndOfStream => {}
+            }
+        }
+
+        let t = match next {
+            Some(t) => t,
+            None => {
+                for processor in processors.iter_mut() {
+                    processor.finalize(output);
+                }
+                *finalized = true;
+                return Ok(Step::Done);
+            }
+        };
+
+        // 2. ingest everything at t (never blocking)
+        for slot in slots.iter_mut() {
+            while let QcPoll::Ready(epoch) = slot.peek()? {
+                if epoch != t {
+                    break;
+                }
+                slot.pull(ephemerides, *last_epoch, stats)?;
+            }
+        }
+
+        ephemerides.prune(t);
+
+        *last_epoch = Some(t);
+        stats.epochs += 1;
+
+        let ctx = QcEpochContext {
+            epoch: t,
+            receivers: &[],
             ephemerides,
             statics,
         };

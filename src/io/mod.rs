@@ -1,5 +1,6 @@
 pub mod input;
 pub mod output;
+pub mod rinex;
 pub mod source;
 
 use input::QcInputError;

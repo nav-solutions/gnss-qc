@@ -8,6 +8,11 @@ use crate::io::input::{
     cfg::QcIndexingConfig, cfg::QcInputConfig, indexing::QcIndexing, QcInputError,
 };
 
+use crate::io::{
+    rinex::{QcRinexNavSource, QcRinexObsSource},
+    source::QcSource,
+};
+
 use qc_traits::Merge;
 
 use rinex::prelude::{Rinex, RinexType};
@@ -56,7 +61,49 @@ fn file_stem<P: AsRef<Path>>(path: P) -> Result<String, QcInputError> {
     Ok(stem.split('.').next().unwrap_or(stem).to_string())
 }
 
+/// Sources and session wide data, obtained from [QcInputProducts].
+pub struct QcProductSources {
+    /// One source per [QcIndexing] and file type
+    pub sources: Vec<Box<dyn QcSource>>,
+
+    /// ANTEX databases
+    pub antex: HashMap<QcIndexing, Rinex>,
+}
+
 impl QcInputProducts {
+    /// Converts this table into engine sources:
+    /// - one signal source per Observation RINEX entry
+    /// - one ephemeris source per Navigation RINEX entry
+    /// - ANTEX entries are session wide data.
+    ///
+    /// Meteo, Clock RINEX and SP3 are not converted yet.
+    pub fn into_sources(self) -> QcProductSources {
+        let mut sources: Vec<Box<dyn QcSource>> = Vec::new();
+
+        let mut obs = self.obs_rinex.into_iter().collect::<Vec<_>>();
+        obs.sort_by_key(|a| a.0.to_string());
+
+        for (indexing, rinex) in obs {
+            if let Ok(source) = QcRinexObsSource::new(indexing, rinex) {
+                sources.push(Box::new(source));
+            }
+        }
+
+        let mut nav = self.nav_rinex.into_iter().collect::<Vec<_>>();
+        nav.sort_by_key(|a| a.0.to_string());
+
+        for (indexing, rinex) in nav {
+            if let Ok(source) = QcRinexNavSource::new(indexing, rinex) {
+                sources.push(Box::new(source));
+            }
+        }
+
+        QcProductSources {
+            sources,
+            antex: self.antex,
+        }
+    }
+
     /// Returns true if this table does not contain anything.
     pub fn is_empty(&self) -> bool {
         #[cfg(feature = "sp3")]
@@ -152,11 +199,11 @@ impl QcInputProducts {
                 .header
                 .rcvr
                 .as_ref()
-                .map(|rx| QcIndexing::Receiver(rx.model.to_string())),
+                .map(|rx| QcIndexing::from_receiver_model_sn(&rx.model, &rx.sn)),
             Some(QcIndexingConfig::Agency) => rinex.header.agency.clone().map(QcIndexing::Agency),
             Some(QcIndexingConfig::Operator) => {
                 rinex.header.observer.clone().map(QcIndexing::Operator)
-            },
+            }
             Some(QcIndexingConfig::Custom(alias)) => Some(QcIndexing::Custom(alias)),
             None => None,
         };

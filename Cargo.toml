@@ -22,6 +22,12 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 # Support Gzip compressed files by default
 default = ["sp3", "flate2"]
 
+# Verbose logs
+log = ["dep:log"]
+
+# Serialization of the input configuration, indexing and output stream
+serde = ["dep:serde"]
+
 # Support Gzip compressed files natively
 flate2 = [
     "rinex/flate2",
@@ -40,7 +46,7 @@ navigation = [
     "dep:anise",
     "rinex/nav",
     "sp3?/anise",
-    "dep:log",
+    "log",
 ]
 
 # Unlock "embedded ephemeris" option,
@@ -93,7 +99,7 @@ anise = { version = "0.5.3", optional = true }
 gnss-rs = { version = "2.5", features = ["serde"] }
 hifitime = { version = "4.1", features = ["serde", "std"] }
 gnss-qc-traits = { version = "0.4", features = ["processing"] }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 serde_json = "1"

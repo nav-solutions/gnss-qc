@@ -73,10 +73,14 @@ impl QcProcessor<AppOutput> for ReceiversCounter {
 fn builder_errors() {
     let t0 = epoch("2020-06-25T00:00:00 GPST");
 
+    let engine = QcEngine::<QcOutput>::builder().build();
+    assert!(matches!(engine, Err(QcEngineError::NoSource)));
+
+    // context only session is valid
     let engine = QcEngine::<QcOutput>::builder()
         .with_source(nav_source("X", vec![ephemeris_item("G01", t0)]))
         .build();
-    assert!(matches!(engine, Err(QcEngineError::NoSignalSource)));
+    assert!(engine.is_ok());
 
     let engine = QcEngine::<QcOutput>::builder()
         .with_source(obs_source("A", vec![]))
@@ -250,7 +254,7 @@ fn realtime_channel_source() {
             QcPoll::Pending => {
                 pending += 1;
                 thread::sleep(StdDuration::from_millis(1));
-            },
+            }
             QcPoll::EndOfStream => break,
         }
     }

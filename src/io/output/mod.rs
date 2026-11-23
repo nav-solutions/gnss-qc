@@ -11,7 +11,10 @@ use std::{collections::VecDeque, convert::Infallible, sync::mpsc::Sender};
 use gnss_rs::prelude::SV;
 use hifitime::Epoch;
 
-use rinex::prelude::obs::{EpochFlag, SignalObservation};
+use rinex::{
+    navigation::Ephemeris,
+    prelude::obs::{EpochFlag, SignalObservation},
+};
 
 use crate::io::input::indexing::QcIndexing;
 
@@ -50,6 +53,23 @@ pub struct QcSignalOutput {
     pub signal: SignalObservation,
 }
 
+/// Radio ephemeris, streamed out as is.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcEphemerisOutput {
+    /// Ephemeris source
+    pub source: QcIndexing,
+
+    /// Satellite
+    pub sv: SV,
+
+    /// Time of Clock
+    pub toc: Epoch,
+
+    /// Ephemeris frame
+    pub ephemeris: Box<Ephemeris>,
+}
+
 /// Results produced by the built-in processors.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -60,6 +80,9 @@ pub enum QcOutput {
 
     /// Ephemeris coverage change
     EphemerisCoverage(QcEphemerisCoverage),
+
+    /// Radio ephemeris (passthrough)
+    Ephemeris(QcEphemerisOutput),
 }
 
 /// Time tagged result.

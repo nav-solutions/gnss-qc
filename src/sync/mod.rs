@@ -79,7 +79,7 @@ impl<T: QcBuffered> QcSvBuffer<T> {
             Some(last) if last.epoch() > epoch => {
                 let pos = fifo.partition_point(|x| x.epoch() <= epoch);
                 fifo.insert(pos, item);
-            },
+            }
             _ => fifo.push_back(item),
         }
     }
@@ -110,6 +110,11 @@ impl<T: QcBuffered> QcSvBuffer<T> {
     /// Returns true if nothing is buffered.
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
+    }
+
+    /// Iterates over all buffered data points (all satellites).
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.inner.values().flat_map(|fifo| fifo.iter())
     }
 
     /// Satellites for which something is buffered.
@@ -148,6 +153,13 @@ impl QcEphemerisStore {
     /// This is what residual analysis between agencies needs.
     pub fn select_from(&self, source: &QcIndexing, sv: SV, t: Epoch) -> Option<&QcEphemeris> {
         self.sources.get(source)?.select(sv, t)
+    }
+
+    /// Iterates over all buffered ephemerides, with their source.
+    pub fn iter(&self) -> impl Iterator<Item = (&QcIndexing, &QcEphemeris)> {
+        self.sources
+            .iter()
+            .flat_map(|(source, buffer)| buffer.iter().map(move |eph| (source, eph)))
     }
 
     /// Ephemeris sources that delivered something.
