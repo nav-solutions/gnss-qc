@@ -190,6 +190,8 @@ Built-in processors produce `QcOutput`:
 | `EphemerisCoverage` | `QcEphemerisCoverageProcessor` |
 | `Ephemeris` | `QcEphemerisProcessor` |
 | `PVTSolution`, `NavigationReport` | `QcNavigationProcessor` (`navigation` feature) |
+| `CggttsTrack`, `CggttsReport` | `QcCggttsProcessor` (`cggtts` feature) |
+| `IPP` | `QcIppProcessor` (`ionex` feature) |
 
 The output type is generic: applications define their own type (`O: From<QcOutput>`)
 to stack their processors with the built-in ones, see [Processors](processors.md).

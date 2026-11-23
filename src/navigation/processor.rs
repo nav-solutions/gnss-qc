@@ -2,8 +2,8 @@
 use std::{cell::RefCell, rc::Rc};
 
 use gnss_rtk::prelude::{
-    Almanac, Candidate, ClockProfile, Config, Constellation, Method, Solver, UserParameters,
-    UserProfile, EARTH_J2000, SV,
+    Almanac, Candidate, ClockProfile, Config, Constellation, Epoch, Method, PVTSolution, Solver,
+    UserParameters, UserProfile, EARTH_J2000, SV,
 };
 
 use thiserror::Error;
@@ -20,11 +20,12 @@ use crate::{
     navigation::{
         candidates::build_candidates,
         provider::{
-            QcClockProvider, QcEnvironment, QcNavigationData, QcNullEphemeris, QcOrbitPreference,
-            QcOrbitProvider, QcTime,
+            QcClockProvider, QcEnvironment, QcNavigationData, QcNullEphemeris, QcOrbitProvider,
+            QcTime,
         },
         rtk::QcRtkBase,
     },
+    orbit::{QcOrbitKind, QcOrbitPreference},
 };
 
 /// Navigation technique
@@ -132,9 +133,13 @@ pub enum QcNavigationError {
 
 type QcSolver = Solver<QcNullEphemeris, QcOrbitProvider, QcEnvironment, QcClockProvider, QcTime>;
 
-/// Resolves P.V.T solutions for one rover (absolute or differential navigation),
-/// and streams them out. A [QcNavigationReport] is emitted once all signal sources ended.
-pub struct QcNavigationProcessor {
+/// Result of one navigation attempt: rover identity and solution, or failure reason
+pub type QcNavigationResult = Result<(QcIndexing, PVTSolution), String>;
+
+/// [QcNavigator] is the navigation core: it deploys the GNSS-RTK solver over the
+/// synchronized context, epoch after epoch. It is used by the [QcNavigationProcessor],
+/// and by the processors that post-process P.V.T solutions (CGGTTS..).
+pub struct QcNavigator {
     cfg: QcNavigationConfig,
     solver: QcSolver,
     data: Rc<RefCell<QcNavigationData>>,
@@ -144,8 +149,8 @@ pub struct QcNavigationProcessor {
     report: Option<QcNavigationReport>,
 }
 
-impl QcNavigationProcessor {
-    /// Deploys a new [QcNavigationProcessor]. The ANISE [Almanac] is used to
+impl QcNavigator {
+    /// Deploys a new [QcNavigator]. The ANISE [Almanac] is used to
     /// describe the Earth and the Sun (eclipses).
     pub fn new(almanac: Almanac, cfg: QcNavigationConfig) -> Result<Self, QcNavigationError> {
         let earth = almanac
@@ -192,23 +197,37 @@ impl QcNavigationProcessor {
         })
     }
 
+    /// Navigation configuration
+    pub fn config(&self) -> &QcNavigationConfig {
+        &self.cfg
+    }
+
+    /// Satellite clock offset (s) that was applied for `sv` at `t`
+    /// (relativistic correction included), from the selected orbital product.
+    /// Valid for the satellites of the latest resolution attempt.
+    pub fn satellite_clock_offset_s(&self, sv: SV, t: Epoch) -> Option<f64> {
+        self.data.borrow().clock_s(sv, t)
+    }
+
+    /// Orbital product used for `sv` in the latest resolution attempt
+    pub fn orbit_kind(&self, sv: SV) -> Option<QcOrbitKind> {
+        self.data.borrow().orbit_kind(sv)
+    }
+
     fn base_indexing(&self) -> Option<&QcIndexing> {
         self.base.as_ref().map(|base| &base.indexing)
     }
 
-    fn failure(&mut self, reason: String) {
+    fn failure(&mut self, reason: String) -> Option<QcNavigationResult> {
         if let Some(report) = &mut self.report {
-            *report.failures.entry(reason).or_default() += 1;
+            *report.failures.entry(reason.clone()).or_default() += 1;
         }
-    }
-}
-
-impl<O: From<QcOutput>> QcProcessor<O> for QcNavigationProcessor {
-    fn name(&self) -> &str {
-        "navigation"
+        Some(Err(reason))
     }
 
-    fn process(&mut self, ctx: &QcEpochContext, output: &mut QcOutputQueue<O>) {
+    /// Resolution attempt at this epoch. Returns None when the rover did not sample
+    /// this epoch (nothing to solve).
+    pub fn solve(&mut self, ctx: &QcEpochContext) -> Option<QcNavigationResult> {
         // rover selection (first epoch)
         if self.rover.is_none() {
             let base = self.base_indexing().cloned();
@@ -220,15 +239,8 @@ impl<O: From<QcOutput>> QcProcessor<O> for QcNavigationProcessor {
                 .cloned();
         }
 
-        let rover = match &self.rover {
-            Some(rover) => rover.clone(),
-            None => return,
-        };
-
-        let rx = match ctx.receivers.iter().find(|rx| rx.receiver == rover) {
-            Some(rx) => rx,
-            None => return,
-        };
+        let rover = self.rover.clone()?;
+        let rx = ctx.receivers.iter().find(|rx| rx.receiver == rover)?;
 
         let report = self
             .report
@@ -237,10 +249,13 @@ impl<O: From<QcOutput>> QcProcessor<O> for QcNavigationProcessor {
         report.epochs += 1;
         report.last_epoch = Some(ctx.epoch);
 
+        let primary_only = self.cfg.solver.method == Method::SPP;
+
         build_candidates(
             ctx.epoch,
             &rx.signals,
             &self.cfg.constellations,
+            primary_only,
             &mut self.candidates,
         );
 
@@ -255,10 +270,7 @@ impl<O: From<QcOutput>> QcProcessor<O> for QcNavigationProcessor {
                     {
                         match base_rx.reference_position_ecef_m {
                             Some(position) => base.position_ecef_m = position,
-                            None => {
-                                self.failure("rtk base position unknown".to_string());
-                                return;
-                            }
+                            None => return self.failure("rtk base position unknown".to_string()),
                         }
                     }
 
@@ -267,14 +279,12 @@ impl<O: From<QcOutput>> QcProcessor<O> for QcNavigationProcessor {
                         ctx.epoch,
                         &base_rx.signals,
                         &self.cfg.constellations,
+                        primary_only,
                         &mut base_candidates,
                     );
                     base.candidates = base_candidates;
                 }
-                None => {
-                    self.failure("rtk base missing".to_string());
-                    return;
-                }
+                None => return self.failure("rtk base missing".to_string()),
             }
         }
 
@@ -299,39 +309,61 @@ impl<O: From<QcOutput>> QcProcessor<O> for QcNavigationProcessor {
 
         match result {
             Ok(solution) => {
-                let report = self.report.as_mut().unwrap();
-                report.solutions += 1;
-
-                output.push(
-                    ctx.epoch,
-                    QcOutput::PVTSolution(QcPvtSolution {
-                        receiver: rover,
-                        solution,
-                    }),
-                );
+                self.report.as_mut().unwrap().solutions += 1;
+                Some(Ok((rover, solution)))
             }
             Err(e) => {
                 #[cfg(feature = "log")]
                 debug!("{} - {} navigation failure: {}", ctx.epoch, rover, e);
-                self.failure(e.to_string());
+                self.failure(e.to_string())
             }
         }
     }
 
-    fn finalize(&mut self, output: &mut QcOutputQueue<O>) {
-        if let Some(mut report) = self.report.take() {
-            let counters = self.data.borrow().counters();
-            report.precise_orbits = counters.precise;
-            report.broadcast_orbits = counters.broadcast;
+    /// Navigation summary (once, at the end of the session)
+    pub fn take_report(&mut self) -> Option<QcNavigationReport> {
+        let mut report = self.report.take()?;
+        let counters = self.data.borrow().counters();
+        report.precise_orbits = counters.precise;
+        report.broadcast_orbits = counters.broadcast;
+        Some(report)
+    }
+}
 
-            if let Some(last) = report.last_epoch {
-                output.push(last, QcOutput::NavigationReport(report));
-            } else {
-                output.push(
-                    hifitime::Epoch::default(),
-                    QcOutput::NavigationReport(report),
-                );
-            }
+/// Resolves P.V.T solutions for one rover (absolute or differential navigation),
+/// and streams them out. A [QcNavigationReport] is emitted once all signal sources ended.
+pub struct QcNavigationProcessor {
+    navigator: QcNavigator,
+}
+
+impl QcNavigationProcessor {
+    /// Deploys a new [QcNavigationProcessor]. The ANISE [Almanac] is used to
+    /// describe the Earth and the Sun (eclipses).
+    pub fn new(almanac: Almanac, cfg: QcNavigationConfig) -> Result<Self, QcNavigationError> {
+        Ok(Self {
+            navigator: QcNavigator::new(almanac, cfg)?,
+        })
+    }
+}
+
+impl<O: From<QcOutput>> QcProcessor<O> for QcNavigationProcessor {
+    fn name(&self) -> &str {
+        "navigation"
+    }
+
+    fn process(&mut self, ctx: &QcEpochContext, output: &mut QcOutputQueue<O>) {
+        if let Some(Ok((receiver, solution))) = self.navigator.solve(ctx) {
+            output.push(
+                ctx.epoch,
+                QcOutput::PVTSolution(QcPvtSolution { receiver, solution }),
+            );
+        }
+    }
+
+    fn finalize(&mut self, output: &mut QcOutputQueue<O>) {
+        if let Some(report) = self.navigator.take_report() {
+            let epoch = report.last_epoch.unwrap_or_default();
+            output.push(epoch, QcOutput::NavigationReport(report));
         }
     }
 }

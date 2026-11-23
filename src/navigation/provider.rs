@@ -24,7 +24,7 @@ use gnss_rtk::prelude::{
 use crate::{
     engine::QcEpochContext,
     io::source::QcPreciseState,
-    navigation::kepler::{relativistic_correction_s, QcKepler},
+    orbit::{relativistic_correction_s, QcKepler, QcOrbitKind, QcOrbitPreference},
     sync::{interpolate_precise_state, QcPreciseStore},
 };
 
@@ -32,28 +32,6 @@ type Vector3D = (f64, f64, f64);
 
 /// Upper bound of the signal time of flight (GEO satellites ~0.13 s)
 const MAX_TIME_OF_FLIGHT: Duration = Duration::from_milliseconds(150.0);
-
-/// Orbital products preference.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum QcOrbitPreference {
-    /// Precise products (SP3) whenever they cover the satellite at the epoch being
-    /// processed (position and clock), broadcast ephemerides otherwise. Default.
-    #[default]
-    Auto,
-
-    /// Precise products only: satellites without precise products are not used.
-    PreciseOnly,
-
-    /// Broadcast ephemerides only: precise products are disregarded.
-    BroadcastOnly,
-}
-
-/// Kind of orbit used for one satellite, at one epoch
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum QcOrbitKind {
-    Precise,
-    Broadcast,
-}
 
 #[derive(Debug, Default, Clone)]
 struct SvData {
@@ -200,7 +178,7 @@ impl QcNavigationData {
     }
 
     /// Satellite clock offset (s) at `t`, relativistic correction included
-    fn clock_s(&self, sv: SV, t: Epoch) -> Option<f64> {
+    pub fn clock_s(&self, sv: SV, t: Epoch) -> Option<f64> {
         let data = self.svs.get(&sv)?;
 
         match data.kind? {

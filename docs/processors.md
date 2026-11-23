@@ -1,7 +1,7 @@
 Processors
 ==========
 
-[← MISO engine](miso.md) · [README](../README.md) · [Navigation →](navigation/README.md)
+[← MISO engine](miso.md) · [README](../README.md) · [Navigation →](navigation/README.md) · [IPP →](ipp.md)
 
 Processors are the algorithms run by the engine. At each epoch, every processor receives the
 synchronized `QcEpochContext` and produces results into the output queue.
@@ -14,6 +14,8 @@ synchronized `QcEpochContext` and produces results into the output queue.
 | `QcEphemerisCoverageProcessor` | `QcOutput::EphemerisCoverage` | Verifies that every satellite in sight is covered by a valid radio ephemeris. Emitted on change only: coverage gained, lost, or switch to another ephemeris |
 | `QcEphemerisProcessor` | `QcOutput::Ephemeris` | Streams every radio ephemeris out, once, as soon as it reaches the engine |
 | `QcNavigationProcessor` | `QcOutput::PVTSolution`, `QcOutput::NavigationReport` | P.V.T solutions (`navigation` feature), see [Navigation](navigation/README.md) |
+| `QcCggttsProcessor` | `QcOutput::CggttsTrack`, `QcOutput::CggttsReport` | CGGTTS solutions (`cggtts` feature), see [CGGTTS](navigation/cggtts.md) |
+| `QcIppProcessor` | `QcOutput::IPP` | Ionospheric Pierce Points (`ionex` feature), see [IPP](ipp.md) |
 
 ## The epoch context
 

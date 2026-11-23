@@ -137,6 +137,83 @@ impl QcNavigationReport {
     }
 }
 
+/// CGGTTS track, resolved for one receiver
+#[cfg(feature = "cggtts")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcCggttsTrack {
+    /// Receiver
+    pub receiver: QcIndexing,
+
+    /// CGGTTS track (boxed: large compared to the other results)
+    pub track: Box<cggtts::prelude::Track>,
+}
+
+/// CGGTTS summary, emitted once all signal sources ended
+#[cfg(feature = "cggtts")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcCggttsReport {
+    /// Receiver
+    pub receiver: QcIndexing,
+
+    /// Number of tracks released
+    pub tracks: usize,
+
+    /// Satellites tracked for less than the minimal track duration
+    /// (rising, setting, data gaps): no track
+    pub short_tracks: usize,
+
+    /// Fit failures
+    pub fit_errors: usize,
+}
+
+#[cfg(feature = "cggtts")]
+impl QcCggttsReport {
+    /// New (empty) report for this receiver
+    pub fn new(receiver: QcIndexing) -> Self {
+        Self {
+            receiver,
+            tracks: 0,
+            short_tracks: 0,
+            fit_errors: 0,
+        }
+    }
+}
+
+/// Ionospheric Pierce Point of one line of sight
+#[cfg(feature = "ionex")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct QcIppOutput {
+    /// Receiver
+    pub receiver: QcIndexing,
+
+    /// Satellite
+    pub sv: SV,
+
+    /// Orbital product the satellite position was resolved from
+    pub orbit: crate::orbit::QcOrbitKind,
+
+    /// Elevation of the line of sight, at the receiver (degrees)
+    pub elevation_deg: f64,
+
+    /// Azimuth of the line of sight, at the receiver (degrees)
+    pub azimuth_deg: f64,
+
+    /// Latitude of the pierce point (degrees)
+    pub latitude_deg: f64,
+
+    /// Longitude of the pierce point (degrees)
+    pub longitude_deg: f64,
+
+    /// Altitude of the ionospheric shell (km)
+    pub altitude_km: f64,
+
+    /// Obliquity (slant) factor at the pierce point: STEC = factor x VTEC
+    pub obliquity_factor: f64,
+}
+
 /// Results produced by the built-in processors.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -158,6 +235,18 @@ pub enum QcOutput {
     /// Navigation summary
     #[cfg(feature = "navigation")]
     NavigationReport(QcNavigationReport),
+
+    /// Ionospheric Pierce Point
+    #[cfg(feature = "ionex")]
+    IPP(QcIppOutput),
+
+    /// CGGTTS track
+    #[cfg(feature = "cggtts")]
+    CggttsTrack(QcCggttsTrack),
+
+    /// CGGTTS summary
+    #[cfg(feature = "cggtts")]
+    CggttsReport(QcCggttsReport),
 }
 
 /// Time tagged result.

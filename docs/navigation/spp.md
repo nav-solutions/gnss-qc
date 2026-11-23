@@ -3,11 +3,13 @@ SPP: Single Point Positioning
 
 [← Navigation](README.md) · [CPP →](cpp.md)
 
-**Single frequency code navigation**: one pseudo range per satellite (GPS L1 C/A,
-Galileo E1, BeiDou B1I..), absolute navigation (position and receiver clock).
+**Single frequency code navigation**: one pseudo range per satellite, on the primary signal
+of each constellation (GPS / QZSS L1 C/A, Galileo E1, BeiDou B1I), absolute navigation
+(position and receiver clock). Other signals are not proposed to the solver.
 
 - Low cost, single frequency receivers, degraded setups.
-- Meter level accuracy: the ionospheric delay is not cancelled (and not modeled yet).
+- Meter level accuracy: the ionospheric delay is not cancelled (and not modeled yet),
+  the accuracy depends on the ionospheric activity.
 - Single frequency signals require the broadcast group delays (TGD / BGD): they are applied
   automatically, whatever the orbital product (broadcast and precise clocks are referenced
   to the iono free combination). Navigation files are therefore required, even with SP3.
@@ -65,7 +67,8 @@ cargo run --release --features navigation --example spp > spp.csv
 ## Results
 
 ESBC00DNK, 2020-06-25 00:00-01:00, GPS + Galileo, NAV + SP3: 121/121 epochs solved,
-5.5 m max horizontal error, 3.6 m max vertical error, 5.4 m RMS (after 10').
+1.1 m max horizontal error, 1.4 m max vertical error, 1.7 m RMS (after 10'). The ionospheric
+activity is low on this dataset (night time, solar minimum): expect several meters otherwise.
 
 For better accuracy with a single frequency receiver, prefer [RTK-SPP](rtk.md):
 the ionospheric delay cancels between two close receivers.

@@ -22,6 +22,7 @@ of the [MISO engine](../miso.md): the solutions are streamed like any other resu
 | CPP | dual frequency code (iono free) | [CPP](cpp.md) | [cpp.rs](../../examples/cpp.rs) |
 | PPP | dual frequency code and phase (iono free) | [PPP](ppp.md) | [ppp.rs](../../examples/ppp.rs) |
 | RTK-SPP, RTK-CPP, RTK-PPP | same, differential (reference station) | [RTK](rtk.md) | [rtk_ppp.rs](../../examples/rtk_ppp.rs) |
+| CGGTTS | SPP, CPP or PPP, post-fitted (`cggtts` feature) | [CGGTTS](cggtts.md) | [cggtts.rs](../../examples/cggtts.rs) |
 
 ## Deployment
 
@@ -124,6 +125,10 @@ orbit with a broadcast clock would be inconsistent at the meter level.
 | Relativistic clock correction | F.e.√A.sin(E) | -2 r·v / c² |
 | Group delay (single frequency only) | broadcast TGD / BGD | broadcast TGD / BGD (precise clocks are iono free referenced) |
 
+Single frequency navigation (SPP) only proposes the primary signal of each constellation
+to the solver (GPS / QZSS L1, Galileo E1, BeiDou B1I): the signal the broadcast group
+delays are defined for.
+
 The `QcNavigationReport`, emitted at the end of the session, counts the orbital states
 served from each product (`precise_orbits`, `broadcast_orbits`).
 
@@ -189,7 +194,7 @@ GRG precise products. Errors after convergence, verified by the test suite
 
 | Method | Products | Period | Reference | Max horizontal | Max vertical | RMS 3D |
 |--------|----------|--------|-----------|----------------|--------------|--------|
-| SPP | NAV + SP3 | 1h (after 10') | ETRF2000 | 5.5 m | 3.6 m | 5.4 m |
+| SPP | NAV + SP3 | 1h (after 10') | ETRF2000 | 1.1 m | 1.4 m | 1.7 m |
 | CPP | NAV | 1h (after 10') | ETRF2000 | 1.8 m | 2.4 m | 2.4 m |
 | CPP | NAV + SP3 | 1h (after 10') | ETRF2000 | 1.2 m | 1.2 m | 1.3 m |
 | PPP | NAV + SP3 | 3h (after 1h30) | ITRF2014 | 0.09 m | 0.05 m | 0.07 m |
@@ -202,7 +207,8 @@ build, decompression and parsing included): ~1.5 s per hour of data.
 ## Limitations
 
 - Glonass and SBAS are not supported.
-- No ionosphere model: SPP is limited to a few meters.
+- No ionosphere model: SPP accuracy depends on the ionospheric activity (meter level here,
+  night time at solar minimum, several meters otherwise).
 - Precise clocks are interpolated from the SP3 (15'): Clock RINEX (30 s) are not supported yet,
   they would improve PPP.
 - PPP ambiguities are float (no integer ambiguity resolution yet).

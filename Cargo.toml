@@ -20,13 +20,13 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [features]
 # Supports SP3 files by default
 # Support Gzip compressed files by default
-default = ["sp3", "flate2"]
+default = ["sp3", "flate2", "cggtts"]
 
 # Verbose logs
 log = ["dep:log"]
 
 # Serialization of the input configuration, indexing and output stream
-serde = ["dep:serde", "gnss-rtk?/serde"]
+serde = ["dep:serde", "gnss-rtk?/serde", "cggtts?/serde"]
 
 # Support Gzip compressed files natively
 flate2 = [
@@ -47,6 +47,18 @@ navigation = [
     "dep:anise",
     "dep:gnss-rtk",
     "log",
+]
+
+# CGGTTS solutions (common view time transfer): P.V.T solutions (SPP, CPP, PPP)
+# post-fitted over standardized tracking periods, with the CGGTTS library.
+cggtts = [
+    "navigation",
+    "dep:cggtts",
+]
+
+# Ionospheric Pierce Points (IPP) of the lines of sight, with the IONEX library.
+ionex = [
+    "dep:ionex",
 ]
 
 # Unlock "embedded ephemeris" option,
@@ -103,6 +115,8 @@ itertools = "0.14.0"
 log = { version = "0.4", optional = true }
 # ANISE version must match GNSS-RTK (rinex uses its own, internally)
 anise = { version = "0.10", optional = true }
+cggtts = { version = "4.4.0", optional = true, features = ["tracker", "scheduler"] }
+ionex = { version = "0.2.0", optional = true, default-features = false }
 gnss-rs = { version = "2.5", features = ["serde"] }
 hifitime = { version = "4.1", features = ["serde", "std"] }
 gnss-qc-traits = { version = "0.6", features = ["processing"] }
@@ -138,3 +152,11 @@ required-features = ["navigation", "sp3"]
 [[example]]
 name = "rtk_ppp"
 required-features = ["navigation", "sp3"]
+
+[[example]]
+name = "cggtts"
+required-features = ["cggtts", "sp3"]
+
+[[example]]
+name = "ipp"
+required-features = ["ionex", "sp3"]

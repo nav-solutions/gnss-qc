@@ -27,6 +27,7 @@ pub mod geodesy;
 #[cfg(all(feature = "sp3", feature = "flate2"))]
 pub mod guide;
 pub mod io;
+pub mod orbit;
 
 #[cfg(feature = "navigation")]
 pub mod navigation;
@@ -76,8 +77,27 @@ pub mod prelude {
         navigation::{
             Almanac, ClockProfile, MetaAlmanac, Method, PVTSolution, PVTSolutionType,
             QcNavigationConfig, QcNavigationError, QcNavigationProcessor, QcNavigationTechnique,
-            QcOrbitPreference, QcSolverConfig, UserParameters, UserProfile,
+            QcSolverConfig, UserParameters, UserProfile,
         },
+    };
+
+    #[cfg(feature = "ionex")]
+    pub use crate::{
+        io::output::QcIppOutput,
+        processors::{QcIppConfig, QcIppProcessor},
+    };
+
+    pub use crate::orbit::{QcOrbitKind, QcOrbitPreference};
+
+    #[cfg(feature = "cggtts")]
+    pub use crate::{
+        io::output::{QcCggttsReport, QcCggttsTrack},
+        navigation::{QcCggttsConfig, QcCggttsError, QcCggttsProcessor},
+    };
+
+    #[cfg(feature = "cggtts")]
+    pub use cggtts::prelude::{
+        CommonViewCalendar, CommonViewClass, CommonViewPeriod, Track as CggttsTrack, CGGTTS,
     };
 
     // re-export

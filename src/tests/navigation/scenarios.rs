@@ -322,9 +322,10 @@ fn itrf2014(run: &NavigationRun) -> (f64, f64, f64) {
 }
 
 /// Scenario 5: SPP (single frequency, L1 / E1), OBS + NAV + SP3.
-/// Precise products clocks are referenced to the iono free combination:
-/// the broadcast group delays are applied to the primary signal.
-/// No ionosphere model yet: meter level accuracy.
+/// Only the primary signals are proposed to the solver, precise products clocks
+/// are referenced to the iono free combination: the broadcast group delays are applied.
+/// No ionosphere model yet: meter level accuracy (low ionospheric activity here:
+/// night time, solar minimum).
 #[test]
 fn absolute_spp_precise_orbits() {
     let products = load_products(&QcInputConfig::default(), &[ESBC_OBS, ESBC_NAV, GRG_SP3]);
@@ -336,9 +337,9 @@ fn absolute_spp_precise_orbits() {
 
     let errors = run.errors(convergence());
     println!("{:?}", errors);
-    assert!(errors.max_horizontal < 8.0, "{:?}", errors);
-    assert!(errors.max_vertical < 6.0, "{:?}", errors);
-    assert!(errors.rms_3d < 7.0, "{:?}", errors);
+    assert!(errors.max_horizontal < 2.0, "{:?}", errors);
+    assert!(errors.max_vertical < 2.5, "{:?}", errors);
+    assert!(errors.rms_3d < 2.5, "{:?}", errors);
 }
 
 /// Scenario 6: float PPP (iono free code and phase), OBS + NAV + SP3, 3 hours.

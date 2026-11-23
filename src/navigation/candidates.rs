@@ -40,12 +40,24 @@ struct CarrierSignals {
     snr: Vec<(char, f64)>,
 }
 
+/// Primary signal carrier of each constellation (single frequency navigation):
+/// GPS / QZSS L1, Galileo E1, BeiDou B1I. The broadcast group delays apply to these signals.
+pub fn is_primary_carrier(constellation: Constellation, carrier: Carrier) -> bool {
+    match constellation {
+        Constellation::BeiDou => carrier == Carrier::B1,
+        _ => carrier == Carrier::L1,
+    }
+}
+
 /// Builds the GNSS-RTK [Candidate]s from the signals sampled at `t`,
 /// for the selected constellations. Satellites without pseudo range are dropped.
+/// When `primary_only` is set (single frequency navigation), only the primary signal
+/// of each constellation is proposed (see [is_primary_carrier]).
 pub fn build_candidates(
     t: Epoch,
     signals: &[SignalObservation],
     constellations: &[Constellation],
+    primary_only: bool,
     candidates: &mut Vec<Candidate>,
 ) {
     candidates.clear();
@@ -61,6 +73,10 @@ pub fn build_candidates(
             Some(carrier) => carrier,
             None => continue,
         };
+
+        if primary_only && !is_primary_carrier(signal.sv.constellation, carrier) {
+            continue;
+        }
 
         let attribute = match signal.observable.code() {
             Some(code) => code.chars().nth(1).unwrap_or(' '),

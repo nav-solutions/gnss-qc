@@ -6,7 +6,8 @@
 //! - [context]: context definition, input products and indexing
 //! - [miso]: the MISO engine, sources, synchronization, outputs, real-time operation
 //! - [processors]: built-in processors, writing your own
-//! - `navigation`: P.V.T solutions (`navigation` feature)
+//! - `navigation`: P.V.T solutions (`navigation` feature), CGGTTS (`cggtts` feature)
+//! - `ipp`: Ionospheric Pierce Points (`ionex` feature)
 //! - [testing]: test data and running the tests
 
 #[doc = include_str!("../docs/context.md")]
@@ -20,6 +21,10 @@ pub mod processors {}
 
 #[doc = include_str!("../docs/testing.md")]
 pub mod testing {}
+
+#[cfg(all(feature = "ionex", feature = "sp3"))]
+#[doc = include_str!("../docs/ipp.md")]
+pub mod ipp {}
 
 #[cfg(all(feature = "navigation", feature = "sp3"))]
 #[doc = include_str!("../docs/navigation/README.md")]
@@ -35,4 +40,8 @@ pub mod navigation {
 
     #[doc = include_str!("../docs/navigation/rtk.md")]
     pub mod rtk {}
+
+    #[cfg(feature = "cggtts")]
+    #[doc = include_str!("../docs/navigation/cggtts.md")]
+    pub mod cggtts {}
 }

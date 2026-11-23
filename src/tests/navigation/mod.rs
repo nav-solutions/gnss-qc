@@ -4,8 +4,12 @@
 //! ANISE data: de440s.bsp (or any JPL planetary SPK covering 2020, like de421.bsp)
 //! and pck11.pca are loaded from `$GNSS_QC_ANISE_DIR` (or `<repo>/.cache`),
 //! and downloaded by ANISE otherwise.
+#[cfg(feature = "cggtts")]
+mod cggtts;
+#[cfg(feature = "ionex")]
+mod ipp;
 mod kepler;
-mod scenarios;
+pub mod scenarios;
 
 use std::{
     path::{Path, PathBuf},

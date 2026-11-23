@@ -102,6 +102,8 @@ see the [navigation guide](docs/navigation/README.md).
 | ↳ [CPP](docs/navigation/cpp.md) | Dual frequency (iono free) code navigation |
 | ↳ [PPP](docs/navigation/ppp.md) | Float Precise Point Positioning (code + phase) |
 | ↳ [RTK](docs/navigation/rtk.md) | Differential navigation: RTK-SPP, RTK-CPP, RTK-PPP |
+| ↳ [CGGTTS](docs/navigation/cggtts.md) | Common view time transfer: P.V.T solutions post-fitted into CGGTTS tracks |
+| [Ionospheric Pierce Points](docs/ipp.md) | Pierce points of the lines of sight in the ionosphere, over time |
 | [Tests and data](docs/testing.md) | Test data, ANISE data, running the tests |
 
 The API documentation is available on [docs.rs](https://docs.rs/gnss-qc/), where this guide
@@ -120,6 +122,8 @@ Runnable examples, based on the `data` submodule (run them from the repository r
 | [cpp](examples/cpp.rs) | Code Precise Positioning |
 | [ppp](examples/ppp.rs) | Precise Point Positioning |
 | [rtk_ppp](examples/rtk_ppp.rs) | Differential navigation (RTK-PPP) |
+| [cggtts](examples/cggtts.rs) | CGGTTS solutions, formatted into a CGGTTS file |
+| [ipp](examples/ipp.rs) | Ionospheric Pierce Points time series |
 
 ```bash
 git submodule update --init
@@ -134,6 +138,8 @@ cargo run --release --features navigation --example ppp > solutions.csv
 | `flate2` | ✓ | Gzip compressed files (`.gz`) |
 | `sp3` | ✓ | SP3 precise products (sources, merging) |
 | `navigation` | | P.V.T solutions, powered by [GNSS-RTK](https://github.com/nav-solutions/gnss-rtk) and [ANISE](https://github.com/nyx-space/anise). The heaviest option. |
+| `cggtts` | | CGGTTS solutions (common view time transfer), powered by [CGGTTS](https://github.com/nav-solutions/cggtts) (implies `navigation`) |
+| `ionex` | | Ionospheric Pierce Points, powered by [IONEX](https://github.com/nav-solutions/ionex) |
 | `embed_ephem` | | Embeds the ANISE dataset at build time: no Internet access required at runtime (implies `navigation`) |
 | `serde` | | Serialization of the configuration, indexing and output stream |
 | `log` | | Debug traces (`$RUST_LOG`) |
@@ -151,3 +157,5 @@ GNSS-Qc relies on:
 - [RINEX](https://github.com/nav-solutions/rinex): RINEX parser, the most fundamental format
 - [SP3](https://github.com/nav-solutions/sp3): precise products (`sp3` feature)
 - [GNSS-RTK](https://github.com/nav-solutions/gnss-rtk) and [ANISE](https://github.com/nyx-space/anise): navigation (`navigation` feature)
+- [CGGTTS](https://github.com/nav-solutions/cggtts): common view time transfer (`cggtts` feature)
+- [IONEX](https://github.com/nav-solutions/ionex): ionosphere models and maps (`ionex` feature)

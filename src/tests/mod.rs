@@ -1,5 +1,8 @@
 mod engine;
 mod input;
+
+#[cfg(all(feature = "ionex", feature = "sp3"))]
+mod ipp;
 mod miso;
 
 #[cfg(all(feature = "navigation", feature = "sp3"))]

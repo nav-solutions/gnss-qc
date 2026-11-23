@@ -13,21 +13,30 @@
 //! products, per satellite and per epoch, and falls back to broadcast ephemerides when
 //! precise products do not cover the satellite (missing satellite, end of file, data gap).
 mod candidates;
-mod kepler;
+
+#[cfg(feature = "cggtts")]
+mod cggtts;
 mod processor;
 mod provider;
 mod rtk;
 
-pub use candidates::{build_candidates, rtk_carrier};
-pub use kepler::{relativistic_correction_s, QcKepler, QcKeplerState, SPEED_OF_LIGHT_M_S};
+pub use crate::orbit::{
+    relativistic_correction_s, QcKepler, QcKeplerState, QcOrbitKind, QcOrbitPreference,
+    SPEED_OF_LIGHT_M_S,
+};
+pub use candidates::{build_candidates, is_primary_carrier, rtk_carrier};
 pub use processor::{
-    QcNavigationConfig, QcNavigationError, QcNavigationProcessor, QcNavigationTechnique,
+    QcNavigationConfig, QcNavigationError, QcNavigationProcessor, QcNavigationResult,
+    QcNavigationTechnique, QcNavigator,
 };
 pub use provider::{
     QcClockProvider, QcEnvironment, QcNavigationData, QcNullEphemeris, QcOrbitCounters,
-    QcOrbitKind, QcOrbitPreference, QcOrbitProvider, QcTime,
+    QcOrbitProvider, QcTime,
 };
 pub use rtk::QcRtkBase;
+
+#[cfg(feature = "cggtts")]
+pub use cggtts::{cggtts_frequency_code, QcCggttsConfig, QcCggttsError, QcCggttsProcessor};
 
 /// ANISE almanac loader, re-exported so applications use the exact ANISE version
 /// of the solver (`MetaAlmanac::latest()` downloads and caches the latest dataset).
