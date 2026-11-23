@@ -29,7 +29,7 @@ jobs:
     - uses: actions-rs/toolchain@v1
       name: Install Rust
       with:
-        toolchain: 1.82.0
+        toolchain: 1.89.0
         override: true
     
     - name: Build (Default)
@@ -46,6 +46,12 @@ jobs:
     
     - name: Build (Navigation)
       run: cargo build --features navigation
+    
+    - name: Clean
+      run: cargo clean
+    
+    - name: Build (IONEX)
+      run: cargo build --features ionex
     
     - name: Clean
       run: cargo clean
