@@ -248,8 +248,7 @@ impl QcInputProducts {
         let key = QcIndexing::Agency(sp3.header.agency.clone());
 
         if let Some(inner) = self.sp3.get_mut(&key) {
-            Merge::merge_mut(inner, &sp3)
-                .map_err(|e| QcInputError::Sp3Merge(e.to_string()))?;
+            Merge::merge_mut(inner, &sp3).map_err(|e| QcInputError::Sp3Merge(e.to_string()))?;
         } else {
             self.sp3.insert(key, sp3);
         }
