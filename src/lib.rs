@@ -23,6 +23,9 @@ extern crate gnss_rs as gnss;
 pub mod cfg;
 pub mod engine;
 pub mod geodesy;
+
+#[cfg(all(feature = "sp3", feature = "flate2"))]
+pub mod guide;
 pub mod io;
 
 #[cfg(feature = "navigation")]
@@ -42,7 +45,7 @@ pub mod prelude {
     };
     pub use crate::io::{
         input::{
-            cfg::QcInputConfig,
+            cfg::{QcIndexingConfig, QcInputConfig},
             indexing::QcIndexing,
             product::{QcInputProducts, QcProductSources},
         },
@@ -71,9 +74,9 @@ pub mod prelude {
     pub use crate::{
         io::output::{QcNavigationReport, QcPvtSolution},
         navigation::{
-            Almanac, ClockProfile, Method, PVTSolution, PVTSolutionType, QcNavigationConfig,
-            QcNavigationError, QcNavigationProcessor, QcNavigationTechnique, QcOrbitPreference,
-            QcSolverConfig, UserParameters, UserProfile,
+            Almanac, ClockProfile, MetaAlmanac, Method, PVTSolution, PVTSolutionType,
+            QcNavigationConfig, QcNavigationError, QcNavigationProcessor, QcNavigationTechnique,
+            QcOrbitPreference, QcSolverConfig, UserParameters, UserProfile,
         },
     };
 

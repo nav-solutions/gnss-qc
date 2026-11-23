@@ -29,6 +29,10 @@ pub use provider::{
 };
 pub use rtk::QcRtkBase;
 
+/// ANISE almanac loader, re-exported so applications use the exact ANISE version
+/// of the solver (`MetaAlmanac::latest()` downloads and caches the latest dataset).
+pub use anise::almanac::metaload::MetaAlmanac;
+
 // re-export: solver configuration
 pub use gnss_rtk::prelude::{
     Almanac, ClockProfile, Config as QcSolverConfig, Method, PVTSolution, PVTSolutionType,

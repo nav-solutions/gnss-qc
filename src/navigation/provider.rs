@@ -121,16 +121,15 @@ impl QcNavigationData {
                 }
             }
 
-            // broadcast: refresh only when the selected ephemeris changes
-            if self.preference != QcOrbitPreference::PreciseOnly {
-                match ctx.ephemerides.select(sv, t) {
-                    Some((_, eph)) => {
-                        if data.kepler.map(|k| k.toc) != Some(eph.toc) {
-                            data.kepler = QcKepler::from_ephemeris(sv, eph.toc, &eph.ephemeris);
-                        }
+            // broadcast: refresh only when the selected ephemeris changes.
+            // Always loaded (even PreciseOnly): it also provides the group delays.
+            match ctx.ephemerides.select(sv, t) {
+                Some((_, eph)) => {
+                    if data.kepler.map(|k| k.toc) != Some(eph.toc) {
+                        data.kepler = QcKepler::from_ephemeris(sv, eph.toc, &eph.ephemeris);
                     }
-                    None => data.kepler = None,
                 }
+                None => data.kepler = None,
             }
 
             // precise products are usable when both position and clock interpolate
@@ -222,7 +221,7 @@ impl QcNavigationData {
         }
     }
 
-    /// Group delay (s) to apply to the primary signal.
+    /// Group delay (s) to apply to the primary signal (single frequency navigation).
     /// Dual frequency methods: the iono free combination is the clock reference
     /// of both broadcast and precise products, no correction applies.
     fn group_delay_s(&self, sv: SV) -> f64 {
@@ -235,8 +234,10 @@ impl QcNavigationData {
             None => return 0.0,
         };
 
+        // Both broadcast and precise clocks are referenced to the iono free combination:
+        // the primary signal requires the broadcast group delay, whatever the product.
         match (data.kind, data.kepler) {
-            (Some(QcOrbitKind::Broadcast), Some(kepler)) => -kepler.tgd_s.unwrap_or_default(),
+            (Some(_), Some(kepler)) => -kepler.tgd_s.unwrap_or_default(),
             _ => 0.0,
         }
     }

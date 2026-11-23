@@ -314,3 +314,86 @@ fn rtk_cpp_esbc_mojn() {
     assert!(errors.max_vertical < 1.0, "{:?}", errors);
     assert!(errors.rms_3d < 0.6, "{:?}", errors);
 }
+
+/// ESBC00DNK antenna reference point, expressed in ITRF2014 (frame of the GRG products):
+/// absolute techniques converge to this position (RINEX header: ETRF2000).
+fn itrf2014(run: &NavigationRun) -> (f64, f64, f64) {
+    crate::geodesy::etrf2000_to_itrf2014(run.truth_ecef_m, 2020.48)
+}
+
+/// Scenario 5: SPP (single frequency, L1 / E1), OBS + NAV + SP3.
+/// Precise products clocks are referenced to the iono free combination:
+/// the broadcast group delays are applied to the primary signal.
+/// No ionosphere model yet: meter level accuracy.
+#[test]
+fn absolute_spp_precise_orbits() {
+    let products = load_products(&QcInputConfig::default(), &[ESBC_OBS, ESBC_NAV, GRG_SP3]);
+
+    let cfg = cpp(QcOrbitPreference::Auto).with_method(Method::SPP);
+    let run = navigate(products, vec![], cfg, window());
+
+    assert_eq!(run.report.solutions, 121, "{:?}", run.report.failures);
+
+    let errors = run.errors(convergence());
+    println!("{:?}", errors);
+    assert!(errors.max_horizontal < 8.0, "{:?}", errors);
+    assert!(errors.max_vertical < 6.0, "{:?}", errors);
+    assert!(errors.rms_3d < 7.0, "{:?}", errors);
+}
+
+/// Scenario 6: float PPP (iono free code and phase), OBS + NAV + SP3, 3 hours.
+/// Compared to the ITRF2014 coordinates of the station after 1h30 of convergence:
+/// centimeter level (header coordinates are ETRF2000: 0.75 m away).
+#[test]
+fn absolute_ppp() {
+    let products = load_products(&QcInputConfig::default(), &[ESBC_OBS, ESBC_NAV, GRG_SP3]);
+
+    let cfg = cpp(QcOrbitPreference::Auto).with_method(Method::PPP);
+
+    let window = (
+        epoch("2020-06-25T00:00:00 GPST"),
+        epoch("2020-06-25T03:00:00 GPST"),
+    );
+
+    let mut run = navigate(products, vec![], cfg, window);
+
+    assert_eq!(run.report.solutions, 361, "{:?}", run.report.failures);
+
+    run.truth_ecef_m = itrf2014(&run);
+
+    let errors = run.errors(Duration::from_hours(1.5));
+    println!("{:?}", errors);
+    assert_eq!(errors.count, 181);
+    assert!(errors.max_horizontal < 0.15, "{:?}", errors);
+    assert!(errors.max_vertical < 0.15, "{:?}", errors);
+    assert!(errors.rms_3d < 0.12, "{:?}", errors);
+}
+
+/// Scenario 7: RTK-PPP (double differences of iono free code and phase),
+/// ESBC00DNK rover, MOJN00DNK base, OBS + NAV + SP3.
+#[test]
+fn rtk_ppp_esbc_mojn() {
+    let products = load_products(
+        &QcInputConfig::default(),
+        &[ESBC_OBS, MOJN_OBS, ESBC_NAV, GRG_SP3],
+    );
+
+    let cfg = cpp(QcOrbitPreference::Auto)
+        .with_method(Method::PPP)
+        .with_rover(esbc())
+        .with_rtk_base(mojn());
+
+    let run = navigate(products, vec![], cfg, window());
+
+    assert_eq!(run.report.solutions, 121, "{:?}", run.report.failures);
+
+    for sol in run.solutions.iter() {
+        assert_eq!(sol.solution.solution_type, PVTSolutionType::RTK);
+    }
+
+    let errors = run.errors(convergence());
+    println!("{:?}", errors);
+    assert!(errors.max_horizontal < 0.4, "{:?}", errors);
+    assert!(errors.max_vertical < 0.4, "{:?}", errors);
+    assert!(errors.rms_3d < 0.4, "{:?}", errors);
+}

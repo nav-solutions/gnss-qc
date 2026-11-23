@@ -78,3 +78,65 @@ mod test {
         assert!((back.2 - 3.0).abs() < 1e-9);
     }
 }
+
+/// ETRF2000 to ITRF2014 transformation (inverse of EUREF TN-1 "ITRF2014 to ETRF2000",
+/// EPSG:8405, 14 parameters expressed at epoch 2000.0), first order.
+///
+/// European stations coordinates (RINEX headers, national networks) are often expressed
+/// in ETRF2000 (attached to the Eurasian plate), while absolute navigation solutions
+/// obtained with IGS precise products are expressed in ITRF2014 (IGS14):
+/// both frames differ by ~0.75 m in northern Europe in 2020.
+///
+/// ## Input
+/// - etrf_ecef_m: ETRF2000 ECEF coordinates (m)
+/// - year: decimal year of the coordinates (e.g. 2020.48)
+pub fn etrf2000_to_itrf2014(etrf_ecef_m: (f64, f64, f64), year: f64) -> (f64, f64, f64) {
+    const MAS: f64 = std::f64::consts::PI / 180.0 / 3600.0 / 1000.0;
+    let dt = year - 2000.0;
+
+    let t = (
+        (53.7 + 0.1 * dt) * 1.0E-3,
+        (51.2 + 0.1 * dt) * 1.0E-3,
+        (-55.1 - 1.9 * dt) * 1.0E-3,
+    );
+
+    let d = (1.02 + 0.11 * dt) * 1.0E-9;
+    let r1 = (0.891 + 0.081 * dt) * MAS;
+    let r2 = (5.390 + 0.490 * dt) * MAS;
+    let r3 = (-8.712 - 0.792 * dt) * MAS;
+
+    // X_etrf = X_itrf + T + M.X_itrf, inverted to first order (M ~ 1E-7)
+    let x = (
+        etrf_ecef_m.0 - t.0,
+        etrf_ecef_m.1 - t.1,
+        etrf_ecef_m.2 - t.2,
+    );
+
+    let mx = (
+        d * x.0 - r3 * x.1 + r2 * x.2,
+        r3 * x.0 + d * x.1 - r1 * x.2,
+        -r2 * x.0 + r1 * x.1 + d * x.2,
+    );
+
+    (x.0 - mx.0, x.1 - mx.1, x.2 - mx.2)
+}
+
+#[cfg(test)]
+mod frames_test {
+    use super::*;
+
+    #[test]
+    fn etrf2000_itrf2014_denmark() {
+        // ESBC00DNK marker (ETRF2000), mid 2020
+        let etrf = (3582105.2910, 532589.7313, 5232754.8054);
+        let itrf = etrf2000_to_itrf2014(etrf, 2020.48);
+
+        let delta = (itrf.0 - etrf.0, itrf.1 - etrf.1, itrf.2 - etrf.2);
+        let (e, n, u) = ecef_to_enu_vector(etrf, delta);
+
+        // ~0.5 m East, ~0.56 m North, a few cm vertically
+        assert!((e - 0.5).abs() < 0.1, "east: {}", e);
+        assert!((n - 0.56).abs() < 0.1, "north: {}", n);
+        assert!(u.abs() < 0.1, "up: {}", u);
+    }
+}

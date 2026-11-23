@@ -112,3 +112,29 @@ serde = { version = "1.0", optional = true, default-features = false, features =
 
 [dev-dependencies]
 serde_json = "1"
+
+[[example]]
+name = "context"
+required-features = ["sp3"]
+
+[[example]]
+name = "miso"
+
+[[example]]
+name = "realtime"
+
+[[example]]
+name = "spp"
+required-features = ["navigation", "sp3"]
+
+[[example]]
+name = "cpp"
+required-features = ["navigation", "sp3"]
+
+[[example]]
+name = "ppp"
+required-features = ["navigation", "sp3"]
+
+[[example]]
+name = "rtk_ppp"
+required-features = ["navigation", "sp3"]
