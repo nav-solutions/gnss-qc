@@ -18,6 +18,8 @@ synchronized `QcEpochContext` and produces results into the output queue.
 | `QcIppProcessor` | `QcOutput::IPP` | Ionospheric Pierce Points (`ionex` feature), see [IPP](ipp.md) |
 | `QcObservationResidualProcessor` | `QcOutput::ObservationResidual` | Observation residuals between two receivers (A − B), see [Observation residuals](residuals/observations.md) |
 | `QcOrbitResidualProcessor` | `QcOutput::OrbitResidual` | Orbit residuals between two orbital products: agencies, broadcast / precise, two NAV sources, see [Orbit residuals](residuals/orbits.md) |
+| `QcPreciseClockProcessor` | `QcOutput::PreciseClock` | Precise clock states (satellites, ground stations), see [Precise clocks](clocks.md) |
+| `QcMeteoProcessor` | `QcOutput::Meteo` | Meteo observations, see [Meteo observations](meteo.md) |
 
 ## The epoch context
 
@@ -27,6 +29,8 @@ synchronized `QcEpochContext` and produces results into the output queue.
 | `receivers` | One `QcEpochSignals` per receiver that sampled this epoch: identity, epoch flag, receiver clock, reference position (if known), signal observations |
 | `ephemerides` | `QcEphemerisStore`, synchronized to this epoch |
 | `precise_states` | `QcPreciseStore`, synchronized to this epoch |
+| `precise_clocks` | `QcClockStore` (Clock RINEX), synchronized to this epoch |
+| `meteo` | `QcMeteoStore` (Meteo RINEX), synchronized to this epoch |
 | `statics` | Session wide data (ANTEX) |
 
 ## Writing a processor

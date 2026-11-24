@@ -19,6 +19,7 @@ the zenith wet delay and one float ambiguity per continuous phase arc.
 |-------|------|
 | Observations | dual frequency pseudo ranges and phase ranges |
 | SP3 | precise orbits and clocks |
+| Clock RINEX (optional) | precise clocks (30"), preferred to the SP3 clocks, see [precise clocks](../clocks.md) |
 | NAV | fallback for satellites not covered by the precise products |
 
 ## Example
@@ -34,12 +35,14 @@ for file in [
     "data/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
     "data/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz",
     "data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz",
+    "data/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz",
 ] {
     products.load_gzip_file(&QcInputConfig::default(), file).unwrap();
 }
 
 let cfg = QcNavigationConfig::default()
     .with_method(Method::PPP)
+    .with_clocks(QcClockPreference::Auto) // Clock RINEX > SP3 clocks (precise orbits)
     .with_constellations(&[Constellation::GPS, Constellation::Galileo])
     .with_user_parameters(UserParameters::new(UserProfile::Static, ClockProfile::Quartz));
 
@@ -73,6 +76,10 @@ ESBC00DNK, 2020-06-25 00:00-03:00, GPS + Galileo, NAV + SP3: 361/361 epochs solv
 After 1h30 of convergence, against the ITRF2014 coordinates of the station:
 0.09 m max horizontal error, 0.05 m max vertical error, 0.07 m RMS.
 
+With the GRG Clock RINEX (30") in addition, every precise clock comes from the Clock RINEX:
+0.07 m max horizontal error, 0.06 m max vertical error, 0.08 m RMS, equivalent (same
+analysis center, same clock datum). See [precise clocks](../clocks.md#results).
+
 Against the ETRF2000 coordinates of the RINEX header, the horizontal error would be ~0.7 m:
 this is the frame offset, not a navigation error. See [reference frames](README.md#reference-frames).
 
@@ -81,5 +88,5 @@ this is the frame offset, not a navigation error. See [reference frames](README.
 - Use `UserProfile::Static` for static receivers: it helps the filter converge.
 - The post-fit smoother (`cfg.solver.solver.postfit_denoising`) smooths the published
   solution; set it to `0.0` to observe the navigation filter itself.
-- Precise clocks are interpolated from the SP3 samples (15'). Clock RINEX (30 s) are not
-  supported yet.
+- Provide the Clock RINEX of the analysis center of the SP3 when available: the 15' SP3
+  clock states carry a few centimeters of interpolation error (GPS, Glonass).

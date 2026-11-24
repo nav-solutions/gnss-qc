@@ -9,7 +9,7 @@ use crate::io::input::{
 };
 
 use crate::io::{
-    rinex::{QcRinexNavSource, QcRinexObsSource},
+    rinex::{QcRinexClockSource, QcRinexMeteoSource, QcRinexNavSource, QcRinexObsSource},
     source::QcSource,
 };
 
@@ -82,8 +82,8 @@ impl QcInputProducts {
     /// - ANTEX entries are session wide data.
     ///
     /// - one precise states source per SP3 entry
-    ///
-    /// Meteo and Clock RINEX are not converted yet.
+    /// - one precise clocks source per Clock RINEX entry
+    /// - one meteo source per Meteo RINEX entry
     pub fn into_sources(self) -> QcProductSources {
         let mut sources: Vec<Box<dyn QcSource>> = Vec::new();
 
@@ -101,6 +101,24 @@ impl QcInputProducts {
 
         for (indexing, rinex) in nav {
             if let Ok(source) = QcRinexNavSource::new(indexing, rinex) {
+                sources.push(Box::new(source));
+            }
+        }
+
+        let mut clk = self.clk_rinex.into_iter().collect::<Vec<_>>();
+        clk.sort_by_key(|a| a.0.to_string());
+
+        for (indexing, rinex) in clk {
+            if let Ok(source) = QcRinexClockSource::new(indexing, rinex) {
+                sources.push(Box::new(source));
+            }
+        }
+
+        let mut meteo = self.meteo_rinex.into_iter().collect::<Vec<_>>();
+        meteo.sort_by_key(|a| a.0.to_string());
+
+        for (indexing, rinex) in meteo {
+            if let Ok(source) = QcRinexMeteoSource::new(indexing, rinex) {
                 sources.push(Box::new(source));
             }
         }
@@ -143,6 +161,16 @@ impl QcInputProducts {
     /// Iterates over Navigation RINEX entries.
     pub fn nav_rinex_iter(&self) -> impl Iterator<Item = (&QcIndexing, &Rinex)> {
         self.nav_rinex.iter()
+    }
+
+    /// Iterates over Clock RINEX entries.
+    pub fn clk_rinex_iter(&self) -> impl Iterator<Item = (&QcIndexing, &Rinex)> {
+        self.clk_rinex.iter()
+    }
+
+    /// Iterates over Meteo RINEX entries.
+    pub fn meteo_rinex_iter(&self) -> impl Iterator<Item = (&QcIndexing, &Rinex)> {
+        self.meteo_rinex.iter()
     }
 
     /// Iterates over ANTEX entries.
@@ -217,7 +245,9 @@ impl QcInputProducts {
                 .rcvr
                 .as_ref()
                 .map(|rx| QcIndexing::from_receiver_model_sn(&rx.model, &rx.sn)),
-            Some(QcIndexingConfig::Agency) => rinex.header.agency.clone().map(QcIndexing::Agency),
+            Some(QcIndexingConfig::Agency) => {
+                QcIndexing::rinex_agency(&rinex).map(QcIndexing::Agency)
+            }
             Some(QcIndexingConfig::Operator) => {
                 rinex.header.observer.clone().map(QcIndexing::Operator)
             }

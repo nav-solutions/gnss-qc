@@ -60,7 +60,8 @@ the identity is determined automatically, and this is infallible:
 | Product | Identity |
 |---------|----------|
 | Observation RINEX / CRINEX | Receiver `"MODEL #SERIAL"`, otherwise antenna model, otherwise operator, otherwise file name |
-| Navigation, Meteo, Clock RINEX | Agency, otherwise file name |
+| Navigation, Meteo RINEX | Agency, otherwise file name |
+| Clock RINEX | Agency, otherwise analysis center code (`ANALYSIS CENTER`), otherwise file name |
 | SP3 | Agency, otherwise file name |
 
 The receiver serial number is part of its identity: two stations using the same receiver
@@ -218,7 +219,8 @@ converts the table (`QcInputProducts::into_sources`):
 | Navigation RINEX | `QcRinexNavSource`: ephemeris frames, chronological order (ToC) |
 | SP3 | `QcSp3Source`: precise states (position, clock), chronological order |
 | ANTEX | Static data (`QcStatics`), not a source |
-| Meteo, Clock RINEX | Not converted yet |
+| Clock RINEX | `QcRinexClockSource`: satellite and ground station clock states, chronological order, see [precise clocks](clocks.md) |
+| Meteo RINEX | `QcRinexMeteoSource`: meteo sensor observations, chronological order, see [meteo observations](meteo.md) |
 
 Sources drain the records they were built from: memory is released as the engine progresses.
 

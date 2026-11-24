@@ -403,3 +403,163 @@ fn rtk_ppp_esbc_mojn() {
     assert!(errors.max_vertical < 0.4, "{:?}", errors);
     assert!(errors.rms_3d < 0.4, "{:?}", errors);
 }
+
+/// GRG precise clock products (Clock RINEX, 30")
+const GRG_CLK: &str = "CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz";
+
+/// Scenario 8: float PPP with precise clock products, OBS + NAV + SP3 + CLK, 3 hours.
+/// The Clock RINEX (30") is preferred to the SP3 clock states (15'): every precise
+/// clock comes from the Clock RINEX. Same analysis center and clock datum: the accuracy
+/// is identical to scenario 6, at the centimeter level.
+#[test]
+fn absolute_ppp_precise_clocks() {
+    let products = load_products(
+        &QcInputConfig::default(),
+        &[ESBC_OBS, ESBC_NAV, GRG_SP3, GRG_CLK],
+    );
+
+    let cfg = cpp(QcOrbitPreference::Auto).with_method(Method::PPP);
+
+    let window = (
+        epoch("2020-06-25T00:00:00 GPST"),
+        epoch("2020-06-25T03:00:00 GPST"),
+    );
+
+    let mut run = navigate(products, vec![], cfg, window);
+
+    assert_eq!(run.report.solutions, 361, "{:?}", run.report.failures);
+
+    // precise orbits come with clock products, except at the very first epoch
+    // (transmission instant before the first SP3 sample): broadcast orbit and clock
+    assert!(run.report.precise_clocks > 7000, "{:?}", run.report);
+    assert_eq!(run.report.precise_state_clocks, 0);
+    assert_eq!(run.report.broadcast_clocks, run.report.broadcast_orbits);
+
+    run.truth_ecef_m = itrf2014(&run);
+
+    let errors = run.errors(Duration::from_hours(1.5));
+    assert_eq!(errors.count, 181);
+    assert!(errors.max_horizontal < 0.15, "{:?}", errors);
+    assert!(errors.max_vertical < 0.15, "{:?}", errors);
+    assert!(errors.rms_3d < 0.12, "{:?}", errors);
+}
+
+/// Scenario 9: precise orbits, clocks of the radio messages (QcClockPreference::Broadcast).
+/// The broadcast clock errors (decimeters to meters) now dominate: PPP is no longer
+/// possible at the centimeter level.
+#[test]
+fn absolute_ppp_broadcast_clocks() {
+    let products = load_products(
+        &QcInputConfig::default(),
+        &[ESBC_OBS, ESBC_NAV, GRG_SP3, GRG_CLK],
+    );
+
+    let cfg = cpp(QcOrbitPreference::Auto)
+        .with_method(Method::PPP)
+        .with_clocks(QcClockPreference::Broadcast);
+
+    let window = (
+        epoch("2020-06-25T00:00:00 GPST"),
+        epoch("2020-06-25T03:00:00 GPST"),
+    );
+
+    let mut run = navigate(products, vec![], cfg, window);
+
+    assert_eq!(run.report.solutions, 361, "{:?}", run.report.failures);
+    assert!(run.report.precise_orbits > 7000);
+    assert_eq!(run.report.precise_clocks, 0);
+    assert_eq!(run.report.precise_state_clocks, 0);
+    assert!(run.report.broadcast_clocks > 7000);
+
+    run.truth_ecef_m = itrf2014(&run);
+
+    let errors = run.errors(Duration::from_hours(1.5));
+    assert!(errors.rms_3d > 0.2, "{:?}", errors);
+    assert!(errors.rms_3d < 1.0, "{:?}", errors);
+}
+
+/// Scenario 10: broadcast orbits, precise clock products (QcClockPreference::Precise),
+/// OBS + NAV + CLK. The precise clocks remove the broadcast clock errors:
+/// compared to scenario 1 (broadcast orbits and clocks), the accuracy improves.
+#[test]
+fn absolute_cpp_broadcast_orbits_precise_clocks() {
+    let products = load_products(&QcInputConfig::default(), &[ESBC_OBS, ESBC_NAV, GRG_CLK]);
+
+    let broadcast = navigate(
+        load_products(&QcInputConfig::default(), &[ESBC_OBS, ESBC_NAV]),
+        vec![],
+        cpp(QcOrbitPreference::Auto),
+        window(),
+    );
+
+    let cfg = cpp(QcOrbitPreference::BroadcastOnly).with_clocks(QcClockPreference::Precise);
+    let run = navigate(products, vec![], cfg, window());
+
+    // first epoch: the transmission instant precedes the first clock state
+    // (no extrapolation): not enough satellites
+    assert_eq!(run.report.solutions, 120, "{:?}", run.report.failures);
+    assert_eq!(run.report.precise_orbits, 0);
+    assert!(run.report.broadcast_orbits > 2000);
+    assert!(run.report.precise_clocks > 2000);
+    assert_eq!(run.report.broadcast_clocks, 0);
+
+    let errors = run.errors(convergence());
+    let reference = broadcast.errors(convergence());
+
+    assert!(errors.rms_3d < 1.6, "{:?}", errors);
+    assert!(
+        errors.rms_3d < reference.rms_3d,
+        "{:?} {:?}",
+        errors,
+        reference
+    );
+}
+
+/// Scenario 11: precise clocks requested, without any precise product:
+/// no satellite can be used.
+#[test]
+fn absolute_cpp_precise_clocks_unavailable() {
+    let products = load_products(&QcInputConfig::default(), &[ESBC_OBS, ESBC_NAV]);
+
+    let cfg = cpp(QcOrbitPreference::Auto).with_clocks(QcClockPreference::Precise);
+    let run = navigate_report(products, cfg, window());
+
+    assert_eq!(run.solutions, 0);
+    assert_eq!(run.failures.values().sum::<usize>(), 121);
+    assert_eq!(run.broadcast_clocks + run.precise_clocks, 0);
+}
+
+/// Scenario 12: default preferences with broadcast ephemerides and clock products only
+/// (no SP3): the clock follows the orbit, broadcast orbits come with broadcast clocks.
+#[test]
+fn absolute_cpp_clocks_follow_orbits() {
+    let products = load_products(&QcInputConfig::default(), &[ESBC_OBS, ESBC_NAV, GRG_CLK]);
+
+    let run = navigate(products, vec![], cpp(QcOrbitPreference::Auto), window());
+
+    assert_eq!(run.report.solutions, 121, "{:?}", run.report.failures);
+    assert_eq!(run.report.precise_orbits, 0);
+    assert_eq!(run.report.precise_clocks, 0);
+    assert!(run.report.broadcast_clocks > 2000);
+}
+
+/// Navigation report only (sessions without solutions)
+fn navigate_report(
+    products: QcInputProducts,
+    cfg: QcNavigationConfig,
+    window: (Epoch, Epoch),
+) -> QcNavigationReport {
+    let processor = QcNavigationProcessor::new(almanac(), cfg).unwrap();
+
+    QcEngine::<QcOutput>::builder()
+        .with_products(products)
+        .with_time_window(Some(window.0), Some(window.1))
+        .with_processor(processor)
+        .build()
+        .unwrap()
+        .find_map(|item| match item.unwrap().payload {
+            QcOutput::NavigationReport(report) => Some(report),
+            _ => None,
+        })
+        .expect("navigation report")
+}

@@ -1,3 +1,4 @@
+mod clock;
 mod engine;
 mod input;
 

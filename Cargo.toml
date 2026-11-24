@@ -138,6 +138,12 @@ name = "ipp"
 required-features = ["ionex", "sp3"]
 
 [[example]]
+name = "precise_clocks"
+
+[[example]]
+name = "meteo"
+
+[[example]]
 name = "observation_residuals"
 
 [[example]]

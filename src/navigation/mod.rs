@@ -21,8 +21,8 @@ mod provider;
 mod rtk;
 
 pub use crate::orbit::{
-    relativistic_correction_s, QcKepler, QcKeplerState, QcOrbitKind, QcOrbitPreference,
-    SPEED_OF_LIGHT_M_S,
+    relativistic_correction_s, QcClockKind, QcClockPreference, QcKepler, QcKeplerState,
+    QcOrbitKind, QcOrbitPreference, SPEED_OF_LIGHT_M_S,
 };
 pub use candidates::{build_candidates, is_primary_carrier, rtk_carrier};
 pub use processor::{

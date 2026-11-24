@@ -16,7 +16,7 @@ use rinex::{
     prelude::obs::{EpochFlag, SignalObservation},
 };
 
-use crate::io::input::indexing::QcIndexing;
+use crate::io::{input::indexing::QcIndexing, source::QcPreciseClock};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -119,6 +119,18 @@ pub struct QcNavigationReport {
 
     /// Orbital states served from broadcast ephemerides
     pub broadcast_orbits: usize,
+
+    /// Satellite clock states served from precise clock products (Clock RINEX)
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub precise_clocks: usize,
+
+    /// Satellite clock states served from precise products (SP3)
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub precise_state_clocks: usize,
+
+    /// Satellite clock states served from broadcast ephemerides
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub broadcast_clocks: usize,
 }
 
 #[cfg(feature = "navigation")]
@@ -133,6 +145,9 @@ impl QcNavigationReport {
             failures: Default::default(),
             precise_orbits: 0,
             broadcast_orbits: 0,
+            precise_clocks: 0,
+            precise_state_clocks: 0,
+            broadcast_clocks: 0,
         }
     }
 }
@@ -308,6 +323,12 @@ pub enum QcOutput {
     /// Orbit residual
     OrbitResidual(QcOrbitResidual),
 
+    /// Precise clock state (passthrough)
+    PreciseClock(QcPreciseClockOutput),
+
+    /// Meteo observation (passthrough)
+    Meteo(QcMeteoOutput),
+
     /// P.V.T solution
     #[cfg(feature = "navigation")]
     #[cfg_attr(feature = "serde", serde(skip_deserializing))]
@@ -328,6 +349,31 @@ pub enum QcOutput {
     /// CGGTTS summary
     #[cfg(feature = "cggtts")]
     CggttsReport(QcCggttsReport),
+}
+
+/// Precise clock state (passthrough), see [QcPreciseClockProcessor](crate::prelude::QcPreciseClockProcessor)
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct QcPreciseClockOutput {
+    /// Product (agency) that described this state
+    pub source: QcIndexing,
+
+    /// Clock state
+    pub state: QcPreciseClock,
+}
+
+/// Meteo observation (passthrough), see [QcMeteoProcessor](crate::prelude::QcMeteoProcessor)
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct QcMeteoOutput {
+    /// Meteo source (station, sensor)
+    pub source: QcIndexing,
+
+    /// Observed physics
+    pub observable: rinex::prelude::Observable,
+
+    /// Measurement, in the unit of the observable
+    pub value: f64,
 }
 
 /// Time tagged result.

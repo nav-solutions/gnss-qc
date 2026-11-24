@@ -51,23 +51,29 @@ pub mod prelude {
             product::{QcInputProducts, QcProductSources},
         },
         output::{
-            QcEphemerisCoverage, QcEphemerisOutput, QcFnSink, QcObservationResidual,
-            QcOrbitResidual, QcOutput, QcOutputItem, QcOutputQueue, QcSignalOutput, QcSink,
+            QcEphemerisCoverage, QcEphemerisOutput, QcFnSink, QcMeteoOutput, QcObservationResidual,
+            QcOrbitResidual, QcOutput, QcOutputItem, QcOutputQueue, QcPreciseClockOutput,
+            QcSignalOutput, QcSink,
         },
-        rinex::{QcRinexNavSource, QcRinexObsSource, QcRinexSourceError},
+        rinex::{
+            QcRinexClockSource, QcRinexMeteoSource, QcRinexNavSource, QcRinexObsSource,
+            QcRinexSourceError,
+        },
         source::{
-            QcChainSource, QcChannelSource, QcEphemeris, QcInputItem, QcIterSource, QcLazySource,
-            QcPayload, QcPoll, QcPreciseState, QcSignal, QcSource, QcSourceDescriptor,
-            QcSourceError,
+            QcChainSource, QcChannelSource, QcClockId, QcEphemeris, QcInputItem, QcIterSource,
+            QcLazySource, QcMeteoSample, QcPayload, QcPoll, QcPreciseClock, QcPreciseState,
+            QcSignal, QcSource, QcSourceDescriptor, QcSourceError,
         },
     };
     pub use crate::processors::{
-        QcEphemerisCoverageProcessor, QcEphemerisProcessor, QcObservationResidualConfig,
-        QcObservationResidualProcessor, QcOrbitProduct, QcOrbitResidualConfig,
-        QcOrbitResidualProcessor, QcSignalProcessor,
+        QcEphemerisCoverageProcessor, QcEphemerisProcessor, QcMeteoConfig, QcMeteoProcessor,
+        QcObservationResidualConfig, QcObservationResidualProcessor, QcOrbitProduct,
+        QcOrbitResidualConfig, QcOrbitResidualProcessor, QcPreciseClockConfig,
+        QcPreciseClockProcessor, QcSignalProcessor,
     };
     pub use crate::sync::{
-        QcBuffered, QcEphemerisStore, QcInterpolatedState, QcPreciseStore, QcSvBuffer,
+        QcBuffered, QcClockStore, QcEphemerisStore, QcInterpolatedState, QcMeteoStore,
+        QcPreciseStore, QcSvBuffer,
     };
 
     #[cfg(feature = "sp3")]
@@ -89,7 +95,7 @@ pub mod prelude {
         processors::{QcIppConfig, QcIppProcessor},
     };
 
-    pub use crate::orbit::{QcOrbitKind, QcOrbitPreference};
+    pub use crate::orbit::{QcClockKind, QcClockPreference, QcOrbitKind, QcOrbitPreference};
 
     #[cfg(feature = "cggtts")]
     pub use crate::{

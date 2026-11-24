@@ -10,6 +10,12 @@
 //! whatever the duration of the session.
 use std::collections::{HashMap, VecDeque};
 
+mod clock;
+
+pub use clock::{
+    interpolate_linear, QcClockStore, QcMeteoStore, METEO_RETENTION, PRECISE_CLOCKS_RETENTION,
+};
+
 use gnss_rs::prelude::SV;
 use hifitime::{Duration, Epoch};
 

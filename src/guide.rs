@@ -9,6 +9,8 @@
 //! - `navigation`: P.V.T solutions (`navigation` feature), CGGTTS (`cggtts` feature)
 //! - `ipp`: Ionospheric Pierce Points (`ionex` feature)
 //! - `residuals`: observation and orbit residuals (A − B)
+//! - `clocks`: precise clocks (Clock RINEX), satellite clocks of the navigation
+//! - [meteo]: meteo observations (Meteo RINEX)
 //! - [testing]: test data and running the tests
 
 #[doc = include_str!("../docs/context.md")]
@@ -26,6 +28,13 @@ pub mod testing {}
 #[cfg(all(feature = "ionex", feature = "sp3"))]
 #[doc = include_str!("../docs/ipp.md")]
 pub mod ipp {}
+
+#[cfg(feature = "navigation")]
+#[doc = include_str!("../docs/clocks.md")]
+pub mod clocks {}
+
+#[doc = include_str!("../docs/meteo.md")]
+pub mod meteo {}
 
 #[cfg(feature = "sp3")]
 #[doc = include_str!("../docs/residuals/README.md")]

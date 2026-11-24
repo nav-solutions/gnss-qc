@@ -7,8 +7,12 @@
 //! - the radio ephemeris selected for this epoch (Keplerian parameters, Copy),
 //! - the precise states window around this epoch (a few samples),
 //!
-//! and decides, per satellite, which kind of orbit is used ([QcOrbitPreference]).
-//! Orbit and clock always come from the same product, to remain consistent.
+//! - the precise clock states window around this epoch (Clock RINEX, a few samples),
+//!
+//! and decides, per satellite, which kind of orbit ([QcOrbitPreference]) and which
+//! kind of clock ([QcClockPreference]) are used. By default, the clock follows the
+//! orbit (consistent products), precise clock products being preferred to the clock
+//! states of the precise products.
 use std::{
     cell::{Cell, RefCell},
     collections::{HashMap, VecDeque},
@@ -23,9 +27,15 @@ use gnss_rtk::prelude::{
 
 use crate::{
     engine::QcEpochContext,
-    io::source::QcPreciseState,
-    orbit::{relativistic_correction_s, QcKepler, QcOrbitKind, QcOrbitPreference},
-    sync::{interpolate_precise_state, QcPreciseStore},
+    io::{
+        input::indexing::QcIndexing,
+        source::{QcClockId, QcPreciseState},
+    },
+    orbit::{
+        relativistic_correction_s, QcClockKind, QcClockPreference, QcKepler, QcOrbitKind,
+        QcOrbitPreference,
+    },
+    sync::{interpolate_linear, interpolate_precise_state, QcClockStore, QcPreciseStore},
 };
 
 type Vector3D = (f64, f64, f64);
@@ -36,41 +46,59 @@ const MAX_TIME_OF_FLIGHT: Duration = Duration::from_milliseconds(150.0);
 #[derive(Debug, Default, Clone)]
 struct SvData {
     kind: Option<QcOrbitKind>,
+    clock: Option<QcClockKind>,
     kepler: Option<QcKepler>,
     precise: VecDeque<QcPreciseState>,
+    /// Precise clock products samples around the epoch (epoch, offset s)
+    clocks: VecDeque<(Epoch, f64)>,
 }
 
-/// Counters of orbital states served to the solver
+/// Counters of orbital states and clock states served to the solver
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct QcOrbitCounters {
     pub precise: usize,
     pub broadcast: usize,
+    pub precise_clocks: usize,
+    pub precise_state_clocks: usize,
+    pub broadcast_clocks: usize,
 }
 
 /// Navigation data snapshot, shared between the GNSS-RTK traits implementations.
 #[derive(Debug, Default)]
 pub struct QcNavigationData {
     preference: QcOrbitPreference,
+    clock_preference: QcClockPreference,
     method: Method,
     svs: HashMap<SV, SvData>,
     precise_orbits: Cell<usize>,
     broadcast_orbits: Cell<usize>,
+    precise_clocks: Cell<usize>,
+    precise_state_clocks: Cell<usize>,
+    broadcast_clocks: Cell<usize>,
 }
 
 impl QcNavigationData {
-    pub fn new(preference: QcOrbitPreference, method: Method) -> Self {
+    pub fn new(
+        preference: QcOrbitPreference,
+        clock_preference: QcClockPreference,
+        method: Method,
+    ) -> Self {
         Self {
             preference,
+            clock_preference,
             method,
             ..Default::default()
         }
     }
 
-    /// Orbital states served so far
+    /// Orbital and clock states served so far
     pub fn counters(&self) -> QcOrbitCounters {
         QcOrbitCounters {
             precise: self.precise_orbits.get(),
             broadcast: self.broadcast_orbits.get(),
+            precise_clocks: self.precise_clocks.get(),
+            precise_state_clocks: self.precise_state_clocks.get(),
+            broadcast_clocks: self.broadcast_clocks.get(),
         }
     }
 
@@ -79,12 +107,21 @@ impl QcNavigationData {
         self.svs.get(&sv)?.kind
     }
 
+    /// Selected clock kind for this satellite, at the current epoch
+    pub fn clock_kind(&self, sv: SV) -> Option<QcClockKind> {
+        let data = self.svs.get(&sv)?;
+        data.kind?;
+        data.clock
+    }
+
     /// Updates the snapshot for these satellites, at the epoch being processed.
     pub fn update<I: Iterator<Item = SV>>(&mut self, ctx: &QcEpochContext, svs: I) {
         let t = ctx.epoch;
+        let t_tx = t - MAX_TIME_OF_FLIGHT;
 
         for data in self.svs.values_mut() {
             data.kind = None;
+            data.clock = None;
         }
 
         for sv in svs {
@@ -93,9 +130,20 @@ impl QcNavigationData {
             // precise products: window of the first source able to interpolate
             data.precise.clear();
 
-            if self.preference != QcOrbitPreference::BroadcastOnly {
+            if self.preference != QcOrbitPreference::BroadcastOnly
+                || self.clock_preference != QcClockPreference::Broadcast
+            {
                 if let Some(samples) = Self::precise_window(ctx.precise_states, sv, t) {
                     data.precise.extend(samples.iter().copied());
+                }
+            }
+
+            // precise clock products: samples around this epoch
+            data.clocks.clear();
+
+            if self.clock_preference != QcClockPreference::Broadcast {
+                if let Some(samples) = Self::clock_window(ctx.precise_clocks, sv, t) {
+                    data.clocks.extend(samples);
                 }
             }
 
@@ -110,35 +158,98 @@ impl QcNavigationData {
                 None => data.kepler = None,
             }
 
-            // precise products are usable when both position and clock interpolate
-            // at the sampling instant and at the transmission instant (~70 ms earlier):
-            // no extrapolation (beginning of a file for example).
-            let precise_ok =
+            // precise products are usable when they interpolate at the sampling instant
+            // and at the transmission instant (~70 ms earlier): no extrapolation
+            // (beginning of a file for example).
+            let precise_at = |t: Epoch| {
                 interpolate_precise_state(&data.precise, t, QcPreciseStore::DEFAULT_ORDER)
-                    .is_some_and(|state| state.clock_offset_s.is_some())
-                    && interpolate_precise_state(
-                        &data.precise,
-                        t - MAX_TIME_OF_FLIGHT,
-                        QcPreciseStore::DEFAULT_ORDER,
-                    )
-                    .is_some_and(|state| state.clock_offset_s.is_some());
+            };
 
+            let (precise_orbit, precise_state_clock) = match (precise_at(t), precise_at(t_tx)) {
+                (Some(s0), Some(s1)) => (
+                    true,
+                    s0.clock_offset_s.is_some() && s1.clock_offset_s.is_some(),
+                ),
+                _ => (false, false),
+            };
+
+            let precise_clock = interpolate_linear(&data.clocks, t, |s| *s).is_some()
+                && interpolate_linear(&data.clocks, t_tx, |s| *s).is_some();
+
+            let broadcast = data.kepler.is_some();
+
+            // best precise clock
+            let precise_clock_kind = if precise_clock {
+                Some(QcClockKind::PreciseClock)
+            } else if precise_state_clock {
+                Some(QcClockKind::PreciseState)
+            } else {
+                None
+            };
+
+            // orbit selection
             data.kind = match self.preference {
                 QcOrbitPreference::Auto => {
+                    // with clocks following the orbit, a precise orbit requires
+                    // a precise clock (consistent products)
+                    let precise_ok = precise_orbit
+                        && (self.clock_preference != QcClockPreference::Auto
+                            || precise_clock_kind.is_some());
+
                     if precise_ok {
                         Some(QcOrbitKind::Precise)
-                    } else if data.kepler.is_some() {
+                    } else if broadcast {
                         Some(QcOrbitKind::Broadcast)
                     } else {
                         None
                     }
                 }
-                QcOrbitPreference::PreciseOnly => precise_ok.then_some(QcOrbitKind::Precise),
-                QcOrbitPreference::BroadcastOnly => {
-                    data.kepler.is_some().then_some(QcOrbitKind::Broadcast)
-                }
+                QcOrbitPreference::PreciseOnly => precise_orbit.then_some(QcOrbitKind::Precise),
+                QcOrbitPreference::BroadcastOnly => broadcast.then_some(QcOrbitKind::Broadcast),
             };
+
+            // clock selection
+            data.clock = match (self.clock_preference, data.kind) {
+                (_, None) => None,
+                (QcClockPreference::Auto, Some(QcOrbitKind::Precise)) => precise_clock_kind,
+                (QcClockPreference::Auto, Some(QcOrbitKind::Broadcast)) => {
+                    broadcast.then_some(QcClockKind::Broadcast)
+                }
+                (QcClockPreference::Precise, _) => precise_clock_kind,
+                (QcClockPreference::Broadcast, _) => broadcast.then_some(QcClockKind::Broadcast),
+            };
+
+            // a satellite requires both an orbit and a clock
+            if data.clock.is_none() {
+                data.kind = None;
+            }
         }
+    }
+
+    /// Precise clock products samples of `sv` around `t` (epoch, offset s),
+    /// from the first source able to interpolate (sources sorted by name).
+    fn clock_window(store: &QcClockStore, sv: SV, t: Epoch) -> Option<Vec<(Epoch, f64)>> {
+        let clock = QcClockId::Satellite(sv);
+
+        let mut sources = store.sources().collect::<Vec<&QcIndexing>>();
+        sources.sort_by_key(|s| s.to_string());
+
+        sources.into_iter().find_map(|source| {
+            store.interpolate_from(source, &clock, t)?;
+            let fifo = store.samples(source, &clock)?;
+
+            // enough samples to interpolate at t and t - time of flight,
+            // with the data gap verification
+            let pos = fifo.partition_point(|c| c.epoch < t);
+            let start = pos.saturating_sub(3);
+            let end = (pos + 3).min(fifo.len());
+
+            Some(
+                fifo.range(start..end)
+                    .map(|c| (c.epoch, c.offset_s))
+                    .collect(),
+            )
+        })
     }
 
     fn precise_window(
@@ -177,18 +288,25 @@ impl QcNavigationData {
         }
     }
 
-    /// Satellite clock offset (s) at `t`, relativistic correction included
+    /// Satellite clock offset (s) at `t`, relativistic correction included,
+    /// from the selected clock product.
     pub fn clock_s(&self, sv: SV, t: Epoch) -> Option<f64> {
         let data = self.svs.get(&sv)?;
+        data.kind?;
 
-        match data.kind? {
-            QcOrbitKind::Precise => {
+        match data.clock? {
+            QcClockKind::PreciseClock => {
+                let offset_s = interpolate_linear(&data.clocks, t, |s| *s)?;
+                let (p, v) = self.state_m(sv, t)?;
+                Some(offset_s + relativistic_correction_s(p, v))
+            }
+            QcClockKind::PreciseState => {
                 let state =
                     interpolate_precise_state(&data.precise, t, QcPreciseStore::DEFAULT_ORDER)?;
                 let (p, v) = self.state_m(sv, t)?;
                 Some(state.clock_offset_s? + relativistic_correction_s(p, v))
             }
-            QcOrbitKind::Broadcast => {
+            QcClockKind::Broadcast => {
                 let kepler = data.kepler?;
                 let state = kepler.state(t);
                 Some(
@@ -253,8 +371,19 @@ pub struct QcClockProvider {
 
 impl SpacebornBias for QcClockProvider {
     fn clock_bias(&self, rtm: &BiasRuntime) -> SatelliteClockCorrection {
-        match self.data.borrow().clock_s(rtm.sv, rtm.epoch) {
-            Some(clock_s) => SatelliteClockCorrection::with_relativistic_correction_s(clock_s),
+        let data = self.data.borrow();
+
+        match data.clock_s(rtm.sv, rtm.epoch) {
+            Some(clock_s) => {
+                let counter = match data.clock_kind(rtm.sv) {
+                    Some(QcClockKind::PreciseClock) => &data.precise_clocks,
+                    Some(QcClockKind::PreciseState) => &data.precise_state_clocks,
+                    _ => &data.broadcast_clocks,
+                };
+
+                counter.set(counter.get() + 1);
+                SatelliteClockCorrection::with_relativistic_correction_s(clock_s)
+            }
             None => SatelliteClockCorrection::default(),
         }
     }
