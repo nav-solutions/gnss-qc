@@ -61,7 +61,7 @@ the identity is determined automatically, and this is infallible:
 |---------|----------|
 | Observation RINEX / CRINEX | Receiver `"MODEL #SERIAL"`, otherwise antenna model, otherwise operator, otherwise file name |
 | Navigation, Meteo, Clock RINEX | Agency, otherwise file name |
-| SP3 | Agency (always described) |
+| SP3 | Agency, otherwise file name |
 
 The receiver serial number is part of its identity: two stations using the same receiver
 model (typical RTK base and rover) remain two different signal sources.
@@ -75,9 +75,30 @@ ESBC00DNK_R_20201770000_01D_MN     (NAV file without agency: file name)
 
 ### Preferences
 
-`QcInputConfig` defines the indexing method per RINEX type
-(`QcIndexingConfig::{Receiver, Antenna, Operator, Agency, Custom(alias)}`).
-Defaults: receiver for observations, agency for the others.
+`QcInputConfig` defines the indexing method per product type:
+
+| `QcInputConfig` field | Products | Default |
+|-----------------------|----------|---------|
+| `obs_rinex_indexing` | Observation RINEX / CRINEX | `Receiver` |
+| `nav_rinex_indexing` | Navigation RINEX | `Agency` |
+| `meteo_rinex_indexing` | Meteo RINEX | `Agency` |
+| `clk_rinex_indexing` | Clock RINEX | `Agency` |
+| `sp3_indexing` | SP3 | `Agency` |
+
+with `QcIndexingConfig`:
+
+| `QcIndexingConfig` | Identity |
+|--------------------|----------|
+| `Receiver` | Receiver `"MODEL #SERIAL"` (observations) |
+| `Antenna` | Antenna model (observations) |
+| `Operator` | Operator, "observer" (observations) |
+| `Agency` | Agency / publisher |
+| `Custom(alias)` | This alias, for every file loaded with this configuration |
+| `FileName` | File name, without extensions: one product per file |
+
+When the preferred information is not described by the file (SP3 files do not describe
+receivers, antennas or operators), automatic indexing applies. `None` selects automatic
+indexing directly.
 
 A custom alias gathers files that would be indexed differently. Here, four navigation files
 of the NYA1 station (GPS and Galileo, two days) that do not describe their agency:
@@ -105,6 +126,36 @@ for file in [
 assert_eq!(products.nav_rinex_iter().count(), 1);
 ```
 
+Conversely, products of the same agency are merged by default. To process them as distinct
+products (two daily files, final versus rapid products..), index them by file name, or give
+each one an alias. The preference applies per call, so each file may use its own:
+
+```rust,no_run
+use gnss_qc::prelude::*;
+
+let by_file_name = QcInputConfig {
+    sp3_indexing: Some(QcIndexingConfig::FileName),
+    ..Default::default()
+};
+
+let mut products = QcInputProducts::default();
+
+for file in [
+    "data/SP3/C/GRG0MGXFIN_20201760000_01D_15M_ORB.SP3.gz",
+    "data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz",
+] {
+    products.load_gzip_file(&by_file_name, file).unwrap();
+}
+
+// default preference (agency) for this one
+products
+    .load_gzip_file(&QcInputConfig::default(), "data/SP3/D/Sta21114.sp3.gz")
+    .unwrap();
+
+// GRG0MGXFIN_20201760000_01D_15M_ORB, GRG0MGXFIN_20201770000_01D_15M_ORB, agency:IAC
+assert_eq!(products.sp3_iter().count(), 3);
+```
+
 ## Loading and merging
 
 | Method | Description |
@@ -112,7 +163,7 @@ assert_eq!(products.nav_rinex_iter().count(), 1);
 | `load_file(cfg, path)` | Any supported file: RINEX formats are attempted first, then SP3 |
 | `load_gzip_file(cfg, path)` | Same, gzip compressed (`flate2` feature) |
 | `load_rinex(cfg, path, rinex)` | An already parsed `Rinex` |
-| `load_sp3(sp3)` | An already parsed `SP3` (`sp3` feature) |
+| `load_sp3(cfg, path, sp3)` | An already parsed `SP3` (`sp3` feature) |
 
 Files sharing the same identity and type are **merged**. Two daily observation files of
 the same receiver become a single 48h signal source:

@@ -45,7 +45,8 @@ pub struct QcInputProducts {
     /// ANTEX: session wide (non temporal) antenna calibration database.
     pub(crate) antex: HashMap<QcIndexing, Rinex>,
 
-    /// High precision orbital states from SP3 files, always indexed by agency.
+    /// High precision orbital states from SP3 files, indexed by [QcIndexing]
+    /// (agency by default).
     #[cfg(feature = "sp3")]
     pub(crate) sp3: HashMap<QcIndexing, SP3>,
 }
@@ -168,7 +169,7 @@ impl QcInputProducts {
 
         #[cfg(feature = "sp3")]
         if let Ok(sp3) = SP3::from_file(&path) {
-            return self.load_sp3(sp3);
+            return self.load_sp3(cfg, path, sp3);
         }
 
         Err(QcInputError::FormatNotSupported)
@@ -186,7 +187,7 @@ impl QcInputProducts {
 
         #[cfg(feature = "sp3")]
         if let Ok(sp3) = SP3::from_gzip_file(&path) {
-            return self.load_sp3(sp3);
+            return self.load_sp3(cfg, path, sp3);
         }
 
         Err(QcInputError::FormatNotSupported)
@@ -220,6 +221,7 @@ impl QcInputProducts {
                 rinex.header.observer.clone().map(QcIndexing::Operator)
             }
             Some(QcIndexingConfig::Custom(alias)) => Some(QcIndexing::Custom(alias)),
+            Some(QcIndexingConfig::FileName) => Some(QcIndexing::Custom(file_stem.clone())),
             None => None,
         };
 
@@ -242,10 +244,32 @@ impl QcInputProducts {
         Ok(())
     }
 
-    /// Load a single [SP3] into the table. SP3 are always indexed by agency.
+    /// Load a single [SP3] into the table.
+    /// The [QcIndexing] is determined from user preference ([QcInputConfig::sp3_indexing]),
+    /// otherwise automatically: agency, file name when the agency is not described.
     #[cfg(feature = "sp3")]
-    pub fn load_sp3(&mut self, sp3: SP3) -> Result<(), QcInputError> {
-        let key = QcIndexing::Agency(sp3.header.agency.clone());
+    pub fn load_sp3<P: AsRef<Path>>(
+        &mut self,
+        cfg: &QcInputConfig,
+        path: P,
+        sp3: SP3,
+    ) -> Result<(), QcInputError> {
+        let file_stem = file_stem(path)?;
+        let agency = sp3.header.agency.trim();
+
+        let key = match &cfg.sp3_indexing {
+            Some(QcIndexingConfig::Custom(alias)) => QcIndexing::Custom(alias.clone()),
+            Some(QcIndexingConfig::FileName) => QcIndexing::Custom(file_stem),
+            // agency (preferred), or preferences that do not apply to SP3 (receiver,
+            // antenna, operator): automatic indexing
+            _ => {
+                if agency.is_empty() {
+                    QcIndexing::Custom(file_stem)
+                } else {
+                    QcIndexing::Agency(agency.to_string())
+                }
+            }
+        };
 
         if let Some(inner) = self.sp3.get_mut(&key) {
             Merge::merge_mut(inner, &sp3).map_err(|e| QcInputError::Sp3Merge(e.to_string()))?;

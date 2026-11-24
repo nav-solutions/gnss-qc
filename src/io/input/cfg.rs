@@ -23,6 +23,10 @@ pub enum QcIndexingConfig {
 
     /// Custom name
     Custom(String),
+
+    /// File name (without extensions): each file is a distinct product, unless
+    /// several files share the same name.
+    FileName,
 }
 
 impl QcIndexingConfig {
@@ -51,6 +55,12 @@ pub struct QcInputConfig {
 
     /// Prefered Indexing method for RINEX Clock data (ground or spaceborn clocks description).
     pub clk_rinex_indexing: Option<QcIndexingConfig>,
+
+    /// Prefered Indexing method for SP3 files (precise products).
+    /// [QcIndexingConfig::Agency] (default), [QcIndexingConfig::Custom] and
+    /// [QcIndexingConfig::FileName] apply; SP3 files do not describe receivers,
+    /// antennas or operators: these preferences fall back to automatic indexing.
+    pub sp3_indexing: Option<QcIndexingConfig>,
 }
 
 impl QcInputConfig {
@@ -70,13 +80,18 @@ impl QcInputConfig {
 impl Default for QcInputConfig {
     /// Creates the default (prefered) [QcInputConfig]uration:
     /// - signals indexed by [QcIndexing::Receiver] GNSS receiver sampler
-    /// - ephemeris messages indexed by
+    /// - ephemeris messages, meteo and clock RINEX, SP3 indexed by [QcIndexing::Agency]
+    ///
+    /// [QcIndexing]: crate::prelude::QcIndexing
+    /// [QcIndexing::Receiver]: crate::prelude::QcIndexing::Receiver
+    /// [QcIndexing::Agency]: crate::prelude::QcIndexing::Agency
     fn default() -> Self {
         Self {
             nav_rinex_indexing: Some(QcIndexingConfig::Agency),
             obs_rinex_indexing: Some(QcIndexingConfig::Receiver),
             meteo_rinex_indexing: Some(QcIndexingConfig::Agency),
             clk_rinex_indexing: Some(QcIndexingConfig::Agency),
+            sp3_indexing: Some(QcIndexingConfig::Agency),
         }
     }
 }
@@ -90,5 +105,6 @@ mod test {
         let default = QcInputConfig::default();
         assert_eq!(default.nav_rinex_indexing, Some(QcIndexingConfig::Agency));
         assert_eq!(default.obs_rinex_indexing, Some(QcIndexingConfig::Receiver));
+        assert_eq!(default.sp3_indexing, Some(QcIndexingConfig::Agency));
     }
 }
