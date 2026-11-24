@@ -30,6 +30,7 @@ use crate::{
 
 /// Navigation technique
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum QcNavigationTechnique {
     /// Absolute navigation (no reference station): position and clock are resolved.
     Absolute,
@@ -45,6 +46,7 @@ pub enum QcNavigationTechnique {
 
 /// Navigation configuration
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcNavigationConfig {
     /// Navigation technique
     pub technique: QcNavigationTechnique,

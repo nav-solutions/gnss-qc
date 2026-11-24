@@ -37,6 +37,7 @@ pub type QcSourceError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 /// Result of a non blocking poll operation.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum QcPoll<T> {
     /// One item is available.
     Ready(T),
@@ -51,6 +52,7 @@ pub enum QcPoll<T> {
 
 /// One signal observation, sampled by a receiver.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcSignal {
     /// Sampling conditions
     pub flag: EpochFlag,
@@ -61,6 +63,7 @@ pub struct QcSignal {
 
 /// One radio (broadcast) ephemeris.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct QcEphemeris {
     /// Broadcasting satellite
     pub sv: SV,
@@ -95,6 +98,7 @@ impl QcEphemeris {
 
 /// Precise satellite state (typically from SP3).
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcPreciseState {
     /// Satellite
     pub sv: SV,
@@ -112,6 +116,7 @@ pub struct QcPreciseState {
 /// All data points the engine knows how to process.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum QcPayload {
     /// Signal observation (raw measurement)
     Signal(QcSignal),
@@ -120,6 +125,7 @@ pub enum QcPayload {
     ReceiverClock(ClockObservation),
 
     /// Radio ephemeris
+    #[cfg_attr(feature = "serde", serde(skip_deserializing))]
     Ephemeris(QcEphemeris),
 
     /// Precise satellite state
@@ -128,6 +134,7 @@ pub enum QcPayload {
 
 /// Time tagged data point, delivered by a [QcSource].
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcInputItem {
     /// Ordering [Epoch]: sampling epoch for observations,
     /// ToC for ephemerides, state epoch for precise states.
@@ -192,6 +199,7 @@ impl QcInputItem {
 /// - sources providing context data (ephemerides, precise states) must cover the
 ///   epoch being processed plus the lookahead window.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcSourceDescriptor {
     /// How this source is identified (receiver, agency..).
     /// Data points are stored and presented to the processors with this identity.

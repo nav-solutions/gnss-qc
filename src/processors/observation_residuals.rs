@@ -16,6 +16,7 @@ use crate::{
 
 /// Observation residuals configuration
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcObservationResidualConfig {
     /// Receiver A (minuend). Default: the first receiver encountered.
     pub lhs: Option<QcIndexing>,

@@ -157,6 +157,7 @@ pub trait QcProcessor<O = QcOutput> {
 
 /// Engine statistics
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcEngineStats {
     /// Number of epochs processed
     pub epochs: usize,

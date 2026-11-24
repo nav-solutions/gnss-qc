@@ -25,6 +25,33 @@ and how the data points are presented to the processors:
 | `Agency(String)` | Navigation and precise products, identified by their publisher: products of different agencies can be compared (residual analysis) |
 | `Custom(String)` | User defined alias |
 
+### Textual representation
+
+`QcIndexing` implements `Display` and its reciprocal `FromStr`, to designate products in
+command lines, configuration files or reports:
+
+| Text | `QcIndexing` |
+|------|--------------|
+| `receiver:SEPT POLARX5 #3047937` | `Receiver("SEPT POLARX5 #3047937")` |
+| `antenna:TRM59800.00 SCIS` | `Antenna("TRM59800.00 SCIS")` |
+| `operator:SDFE` | `Operator("SDFE")` |
+| `agency:GRGS` | `Agency("GRGS")` |
+| `ESBC00DNK_R_20201770000_01D_MN` | `Custom("ESBC00DNK_R_20201770000_01D_MN")` |
+| `custom:agency:GRGS` | `Custom("agency:GRGS")` |
+
+Prefixes are case sensitive and names are kept as is. A custom alias that starts with one of
+the prefixes is written with an explicit `custom:` prefix, so that parsing always gives back
+the same identity. An empty name is an error.
+
+```rust
+use std::str::FromStr;
+use gnss_qc::prelude::QcIndexing;
+
+let grg = QcIndexing::from_str("agency:GRGS").unwrap();
+assert_eq!(grg, QcIndexing::Agency("GRGS".to_string()));
+assert_eq!(QcIndexing::from_str(&grg.to_string()).unwrap(), grg);
+```
+
 ### Automatic indexing
 
 When no preference applies (or when the preferred information is missing from the file),
@@ -34,7 +61,7 @@ the identity is determined automatically, and this is infallible:
 |---------|----------|
 | Observation RINEX / CRINEX | Receiver `"MODEL #SERIAL"`, otherwise antenna model, otherwise operator, otherwise file name |
 | Navigation, Meteo, Clock RINEX | Agency, otherwise file name |
-| SP3 | Agency (always described) |
+| SP3 | Agency, otherwise file name |
 
 The receiver serial number is part of its identity: two stations using the same receiver
 model (typical RTK base and rover) remain two different signal sources.
@@ -48,9 +75,30 @@ ESBC00DNK_R_20201770000_01D_MN     (NAV file without agency: file name)
 
 ### Preferences
 
-`QcInputConfig` defines the indexing method per RINEX type
-(`QcIndexingConfig::{Receiver, Antenna, Operator, Agency, Custom(alias)}`).
-Defaults: receiver for observations, agency for the others.
+`QcInputConfig` defines the indexing method per product type:
+
+| `QcInputConfig` field | Products | Default |
+|-----------------------|----------|---------|
+| `obs_rinex_indexing` | Observation RINEX / CRINEX | `Receiver` |
+| `nav_rinex_indexing` | Navigation RINEX | `Agency` |
+| `meteo_rinex_indexing` | Meteo RINEX | `Agency` |
+| `clk_rinex_indexing` | Clock RINEX | `Agency` |
+| `sp3_indexing` | SP3 | `Agency` |
+
+with `QcIndexingConfig`:
+
+| `QcIndexingConfig` | Identity |
+|--------------------|----------|
+| `Receiver` | Receiver `"MODEL #SERIAL"` (observations) |
+| `Antenna` | Antenna model (observations) |
+| `Operator` | Operator, "observer" (observations) |
+| `Agency` | Agency / publisher |
+| `Custom(alias)` | This alias, for every file loaded with this configuration |
+| `FileName` | File name, without extensions: one product per file |
+
+When the preferred information is not described by the file (SP3 files do not describe
+receivers, antennas or operators), automatic indexing applies. `None` selects automatic
+indexing directly.
 
 A custom alias gathers files that would be indexed differently. Here, four navigation files
 of the NYA1 station (GPS and Galileo, two days) that do not describe their agency:
@@ -78,6 +126,36 @@ for file in [
 assert_eq!(products.nav_rinex_iter().count(), 1);
 ```
 
+Conversely, products of the same agency are merged by default. To process them as distinct
+products (two daily files, final versus rapid products..), index them by file name, or give
+each one an alias. The preference applies per call, so each file may use its own:
+
+```rust,no_run
+use gnss_qc::prelude::*;
+
+let by_file_name = QcInputConfig {
+    sp3_indexing: Some(QcIndexingConfig::FileName),
+    ..Default::default()
+};
+
+let mut products = QcInputProducts::default();
+
+for file in [
+    "data/SP3/C/GRG0MGXFIN_20201760000_01D_15M_ORB.SP3.gz",
+    "data/SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz",
+] {
+    products.load_gzip_file(&by_file_name, file).unwrap();
+}
+
+// default preference (agency) for this one
+products
+    .load_gzip_file(&QcInputConfig::default(), "data/SP3/D/Sta21114.sp3.gz")
+    .unwrap();
+
+// GRG0MGXFIN_20201760000_01D_15M_ORB, GRG0MGXFIN_20201770000_01D_15M_ORB, agency:IAC
+assert_eq!(products.sp3_iter().count(), 3);
+```
+
 ## Loading and merging
 
 | Method | Description |
@@ -85,7 +163,7 @@ assert_eq!(products.nav_rinex_iter().count(), 1);
 | `load_file(cfg, path)` | Any supported file: RINEX formats are attempted first, then SP3 |
 | `load_gzip_file(cfg, path)` | Same, gzip compressed (`flate2` feature) |
 | `load_rinex(cfg, path, rinex)` | An already parsed `Rinex` |
-| `load_sp3(sp3)` | An already parsed `SP3` (`sp3` feature) |
+| `load_sp3(cfg, path, sp3)` | An already parsed `SP3` (`sp3` feature) |
 
 Files sharing the same identity and type are **merged**. Two daily observation files of
 the same receiver become a single 48h signal source:
@@ -159,5 +237,34 @@ let antex = Rinex::from_file("igs20.atx").unwrap();
 let builder = QcEngine::<QcOutput>::builder()
     .with_antex(QcIndexing::Custom("igs20".to_string()), antex);
 ```
+
+## Serde support
+
+With the `serde` feature, the configurations, the indexing, the data points and the results
+implement `Serialize` and `Deserialize` (verified by JSON round trips in `tests::serde`):
+
+| Category | Types |
+|----------|-------|
+| Input | `QcIndexing`, `QcIndexingConfig`, `QcInputConfig`, `QcConfig`, `QcProductType`, `QcRINEXType` |
+| Processors configuration | `QcObservationResidualConfig`, `QcOrbitResidualConfig`, `QcOrbitProduct`, `QcOrbitPreference`, `QcIppConfig`, `QcNavigationConfig`, `QcNavigationTechnique` |
+| Data points | `QcInputItem`, `QcPayload`, `QcSignal`, `QcPreciseState`, `QcSourceDescriptor`, `QcPoll` |
+| Orbits | `QcOrbitKind`, `QcSatelliteState`, `QcKepler`, `QcKeplerState`, `QcInterpolatedState` |
+| Results | `QcOutputItem`, `QcOutput`, `QcSignalOutput`, `QcEphemerisCoverage`, `QcObservationResidual`, `QcOrbitResidual`, `QcIppOutput`, `QcNavigationReport`, `QcCggttsTrack`, `QcCggttsReport`, `QcEngineStats` |
+
+A deserialized `QcInputConfig` takes the default value of every missing field.
+
+Limitations, inherited from other libraries:
+
+| Type | Support | Reason |
+|------|---------|--------|
+| `QcEphemeris`, `QcEphemerisOutput` | `Serialize` only | the RINEX `Ephemeris` is not deserializable |
+| `QcPvtSolution` | `Serialize` only | the GNSS-RTK `PVTSolution` is not deserializable |
+| `QcCggttsConfig` | none | the CGGTTS `CommonViewCalendar` is not serializable |
+
+`QcOutput::Ephemeris`, `QcOutput::PVTSolution` and `QcPayload::Ephemeris` are serialized,
+but rejected when deserializing.
+
+Engines, sources, processors, stores and the products table (parsed files) are runtime
+objects: they are not serializable.
 
 Next: [MISO engine →](miso.md)

@@ -15,6 +15,7 @@ use crate::{
 
 /// IPP configuration
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcIppConfig {
     /// Orbital products preference. Default: precise products whenever available.
     pub orbits: QcOrbitPreference,

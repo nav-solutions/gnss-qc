@@ -146,7 +146,7 @@ cargo run --release --features navigation --example ppp > solutions.csv
 | `cggtts` | | CGGTTS solutions (common view time transfer), powered by [CGGTTS](https://github.com/nav-solutions/cggtts) (implies `navigation`) |
 | `ionex` | | Ionospheric Pierce Points, powered by [IONEX](https://github.com/nav-solutions/ionex) |
 | `embed_ephem` | | Embeds the ANISE dataset at build time: no Internet access required at runtime (implies `navigation`) |
-| `serde` | | Serialization of the configuration, indexing and output stream |
+| `serde` | | Serialization and deserialization of the configurations, indexing, data points and output stream, see [Serde support](docs/context.md#serde-support) |
 | `log` | | Debug traces (`$RUST_LOG`) |
 
 Without `navigation`, GNSS-Qc provides context management, synchronization and the

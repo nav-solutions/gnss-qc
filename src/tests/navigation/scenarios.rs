@@ -113,7 +113,12 @@ pub fn navigate(
     for item in engine {
         match item.unwrap().payload {
             NavOutput::Builtin(QcOutput::PVTSolution(solution)) => solutions.push(solution),
-            NavOutput::Builtin(QcOutput::NavigationReport(r)) => report = Some(r),
+            NavOutput::Builtin(QcOutput::NavigationReport(r)) => {
+                #[cfg(feature = "serde")]
+                crate::tests::serde_round_trip(&QcOutput::NavigationReport(r.clone()));
+
+                report = Some(r)
+            }
             _ => {}
         }
     }
