@@ -160,6 +160,15 @@ impl<O: From<QcOutput>> QcProcessor<O> for QcIppProcessor {
                         longitude_deg: ipp.coordinates.x(),
                         altitude_km: ipp.altitude_km,
                         obliquity_factor: ipp.obliquity_factor(),
+                        vertical_tecu: ctx
+                            .tec_maps
+                            .tec(
+                                ctx.epoch,
+                                ipp.coordinates.y(),
+                                ipp.coordinates.x(),
+                                crate::sync::QcTecInterpolation::RotatedMaps,
+                            )
+                            .map(|(_, value)| value.tecu),
                     }),
                 );
             }

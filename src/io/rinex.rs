@@ -5,7 +5,11 @@
 //! When a streamed RINEX parser becomes available, only these adapters will change.
 use std::collections::btree_map::IntoIter as BTreeIntoIter;
 
+use std::collections::VecDeque;
+
 use rinex::{
+    clock::{ClockKey, ClockProfile, ClockType},
+    meteo::MeteoKey,
     navigation::{NavFrame, NavKey},
     prelude::{
         obs::{ClockObservation, EpochFlag, ObsKey, Observations, SignalObservation},
@@ -20,7 +24,10 @@ use crate::geodesy::enu_to_ecef_vector;
 
 use crate::io::{
     input::indexing::QcIndexing,
-    source::{QcInputItem, QcPoll, QcSource, QcSourceDescriptor, QcSourceError},
+    source::{
+        QcClockId, QcInputItem, QcPayload, QcPoll, QcPreciseClock, QcSource, QcSourceDescriptor,
+        QcSourceError,
+    },
 };
 
 /// Errors when converting a [Rinex] into a [QcSource].
@@ -31,6 +38,12 @@ pub enum QcRinexSourceError {
 
     #[error("not a navigation RINEX ({0})")]
     NotNavigation(RinexType),
+
+    #[error("not a clock RINEX ({0})")]
+    NotClock(RinexType),
+
+    #[error("not a meteo RINEX ({0})")]
+    NotMeteo(RinexType),
 }
 
 /// Signal source from an Observation (or CRINEX) [Rinex].
@@ -170,5 +183,111 @@ impl QcSource for QcRinexNavSource {
         }
 
         Ok(QcPoll::EndOfStream)
+    }
+}
+
+/// Precise clocks source from a Clock [Rinex].
+/// Delivers, epoch after epoch, the state of every clock described by the file:
+/// satellite clocks and ground station clocks (as [QcPayload::PreciseClock]).
+pub struct QcRinexClockSource {
+    descriptor: QcSourceDescriptor,
+    record: BTreeIntoIter<hifitime::Epoch, std::collections::BTreeMap<ClockKey, ClockProfile>>,
+    pending: VecDeque<QcInputItem>,
+}
+
+impl QcRinexClockSource {
+    /// Builds a new [QcRinexClockSource], identified by `indexing` (usually the agency).
+    pub fn new(indexing: QcIndexing, rinex: Rinex) -> Result<Self, QcRinexSourceError> {
+        let rinex_type = rinex.header.rinex_type;
+
+        match rinex.record {
+            Record::ClockRecord(record) => Ok(Self {
+                descriptor: QcSourceDescriptor::new(indexing).with_precise_clocks(),
+                record: record.into_iter(),
+                pending: VecDeque::new(),
+            }),
+            _ => Err(QcRinexSourceError::NotClock(rinex_type)),
+        }
+    }
+
+    fn item(epoch: hifitime::Epoch, key: ClockKey, profile: ClockProfile) -> QcInputItem {
+        let clock = match key.clock_type {
+            ClockType::SV(sv) => QcClockId::Satellite(sv),
+            ClockType::Station(name) => QcClockId::Station(name),
+        };
+
+        QcInputItem {
+            epoch,
+            payload: QcPayload::PreciseClock(QcPreciseClock {
+                clock,
+                profile: key.profile_type,
+                epoch,
+                offset_s: profile.bias,
+                offset_dev_s: profile.bias_dev,
+                drift_s_s: profile.drift,
+            }),
+        }
+    }
+}
+
+impl QcSource for QcRinexClockSource {
+    fn descriptor(&self) -> &QcSourceDescriptor {
+        &self.descriptor
+    }
+
+    fn poll(&mut self) -> Result<QcPoll<QcInputItem>, QcSourceError> {
+        loop {
+            if let Some(item) = self.pending.pop_front() {
+                return Ok(QcPoll::Ready(item));
+            }
+
+            match self.record.next() {
+                Some((epoch, clocks)) => {
+                    self.pending.extend(
+                        clocks
+                            .into_iter()
+                            .map(|(key, profile)| Self::item(epoch, key, profile)),
+                    );
+                }
+                None => return Ok(QcPoll::EndOfStream),
+            }
+        }
+    }
+}
+
+/// Meteo observations source from a Meteo [Rinex].
+/// Delivers all sensor observations (as [QcPayload::Meteo]) in chronological order.
+pub struct QcRinexMeteoSource {
+    descriptor: QcSourceDescriptor,
+    record: BTreeIntoIter<MeteoKey, f64>,
+}
+
+impl QcRinexMeteoSource {
+    /// Builds a new [QcRinexMeteoSource], identified by `indexing`.
+    pub fn new(indexing: QcIndexing, rinex: Rinex) -> Result<Self, QcRinexSourceError> {
+        let rinex_type = rinex.header.rinex_type;
+
+        match rinex.record {
+            Record::MeteoRecord(record) => Ok(Self {
+                descriptor: QcSourceDescriptor::new(indexing).with_meteo(),
+                record: record.into_iter(),
+            }),
+            _ => Err(QcRinexSourceError::NotMeteo(rinex_type)),
+        }
+    }
+}
+
+impl QcSource for QcRinexMeteoSource {
+    fn descriptor(&self) -> &QcSourceDescriptor {
+        &self.descriptor
+    }
+
+    fn poll(&mut self) -> Result<QcPoll<QcInputItem>, QcSourceError> {
+        Ok(match self.record.next() {
+            Some((key, value)) => {
+                QcPoll::Ready(QcInputItem::meteo(key.epoch, key.observable, value))
+            }
+            None => QcPoll::EndOfStream,
+        })
     }
 }

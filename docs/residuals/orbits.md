@@ -1,7 +1,7 @@
 Orbit residuals
 ===============
 
-[← Observation residuals](observations.md) · [Residual analysis](README.md) · [README](../../README.md)
+[← Observation residuals](observations.md) · [Residual analysis](README.md) · [README](../../README.md) · [Clock residuals →](clocks.md)
 
 `QcOrbitResidualProcessor` differentiates the satellite states described by two orbital
 products: for each satellite described by both products, at each epoch (or at the requested
@@ -174,4 +174,4 @@ of mass: no antenna offset is applied, the residuals include this offset (mostly
   [orbital products](../navigation/README.md#orbital-products) of the navigation.
 - A − B for one pair of products; run several processors for several pairs.
 
-[← Residual analysis](README.md)
+Next: [Clock residuals →](clocks.md)

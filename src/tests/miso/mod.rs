@@ -59,6 +59,13 @@ pub fn load_products(cfg: &QcInputConfig, files: &[&str]) -> QcInputProducts {
             continue;
         }
 
+        #[cfg(feature = "ionex")]
+        if file.starts_with("IONEX/") {
+            let ionex = ionex::prelude::IONEX::from_gzip_file(&path).unwrap();
+            products.load_ionex(cfg, &path, ionex).unwrap();
+            continue;
+        }
+
         let rinex = load_rinex(file);
         products.load_rinex(cfg, &path, rinex).unwrap();
     }

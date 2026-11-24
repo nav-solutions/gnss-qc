@@ -5,6 +5,13 @@ use std::path::Path;
 
 use gnss_qc::prelude::{QcInputConfig, QcInputProducts};
 
+/// Path of a file of the `data` submodule
+pub fn data_path(file: &str) -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("data")
+        .join(file)
+}
+
 /// Loads files of the `data` submodule (RINEX, CRINEX, SP3, gzip compressed or not)
 /// into a [QcInputProducts] table.
 pub fn load_products(cfg: &QcInputConfig, files: &[&str]) -> QcInputProducts {

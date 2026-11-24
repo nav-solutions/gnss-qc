@@ -278,3 +278,72 @@ fn realtime_channel_source() {
 
     assert_eq!(coverage, vec![(t0, g01, Some(t0)), (t0, g02, None)]);
 }
+
+/// Context only session: every epoch of every context source is processed, in
+/// chronological order, even when one source has data gaps larger than the lookahead
+/// while another source already delivered later data points.
+#[test]
+fn context_only_sources_with_large_gaps() {
+    use std::{cell::RefCell, rc::Rc};
+
+    let t0 = epoch("2020-06-25T00:00:00 GPST");
+    let g01 = SV::from_str("G01").unwrap();
+
+    let state = |dt: f64| {
+        QcInputItem::precise_state(t0 + Duration::from_seconds(dt), g01, (1.0, 2.0, 3.0), None)
+    };
+
+    // source A: 00:00, 00:05, then 08:00, 08:05 (gap larger than the 3h lookahead)
+    let a = [0.0, 300.0, 8.0 * 3600.0, 8.0 * 3600.0 + 300.0]
+        .iter()
+        .map(|dt| state(*dt))
+        .collect::<Vec<_>>();
+
+    // source B: 10:00 only
+    let b = vec![state(10.0 * 3600.0)];
+
+    let source = |name: &str, items: Vec<QcInputItem>| {
+        QcIterSource::new(
+            QcSourceDescriptor::new(agency(name)).with_precise_states(),
+            items.into_iter(),
+        )
+    };
+
+    struct Epochs(Rc<RefCell<Vec<Epoch>>>);
+
+    impl QcProcessor<QcOutput> for Epochs {
+        fn name(&self) -> &str {
+            "epochs"
+        }
+
+        fn process(&mut self, ctx: &QcEpochContext, _: &mut QcOutputQueue<QcOutput>) {
+            self.0.borrow_mut().push(ctx.epoch);
+        }
+    }
+
+    let processed = Rc::new(RefCell::new(Vec::new()));
+
+    let engine = QcEngine::<QcOutput>::builder()
+        .with_source(source("A", a))
+        .with_source(source("B", b))
+        .with_processor(Epochs(processed.clone()))
+        .build()
+        .unwrap();
+
+    assert_eq!(engine.count(), 0);
+
+    // processed in chronological order, each epoch once
+    assert_eq!(
+        *processed.borrow(),
+        [
+            0.0,
+            300.0,
+            8.0 * 3600.0,
+            8.0 * 3600.0 + 300.0,
+            10.0 * 3600.0
+        ]
+        .iter()
+        .map(|dt| t0 + Duration::from_seconds(*dt))
+        .collect::<Vec<_>>()
+    );
+}

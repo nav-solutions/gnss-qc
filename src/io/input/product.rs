@@ -9,12 +9,18 @@ use crate::io::input::{
 };
 
 use crate::io::{
-    rinex::{QcRinexNavSource, QcRinexObsSource},
+    rinex::{QcRinexClockSource, QcRinexMeteoSource, QcRinexNavSource, QcRinexObsSource},
     source::QcSource,
 };
 
 #[cfg(feature = "sp3")]
 use crate::io::sp3::QcSp3Source;
+
+#[cfg(feature = "ionex")]
+use crate::io::ionex::QcIonexSource;
+
+#[cfg(feature = "ionex")]
+use ionex::prelude::IONEX;
 
 use qc_traits::Merge;
 
@@ -49,11 +55,16 @@ pub struct QcInputProducts {
     /// (agency by default).
     #[cfg(feature = "sp3")]
     pub(crate) sp3: HashMap<QcIndexing, SP3>,
+
+    /// TEC maps from IONEX files, indexed by [QcIndexing] (agency by default).
+    #[cfg(feature = "ionex")]
+    pub(crate) ionex: HashMap<QcIndexing, IONEX>,
 }
 
 fn file_stem<P: AsRef<Path>>(path: P) -> Result<String, QcInputError> {
     let path = path.as_ref();
-    let stem = path.file_stem().ok_or({
+    // ok_or_else: the error path must only be evaluated (and logged) on failure
+    let stem = path.file_stem().ok_or_else(|| {
         #[cfg(feature = "log")]
         error!("failed to determine {} file stem", path.display());
         QcInputError::FileStemIssue
@@ -81,8 +92,9 @@ impl QcInputProducts {
     /// - ANTEX entries are session wide data.
     ///
     /// - one precise states source per SP3 entry
-    ///
-    /// Meteo and Clock RINEX are not converted yet.
+    /// - one precise clocks source per Clock RINEX entry
+    /// - one meteo source per Meteo RINEX entry
+    /// - one TEC maps source per IONEX entry (`ionex` feature)
     pub fn into_sources(self) -> QcProductSources {
         let mut sources: Vec<Box<dyn QcSource>> = Vec::new();
 
@@ -104,6 +116,34 @@ impl QcInputProducts {
             }
         }
 
+        let mut clk = self.clk_rinex.into_iter().collect::<Vec<_>>();
+        clk.sort_by_key(|a| a.0.to_string());
+
+        for (indexing, rinex) in clk {
+            if let Ok(source) = QcRinexClockSource::new(indexing, rinex) {
+                sources.push(Box::new(source));
+            }
+        }
+
+        let mut meteo = self.meteo_rinex.into_iter().collect::<Vec<_>>();
+        meteo.sort_by_key(|a| a.0.to_string());
+
+        for (indexing, rinex) in meteo {
+            if let Ok(source) = QcRinexMeteoSource::new(indexing, rinex) {
+                sources.push(Box::new(source));
+            }
+        }
+
+        #[cfg(feature = "ionex")]
+        {
+            let mut ionex = self.ionex.into_iter().collect::<Vec<_>>();
+            ionex.sort_by_key(|(indexing, _)| indexing.to_string());
+
+            for (indexing, ionex) in ionex {
+                sources.push(Box::new(QcIonexSource::new(indexing, ionex)));
+            }
+        }
+
         #[cfg(feature = "sp3")]
         {
             let mut sp3 = self.sp3.into_iter().collect::<Vec<_>>();
@@ -122,6 +162,11 @@ impl QcInputProducts {
 
     /// Returns true if this table does not contain anything.
     pub fn is_empty(&self) -> bool {
+        #[cfg(feature = "ionex")]
+        if !self.ionex.is_empty() {
+            return false;
+        }
+
         #[cfg(feature = "sp3")]
         if !self.sp3.is_empty() {
             return false;
@@ -144,9 +189,25 @@ impl QcInputProducts {
         self.nav_rinex.iter()
     }
 
+    /// Iterates over Clock RINEX entries.
+    pub fn clk_rinex_iter(&self) -> impl Iterator<Item = (&QcIndexing, &Rinex)> {
+        self.clk_rinex.iter()
+    }
+
+    /// Iterates over Meteo RINEX entries.
+    pub fn meteo_rinex_iter(&self) -> impl Iterator<Item = (&QcIndexing, &Rinex)> {
+        self.meteo_rinex.iter()
+    }
+
     /// Iterates over ANTEX entries.
     pub fn antex_iter(&self) -> impl Iterator<Item = (&QcIndexing, &Rinex)> {
         self.antex.iter()
+    }
+
+    /// Iterates over IONEX entries.
+    #[cfg(feature = "ionex")]
+    pub fn ionex_iter(&self) -> impl Iterator<Item = (&QcIndexing, &IONEX)> {
+        self.ionex.iter()
     }
 
     /// Iterates over SP3 entries.
@@ -167,9 +228,19 @@ impl QcInputProducts {
             return self.load_rinex(cfg, path, rinex);
         }
 
+        // the SP3 and IONEX parsers are lenient: the content must be described
+        #[cfg(feature = "ionex")]
+        if let Ok(ionex) = IONEX::from_file(&path) {
+            if ionex.record.iter().next().is_some() {
+                return self.load_ionex(cfg, path, ionex);
+            }
+        }
+
         #[cfg(feature = "sp3")]
         if let Ok(sp3) = SP3::from_file(&path) {
-            return self.load_sp3(cfg, path, sp3);
+            if !sp3.data.is_empty() {
+                return self.load_sp3(cfg, path, sp3);
+            }
         }
 
         Err(QcInputError::FormatNotSupported)
@@ -185,9 +256,19 @@ impl QcInputProducts {
             return self.load_rinex(cfg, path, rinex);
         }
 
+        // the SP3 and IONEX parsers are lenient: the content must be described
+        #[cfg(feature = "ionex")]
+        if let Ok(ionex) = IONEX::from_gzip_file(&path) {
+            if ionex.record.iter().next().is_some() {
+                return self.load_ionex(cfg, path, ionex);
+            }
+        }
+
         #[cfg(feature = "sp3")]
         if let Ok(sp3) = SP3::from_gzip_file(&path) {
-            return self.load_sp3(cfg, path, sp3);
+            if !sp3.data.is_empty() {
+                return self.load_sp3(cfg, path, sp3);
+            }
         }
 
         Err(QcInputError::FormatNotSupported)
@@ -216,7 +297,9 @@ impl QcInputProducts {
                 .rcvr
                 .as_ref()
                 .map(|rx| QcIndexing::from_receiver_model_sn(&rx.model, &rx.sn)),
-            Some(QcIndexingConfig::Agency) => rinex.header.agency.clone().map(QcIndexing::Agency),
+            Some(QcIndexingConfig::Agency) => {
+                QcIndexing::rinex_agency(&rinex).map(QcIndexing::Agency)
+            }
             Some(QcIndexingConfig::Operator) => {
                 rinex.header.observer.clone().map(QcIndexing::Operator)
             }
@@ -275,6 +358,59 @@ impl QcInputProducts {
             Merge::merge_mut(inner, &sp3).map_err(|e| QcInputError::Sp3Merge(e.to_string()))?;
         } else {
             self.sp3.insert(key, sp3);
+        }
+
+        Ok(())
+    }
+
+    /// Load a single [IONEX] into the table (`ionex` feature).
+    /// The [QcIndexing] is determined from user preference ([QcInputConfig::ionex_indexing]),
+    /// otherwise automatically: agency ("RUN BY" header field), file name when the
+    /// agency is not described. Maps of the same identity are gathered (later
+    /// maps replace earlier maps of the same epoch).
+    #[cfg(feature = "ionex")]
+    pub fn load_ionex<P: AsRef<Path>>(
+        &mut self,
+        cfg: &QcInputConfig,
+        path: P,
+        ionex: IONEX,
+    ) -> Result<(), QcInputError> {
+        let file_stem = file_stem(path)?;
+
+        let agency = ionex
+            .header
+            .run_by
+            .as_deref()
+            .map(|agency| agency.trim().to_string())
+            .filter(|agency| !agency.is_empty());
+
+        let key = match &cfg.ionex_indexing {
+            Some(QcIndexingConfig::Custom(alias)) => QcIndexing::Custom(alias.clone()),
+            Some(QcIndexingConfig::FileName) => QcIndexing::Custom(file_stem),
+            _ => match agency {
+                Some(agency) => QcIndexing::Agency(agency),
+                None => QcIndexing::Custom(file_stem),
+            },
+        };
+
+        if let Some(inner) = self.ionex.get_mut(&key) {
+            for (k, tec) in ionex.record.iter() {
+                inner.record.insert(*k, *tec);
+            }
+
+            inner.header.epoch_of_first_map = inner
+                .header
+                .epoch_of_first_map
+                .min(ionex.header.epoch_of_first_map);
+
+            inner.header.epoch_of_last_map = inner
+                .header
+                .epoch_of_last_map
+                .max(ionex.header.epoch_of_last_map);
+
+            inner.header.number_of_maps = inner.epoch_iter().count() as u32;
+        } else {
+            self.ionex.insert(key, ionex);
         }
 
         Ok(())

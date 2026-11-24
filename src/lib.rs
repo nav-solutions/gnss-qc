@@ -51,27 +51,38 @@ pub mod prelude {
             product::{QcInputProducts, QcProductSources},
         },
         output::{
-            QcEphemerisCoverage, QcEphemerisOutput, QcFnSink, QcObservationResidual,
-            QcOrbitResidual, QcOutput, QcOutputItem, QcOutputQueue, QcSignalOutput, QcSink,
+            QcClockResidual, QcEphemerisCoverage, QcEphemerisOutput, QcFnSink, QcMeteoOutput,
+            QcObservationResidual, QcOrbitResidual, QcOutput, QcOutputItem, QcOutputQueue,
+            QcPreciseClockOutput, QcSignalOutput, QcSink, QcTecMapPoint, QcTecMapStatistics,
         },
-        rinex::{QcRinexNavSource, QcRinexObsSource, QcRinexSourceError},
+        rinex::{
+            QcRinexClockSource, QcRinexMeteoSource, QcRinexNavSource, QcRinexObsSource,
+            QcRinexSourceError,
+        },
         source::{
-            QcChainSource, QcChannelSource, QcEphemeris, QcInputItem, QcIterSource, QcLazySource,
-            QcPayload, QcPoll, QcPreciseState, QcSignal, QcSource, QcSourceDescriptor,
-            QcSourceError,
+            QcChainSource, QcChannelSource, QcClockId, QcEphemeris, QcInputItem, QcIterSource,
+            QcLazySource, QcMeteoSample, QcPayload, QcPoll, QcPreciseClock, QcPreciseState,
+            QcSignal, QcSource, QcSourceDescriptor, QcSourceError, QcTecPoint,
         },
     };
     pub use crate::processors::{
-        QcEphemerisCoverageProcessor, QcEphemerisProcessor, QcObservationResidualConfig,
-        QcObservationResidualProcessor, QcOrbitProduct, QcOrbitResidualConfig,
-        QcOrbitResidualProcessor, QcSignalProcessor,
+        QcClockAlignment, QcClockProduct, QcClockResidualConfig, QcClockResidualProcessor,
+        QcEphemerisCoverageProcessor, QcEphemerisProcessor, QcMeteoConfig, QcMeteoProcessor,
+        QcObservationResidualConfig, QcObservationResidualProcessor, QcOrbitProduct,
+        QcOrbitResidualConfig, QcOrbitResidualProcessor, QcPreciseClockConfig,
+        QcPreciseClockProcessor, QcSignalProcessor, QcTecConfig, QcTecProcessor, QcTecRegion,
+        QcTecSampling,
     };
     pub use crate::sync::{
-        QcBuffered, QcEphemerisStore, QcInterpolatedState, QcPreciseStore, QcSvBuffer,
+        QcBuffered, QcClockStore, QcEphemerisStore, QcInterpolatedState, QcMeteoStore,
+        QcPreciseStore, QcSvBuffer, QcTecInterpolation, QcTecMap, QcTecStore, QcTecValue,
     };
 
     #[cfg(feature = "sp3")]
     pub use crate::io::sp3::QcSp3Source;
+
+    #[cfg(feature = "ionex")]
+    pub use crate::io::ionex::QcIonexSource;
 
     #[cfg(feature = "navigation")]
     pub use crate::{
@@ -89,7 +100,7 @@ pub mod prelude {
         processors::{QcIppConfig, QcIppProcessor},
     };
 
-    pub use crate::orbit::{QcOrbitKind, QcOrbitPreference};
+    pub use crate::orbit::{QcClockKind, QcClockPreference, QcOrbitKind, QcOrbitPreference};
 
     #[cfg(feature = "cggtts")]
     pub use crate::{

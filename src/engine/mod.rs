@@ -50,7 +50,7 @@ use crate::{
             QcInputItem, QcPayload, QcPoll, QcSignal, QcSource, QcSourceDescriptor, QcSourceError,
         },
     },
-    sync::{QcEphemerisStore, QcPreciseStore},
+    sync::{QcClockStore, QcEphemerisStore, QcMeteoStore, QcPreciseStore, QcTecStore},
 };
 
 /// Context data stores, synchronized by the engine
@@ -58,12 +58,18 @@ use crate::{
 struct QcStores {
     ephemerides: QcEphemerisStore,
     precise_states: QcPreciseStore,
+    precise_clocks: QcClockStore,
+    meteo: QcMeteoStore,
+    tec_maps: QcTecStore,
 }
 
 impl QcStores {
     fn prune(&mut self, t: Epoch) {
         self.ephemerides.prune(t);
         self.precise_states.prune(t);
+        self.precise_clocks.prune(t);
+        self.meteo.prune(t);
+        self.tec_maps.prune(t);
     }
 }
 
@@ -136,6 +142,16 @@ pub struct QcEpochContext<'a> {
 
     /// Precise states, synchronized to this epoch (interpolation window)
     pub precise_states: &'a QcPreciseStore,
+
+    /// Precise clock states (satellites and ground stations),
+    /// synchronized to this epoch (interpolation window)
+    pub precise_clocks: &'a QcClockStore,
+
+    /// Meteo observations, synchronized to this epoch
+    pub meteo: &'a QcMeteoStore,
+
+    /// TEC maps, synchronized to this epoch (surrounding maps)
+    pub tec_maps: &'a QcTecStore,
 
     /// Session wide data
     pub statics: &'a QcStatics,
@@ -275,6 +291,13 @@ impl SourceSlot {
             QcPayload::PreciseState(state) => {
                 stores.precise_states.push(&self.descriptor.indexing, state)
             }
+            QcPayload::PreciseClock(clock) => {
+                stores.precise_clocks.push(&self.descriptor.indexing, clock)
+            }
+            QcPayload::Meteo(sample) => stores.meteo.push(&self.descriptor.indexing, epoch, sample),
+            QcPayload::Tec(point) => stores
+                .tec_maps
+                .push(&self.descriptor.indexing, epoch, point),
         }
 
         Ok(Pull::Item)
@@ -486,6 +509,21 @@ impl<O> QcEngine<O> {
         &self.stores.precise_states
     }
 
+    /// Precise clocks store (current synchronization state)
+    pub fn precise_clocks(&self) -> &QcClockStore {
+        &self.stores.precise_clocks
+    }
+
+    /// Meteo observations store (current synchronization state)
+    pub fn meteo(&self) -> &QcMeteoStore {
+        &self.stores.meteo
+    }
+
+    /// TEC maps store (current synchronization state)
+    pub fn tec_maps(&self) -> &QcTecStore {
+        &self.stores.tec_maps
+    }
+
     /// Non blocking: returns the next result if one is available,
     /// [QcPoll::Pending] if waiting on a real-time source,
     /// or [QcPoll::EndOfStream] once everything has been processed.
@@ -652,6 +690,9 @@ impl<O> QcEngine<O> {
             receivers: &epoch_signals[..nb_active],
             ephemerides: &stores.ephemerides,
             precise_states: &stores.precise_states,
+            precise_clocks: &stores.precise_clocks,
+            meteo: &stores.meteo,
+            tec_maps: &stores.tec_maps,
             statics,
         };
 
@@ -682,24 +723,23 @@ impl<O> QcEngine<O> {
             ..
         } = self;
 
-        // 1. epochs to process are the epochs of the data points ingested so far
-        if pending_epochs.is_empty() {
-            let mut pending = false;
+        // 1. epochs to process: the epochs of the data points ingested so far, and the
+        //    next data point of every source (whatever its distance: sources may have
+        //    data gaps larger than the lookahead, or describe distinct periods)
+        let mut pending = false;
 
-            for slot in slots.iter_mut() {
-                match slot.peek()? {
-                    QcPoll::Ready(epoch) => {
-                        pending_epochs.insert(epoch);
-                        slot.pull(stores, *last_epoch, stats)?;
-                    }
-                    QcPoll::Pending => pending = true,
-                    QcPoll::EndOfStream => {}
+        for slot in slots.iter_mut() {
+            match slot.peek()? {
+                QcPoll::Ready(epoch) => {
+                    pending_epochs.insert(epoch);
                 }
+                QcPoll::Pending => pending = true,
+                QcPoll::EndOfStream => {}
             }
+        }
 
-            if pending_epochs.is_empty() && pending {
-                return Ok(Step::Pending);
-            }
+        if pending_epochs.is_empty() && pending {
+            return Ok(Step::Pending);
         }
 
         let t = match pending_epochs.first() {
@@ -741,6 +781,9 @@ impl<O> QcEngine<O> {
             receivers: &[],
             ephemerides: &stores.ephemerides,
             precise_states: &stores.precise_states,
+            precise_clocks: &stores.precise_clocks,
+            meteo: &stores.meteo,
+            tec_maps: &stores.tec_maps,
             statics,
         };
 

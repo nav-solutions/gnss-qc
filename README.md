@@ -25,13 +25,16 @@ GNSS-Qc is a **MISO** processor (Multiple Inputs, Single Output):
  OBS receiver B ──┤                          │
  NAV (agency) ────┼──► QcEngine ──► processors ──► one output stream ──► your application
  SP3 (agency) ────┤    synchronization       │                          (display, files,
- RTCM socket  ────┘    per satellite         └─ P.V.T solutions          database, network..)
+ CLK (agency) ────┤    per satellite         └─ P.V.T solutions          database, network..)
+ MET (station) ───┤
+ RTCM socket  ────┘
  ANTEX (static)
 ```
 
-- **Any input, any nature**: files (RINEX, CRINEX, SP3), streams (sockets, serial ports,
-  decoders running in other threads), or anything implementing the `QcSource` trait.
-  Any source may deliver any kind of data point (observations, ephemerides, precise states).
+- **Any input, any nature**: files (Observation, Navigation, Clock and Meteo RINEX, CRINEX,
+  SP3, IONEX), streams (sockets, serial ports, decoders running in other threads), or anything
+  implementing the `QcSource` trait. Any source may deliver any kind of data point
+  (observations, ephemerides, precise states, precise clocks, meteo observations, TEC maps).
 - **Pull based**: the application pulls results, the engine pulls just enough input data
   to produce them. Inputs are drained progressively, memory remains bounded
   (a few data points per satellite) whatever the session duration.
@@ -96,17 +99,21 @@ see the [navigation guide](docs/navigation/README.md).
 |-------|----------|
 | [Context definition](docs/context.md) | Input products, indexing (receivers, agencies, aliases), merging, user preferences, static data (ANTEX) |
 | [MISO engine](docs/miso.md) | Sources, synchronization, lookahead, time windows, outputs and sinks, real-time operation |
+| [Precise clocks](docs/clocks.md) | Clock RINEX: satellite and station clocks, synchronization, satellite clocks of the navigation (Clock RINEX > SP3 > broadcast) |
+| [Meteo observations](docs/meteo.md) | Meteo RINEX: sensor observations, synchronization, stream |
 | [Processors](docs/processors.md) | Built-in processors, writing your own processor and output type |
-| [Navigation](docs/navigation/README.md) | P.V.T solutions with GNSS-RTK: orbital products (SP3 / NAV), configuration, performances |
+| [Navigation](docs/navigation/README.md) | P.V.T solutions with GNSS-RTK: orbital products (SP3 / NAV), satellite clocks (CLK / SP3 / NAV), configuration, performances |
 | ↳ [SPP](docs/navigation/spp.md) | Single frequency code navigation |
 | ↳ [CPP](docs/navigation/cpp.md) | Dual frequency (iono free) code navigation |
 | ↳ [PPP](docs/navigation/ppp.md) | Float Precise Point Positioning (code + phase) |
 | ↳ [RTK](docs/navigation/rtk.md) | Differential navigation: RTK-SPP, RTK-CPP, RTK-PPP |
 | ↳ [CGGTTS](docs/navigation/cggtts.md) | Common view time transfer: P.V.T solutions post-fitted into CGGTTS tracks |
-| [Ionospheric Pierce Points](docs/ipp.md) | Pierce points of the lines of sight in the ionosphere, over time |
+| [TEC maps (IONEX)](docs/ionex.md) | IONEX inputs: TEC maps statistics per region, temporal interpolation, synthesis of new IONEX files |
+| [Ionospheric Pierce Points](docs/ipp.md) | Pierce points of the lines of sight in the ionosphere, vertical TEC from the maps |
 | [Residual analysis](docs/residuals/README.md) | A − B analyses of standard products, available by default |
 | ↳ [Observation residuals](docs/residuals/observations.md) | Receiver A − receiver B: relative clock behavior, receiver artifacts |
 | ↳ [Orbit residuals](docs/residuals/orbits.md) | Agency A − agency B, broadcast − precise, NAV − NAV |
+| ↳ [Clock residuals](docs/residuals/clocks.md) | Clock products of two agencies (Clock RINEX, SP3), precise − broadcast |
 | [Tests and data](docs/testing.md) | Test data, ANISE data, running the tests |
 
 The API documentation is available on [docs.rs](https://docs.rs/gnss-qc/), where this guide
@@ -127,6 +134,10 @@ Runnable examples, based on the `data` submodule (run them from the repository r
 | [rtk_ppp](examples/rtk_ppp.rs) | Differential navigation (RTK-PPP) |
 | [cggtts](examples/cggtts.rs) | CGGTTS solutions, formatted into a CGGTTS file |
 | [ipp](examples/ipp.rs) | Ionospheric Pierce Points time series |
+| [tec_maps](examples/tec_maps.rs) | TEC maps statistics, interpolation ×2, synthesis of a new IONEX file |
+| [clock_residuals](examples/clock_residuals.rs) | GRG (Clock RINEX) − IAC (SP3) clock residuals |
+| [precise_clocks](examples/precise_clocks.rs) | Satellite and station clocks of a Clock RINEX (CODE MGEX) |
+| [meteo](examples/meteo.rs) | Meteo observations time series (POTS00DEU) |
 | [observation_residuals](examples/observation_residuals.rs) | PolaRx5 − GNSS-SDR observation residuals (common antenna) |
 | [orbit_residuals](examples/orbit_residuals.rs) | GRG − IAC and NAV − GRG orbit residuals |
 
@@ -144,7 +155,7 @@ cargo run --release --features navigation --example ppp > solutions.csv
 | `sp3` | ✓ | SP3 precise products (sources, merging) |
 | `navigation` | | P.V.T solutions, powered by [GNSS-RTK](https://github.com/nav-solutions/gnss-rtk) and [ANISE](https://github.com/nyx-space/anise). The heaviest option. |
 | `cggtts` | | CGGTTS solutions (common view time transfer), powered by [CGGTTS](https://github.com/nav-solutions/cggtts) (implies `navigation`) |
-| `ionex` | | Ionospheric Pierce Points, powered by [IONEX](https://github.com/nav-solutions/ionex) |
+| `ionex` | | IONEX inputs (TEC maps analysis, temporal interpolation) and Ionospheric Pierce Points, powered by [IONEX](https://github.com/nav-solutions/ionex) |
 | `embed_ephem` | | Embeds the ANISE dataset at build time: no Internet access required at runtime (implies `navigation`) |
 | `serde` | | Serialization and deserialization of the configurations, indexing, data points and output stream, see [Serde support](docs/context.md#serde-support) |
 | `log` | | Debug traces (`$RUST_LOG`) |

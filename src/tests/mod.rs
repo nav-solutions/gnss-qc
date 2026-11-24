@@ -1,5 +1,9 @@
+mod clock;
 mod engine;
+
 mod input;
+#[cfg(feature = "ionex")]
+mod ionex;
 
 #[cfg(all(feature = "ionex", feature = "sp3"))]
 mod ipp;

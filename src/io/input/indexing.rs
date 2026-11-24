@@ -171,6 +171,20 @@ impl QcIndexing {
     }
 
     /// Select a [QcIndexing] method for this [Rinex] file (infaillible)
+    /// Agency (publisher) of a [Rinex]: header agency, or the analysis center
+    /// code of Clock RINEX (for example `GRG`, `COD`).
+    pub(crate) fn rinex_agency(rinex: &Rinex) -> Option<String> {
+        match &rinex.header.agency {
+            Some(agency) if !agency.trim().is_empty() => Some(agency.trim().to_string()),
+            _ => rinex
+                .header
+                .clock
+                .as_ref()
+                .and_then(|clock| clock.igs.clone())
+                .filter(|code| !code.trim().is_empty()),
+        }
+    }
+
     pub fn from_rinex_file(file_stem: &str, rinex: &Rinex) -> Self {
         match rinex.header.rinex_type {
             RinexType::ObservationData => {
@@ -197,8 +211,8 @@ impl QcIndexing {
             }
             _ => {
                 // prefered is agency
-                match &rinex.header.agency {
-                    Some(agency) => Self::Agency(agency.clone()),
+                match Self::rinex_agency(rinex) {
+                    Some(agency) => Self::Agency(agency),
                     None => Self::Custom(file_stem.to_string()),
                 }
             }

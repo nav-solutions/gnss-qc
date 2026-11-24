@@ -17,12 +17,13 @@ const ROVER_OBS: &str = "CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz";
 
 const NAV: &str = "NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz";
 const SP3: &str = "SP3/C/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz";
+const CLK: &str = "CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz";
 
 fn main() {
     // 1. Context: input products, indexed and merged by the products table.
     //    Observations are indexed by receiver (model + serial number),
-    //    navigation and precise products by agency.
-    let products = common::load_products(&QcInputConfig::default(), &[ROVER_OBS, NAV, SP3]);
+    //    navigation, precise products and precise clocks by agency.
+    let products = common::load_products(&QcInputConfig::default(), &[ROVER_OBS, NAV, SP3, CLK]);
 
     let rover = QcIndexing::Receiver("SEPT POLARX5 #3047937".to_string());
 
@@ -38,6 +39,7 @@ fn main() {
         .with_method(Method::PPP)
         .with_constellations(&[Constellation::GPS, Constellation::Galileo])
         .with_orbits(QcOrbitPreference::Auto) // SP3 first, NAV otherwise
+        .with_clocks(QcClockPreference::Auto) // Clock RINEX > SP3 clocks (precise orbits)
         .with_user_parameters(UserParameters::new(
             UserProfile::Static,
             ClockProfile::Quartz,

@@ -11,8 +11,9 @@ of the [MISO engine](../miso.md): the solutions are streamed like any other resu
  OBS (rover) ─────┐                                   ┌─ candidates (rover, base)
  OBS (RTK base) ──┤                                   │
  NAV ─────────────┼──► QcEngine ──► QcNavigationProcessor ──► PVT solutions stream
- SP3 ─────────────┘   (synchronized       │           └─ orbits + clocks: SP3 > NAV,
-                       context)           │              per satellite, per epoch
+ SP3 ─────────────┤   (synchronized       │           └─ orbits: SP3 > NAV,
+ CLK ─────────────┘    context)           │              clocks: CLK > SP3 > NAV,
+                                          │              per satellite, per epoch
                                           └─ GNSS-RTK Solver (ANISE almanac)
 ```
 
@@ -80,6 +81,7 @@ for item in engine {
 | Observations (OBS / CRINEX) | yes | pseudo ranges, phase ranges, SNR (rover, and base in RTK) |
 | Navigation (NAV) | yes, unless precise products cover every satellite | Keplerian orbits and clocks, group delays (TGD / BGD) |
 | Precise products (SP3) | recommended, required for PPP | precise orbits and clocks |
+| Precise clocks (Clock RINEX) | recommended for PPP | precise satellite clocks (30"), preferred to the SP3 clocks, see [precise clocks](../clocks.md) |
 | ANISE almanac | yes | Earth frame, Sun position (eclipses) |
 
 Supported constellations: GPS, Galileo, BeiDou, QZSS (Glonass and SBAS are not supported
@@ -107,21 +109,34 @@ When precise products (SP3) and broadcast ephemerides (NAV) are both available,
 | `PreciseOnly` | Precise products only: satellites without precise products are not used |
 | `BroadcastOnly` | Broadcast ephemerides only |
 
-Precise products *cover* a satellite when both its position and its clock can be interpolated
-at the sampling instant and at the transmission instant (no extrapolation, no data gap).
-Consequently, in `Auto` mode, broadcast ephemerides take over transparently:
+Precise products *cover* a satellite when its position can be interpolated at the sampling
+instant and at the transmission instant (no extrapolation, no data gap), and, with the
+default clock preference, when a precise clock (Clock RINEX or SP3) is available at both
+instants as well. Consequently, in `Auto` mode, broadcast ephemerides take over transparently:
 
 - at the very beginning of the products (the transmission instant precedes the first sample);
 - when a satellite is missing from the precise products (BeiDou in a GPS + Galileo product for example);
 - when the precise products end before the observations (the solutions stream continues without interruption).
 
-The orbit and the clock of one satellite always come from the same product: mixing a precise
-orbit with a broadcast clock would be inconsistent at the meter level.
+### Satellite clocks
+
+`QcClockPreference` defines where the satellite clocks come from:
+
+| Preference | Behavior |
+|------------|----------|
+| `Auto` (default) | The clock follows the orbit (consistent products): precise orbit → Clock RINEX when it covers the satellite, SP3 clock states otherwise; broadcast orbit → radio message |
+| `Precise` | Precise clocks whatever the orbit (Clock RINEX preferred to the SP3 clock states). Satellites without precise clock are not used |
+| `Broadcast` | Clocks of the radio messages whatever the orbit |
+
+With both an SP3 and a Clock RINEX, the Clock RINEX is always preferred: see
+[precise clocks](../clocks.md) for details and results. By default, the orbit and the clock of
+one satellite come from consistent products: mixing a precise orbit with a broadcast clock is
+inconsistent at the decimeter to meter level, and is only possible on explicit request.
 
 | Correction | Broadcast | Precise |
 |------------|-----------|---------|
 | Orbit | Keplerian solving (GPS, Galileo, QZSS, BeiDou MEO / IGSO / GEO) | Lagrange interpolation (order 10) |
-| Clock | polynomial (a0, a1, a2) | linear interpolation between samples |
+| Clock | polynomial (a0, a1, a2) | linear interpolation between samples (Clock RINEX, otherwise SP3) |
 | Relativistic clock correction | F.e.√A.sin(E) | -2 r·v / c² |
 | Group delay (single frequency only) | broadcast TGD / BGD | broadcast TGD / BGD (precise clocks are iono free referenced) |
 
@@ -130,7 +145,8 @@ to the solver (GPS / QZSS L1, Galileo E1, BeiDou B1I): the signal the broadcast 
 delays are defined for.
 
 The `QcNavigationReport`, emitted at the end of the session, counts the orbital states
-served from each product (`precise_orbits`, `broadcast_orbits`).
+and the satellite clock states served from each product (`precise_orbits`, `broadcast_orbits`,
+`precise_clocks`, `precise_state_clocks`, `broadcast_clocks`).
 
 ## Configuration
 
@@ -142,6 +158,7 @@ served from each product (`precise_orbits`, `broadcast_orbits`).
 | `rover` | `with_rover(indexing)` | first signal source (that is not the base) | Receiver to navigate |
 | `constellations` | `with_constellations(..)` | GPS, Galileo | Constellations to navigate with |
 | `orbits` | `with_orbits(..)` | `Auto` | Orbital products preference |
+| `clocks` | `with_clocks(..)` | `Auto` | Satellite clocks preference |
 | `solver` | `with_method(method)` | GNSS-RTK defaults, CPP | Solver configuration (`QcSolverConfig`): method, models, filters |
 | `user` | `with_user_parameters(..)` | Pedestrian, Quartz | User profile (dynamics, clock) |
 | `apriori_ecef_m` | - | none (survey) | A priori position (ECEF m) |
@@ -174,7 +191,7 @@ cfg.solver.solver.postfit_denoising = 0.0;
 | Output | Description |
 |--------|-------------|
 | `QcOutput::PVTSolution(QcPvtSolution)` | `receiver` + GNSS-RTK `PVTSolution`: position and velocity (ECEF), geodetic coordinates, clock offset (absolute navigation), DOPs, contributing satellites. `solution_type` is `PPP` for any absolute solution, `RTK` for differential solutions |
-| `QcOutput::NavigationReport(QcNavigationReport)` | End of session: epochs, solutions, failures (per reason), orbital states per product |
+| `QcOutput::NavigationReport(QcNavigationReport)` | End of session: epochs, solutions, failures (per reason), orbital and clock states per product |
 
 Solutions are only streamed when the solver succeeds; failures are counted in the report.
 

@@ -12,7 +12,10 @@ which produce a single stream of results.
  QcSource ──poll──►│ signals FIFO (per source)                         │
  QcSource ──poll──►│ ephemerides  (per source, per satellite)          │──► processors ──► output queue ──► poll_next()
  QcSource ──poll──►│ precise states (per source, per satellite)        │                                  Iterator
-                   │ static data (ANTEX)                               │                                  run(sink)
+ QcSource ──poll──►│ precise clocks (per source, per clock)            │                                  run(sink)
+ QcSource ──poll──►│ meteo observations (per source, per observable)   │
+ QcSource ──poll──►│ TEC maps (per source, per epoch)                  │
+                   │ static data (ANTEX)                               │
                    └───────────────────────────────────────────────────┘
 ```
 
@@ -56,6 +59,9 @@ order** by each source:
 | `QcPayload::ReceiverClock` | sampling epoch | receiver clock state |
 | `QcPayload::Ephemeris` | Time of Clock | radio ephemeris frame |
 | `QcPayload::PreciseState` | state epoch | precise position (km) and clock (s) |
+| `QcPayload::PreciseClock` | state epoch | precise clock state of a satellite or a ground station (s) |
+| `QcPayload::Meteo` | observation epoch | meteo sensor observation |
+| `QcPayload::Tec` | map epoch | node of a TEC map (vertical TEC) |
 
 Any source may deliver any payload: a real-time RTCM stream carries both observations and
 ephemerides. The `QcSourceDescriptor` tells the engine what to expect from a source, so it
@@ -77,6 +83,9 @@ let descriptor = QcSourceDescriptor::new(QcIndexing::Custom("rtcm".to_string()))
 | `QcRinexObsSource` | Observation RINEX / CRINEX (receiver clock, then signals, epoch after epoch) |
 | `QcRinexNavSource` | Navigation RINEX (ephemeris frames) |
 | `QcSp3Source` | SP3 precise products |
+| `QcRinexClockSource` | Clock RINEX (satellite and station clock states) |
+| `QcRinexMeteoSource` | Meteo RINEX (sensor observations) |
+| `QcIonexSource` | IONEX (TEC maps, `ionex` feature) |
 | `QcIterSource` | Any `Iterator<Item = QcInputItem>` (in-memory datasets, adapters) |
 | `QcChannelSource` | Real-time: `std::sync::mpsc` channel fed by another thread |
 | `QcChainSource` | Concatenates sources that follow each other in time |
@@ -93,7 +102,8 @@ same period. Before an epoch `t` is processed:
 1. **completeness**: every live signal source must have moved past `t` (or ended).
    Two receivers sampling the same epoch are presented together. In real-time, this is the
    only condition the engine waits for;
-2. **context**: every live context source (ephemerides, precise states) is pulled until
+2. **context**: every live context source (ephemerides, precise states, precise clocks,
+   meteo observations) is pulled until
    it covers `t + lookahead`. A pending context source never blocks the processing;
 3. **pruning**: expired context data points are dropped;
 4. the epoch is presented to every processor (`QcEpochContext`).
@@ -103,8 +113,10 @@ Observations that arrive after their epoch was processed are dropped
 
 When no source provides signals (a navigation file alone for example), the epochs are driven
 by the context data points themselves (*context only session*): each distinct epoch of the
-context products (precise products samples, broadcast times of clock) is processed once, in
-chronological order, every context source being read up to the lookahead beyond that epoch.
+context products (precise products samples, broadcast times of clock, clock states, meteo
+observations) is processed once, in chronological order, every context source being read up
+to the lookahead beyond that epoch. Sources may describe distinct periods, or have data gaps
+larger than the lookahead.
 Several context products can then be compared at the same instants, without any observation
 file, see [orbit residuals](residuals/orbits.md).
 
@@ -116,6 +128,9 @@ Context data is buffered **per source and per satellite**, around the epoch bein
 |-------|------------------|-----------|
 | `QcEphemerisStore` | valid ephemeris (validity period of its constellation) closest to `t`, from any source (`select`) or from a given agency (`select_from`) | until its validity period expires |
 | `QcPreciseStore` | Lagrange interpolation, order 10 (position, velocity, clock), from any source (`interpolate`) or a given agency (`interpolate_from`) | 3 hours |
+| `QcClockStore` | linear interpolation of the clock states (satellites `AS`, stations `AR`), see [precise clocks](clocks.md) | 1 hour |
+| `QcMeteoStore` | latest observation or linear interpolation, per observable, see [meteo observations](meteo.md) | 3 hours |
+| `QcTecStore` | TEC maps: bilinear (space) and rotated maps (time) interpolation, see [TEC maps](ionex.md) | two maps behind |
 
 Precise products are never extrapolated, nor interpolated over a data gap. The default
 lookahead (3 hours) and retention (3 hours) allow interpolation up to the very beginning
@@ -198,6 +213,10 @@ Built-in processors produce `QcOutput`:
 | `IPP` | `QcIppProcessor` (`ionex` feature) |
 | `ObservationResidual` | `QcObservationResidualProcessor` |
 | `OrbitResidual` | `QcOrbitResidualProcessor` |
+| `PreciseClock` | `QcPreciseClockProcessor` |
+| `Meteo` | `QcMeteoProcessor` |
+| `ClockResidual` | `QcClockResidualProcessor` |
+| `TecMap`, `TecPoint` | `QcTecProcessor` |
 
 The output type is generic: applications define their own type (`O: From<QcOutput>`)
 to stack their processors with the built-in ones, see [Processors](processors.md).

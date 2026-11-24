@@ -6,6 +6,13 @@
 //!
 //! [QcOrbitPreference] defines how both are combined. These orbits are shared by
 //! the navigation solver and the other processors (ionospheric pierce points..).
+//!
+//! Satellite clocks are resolved from either:
+//! - precise clock products (Clock RINEX): linear interpolation,
+//! - precise products (SP3): linear interpolation of the clock states,
+//! - broadcast ephemerides (NAV): clock polynomial,
+//!
+//! and [QcClockPreference] defines how they are combined.
 mod kepler;
 
 pub use kepler::{relativistic_correction_s, QcKepler, QcKeplerState, SPEED_OF_LIGHT_M_S};
@@ -41,6 +48,40 @@ pub enum QcOrbitKind {
     /// Precise products (SP3)
     Precise,
     /// Broadcast ephemerides (NAV)
+    Broadcast,
+}
+
+/// Satellite clocks preference.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum QcClockPreference {
+    /// The clock follows the orbit, so both come from consistent products. Default.
+    /// - precise orbit: precise clock products (Clock RINEX) when they cover the
+    ///   satellite, otherwise the clock states of the precise products (SP3).
+    ///   A precise orbit is only selected when a precise clock is available.
+    /// - broadcast orbit: clock of the radio message.
+    #[default]
+    Auto,
+
+    /// Precise clocks only, whatever the orbit: precise clock products (Clock RINEX)
+    /// are preferred to the clock states of the precise products (SP3).
+    /// Satellites without precise clock are not used.
+    Precise,
+
+    /// Clocks of the radio messages (broadcast ephemerides) only, whatever the orbit.
+    /// Satellites without broadcast ephemeris are not used.
+    Broadcast,
+}
+
+/// Kind of clock used for one satellite, at one epoch
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum QcClockKind {
+    /// Precise clock products (Clock RINEX)
+    PreciseClock,
+    /// Clock states of the precise products (SP3)
+    PreciseState,
+    /// Clock of the radio message (NAV)
     Broadcast,
 }
 

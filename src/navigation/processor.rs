@@ -25,7 +25,7 @@ use crate::{
         },
         rtk::QcRtkBase,
     },
-    orbit::{QcOrbitKind, QcOrbitPreference},
+    orbit::{QcClockKind, QcClockPreference, QcOrbitKind, QcOrbitPreference},
 };
 
 /// Navigation technique
@@ -61,6 +61,11 @@ pub struct QcNavigationConfig {
     /// Orbital products preference
     pub orbits: QcOrbitPreference,
 
+    /// Satellite clocks preference: precise clocks (Clock RINEX, SP3)
+    /// or clocks of the radio messages.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub clocks: QcClockPreference,
+
     /// Solver configuration (navigation method, models..)
     pub solver: Config,
 
@@ -78,6 +83,7 @@ impl Default for QcNavigationConfig {
             rover: None,
             constellations: vec![Constellation::GPS, Constellation::Galileo],
             orbits: QcOrbitPreference::Auto,
+            clocks: QcClockPreference::Auto,
             solver: Config::default(),
             user: UserParameters::new(UserProfile::Pedestrian, ClockProfile::Quartz),
             apriori_ecef_m: None,
@@ -101,6 +107,12 @@ impl QcNavigationConfig {
     /// Selects the orbital products preference
     pub fn with_orbits(mut self, orbits: QcOrbitPreference) -> Self {
         self.orbits = orbits;
+        self
+    }
+
+    /// Selects the satellite clocks preference
+    pub fn with_clocks(mut self, clocks: QcClockPreference) -> Self {
+        self.clocks = clocks;
         self
     }
 
@@ -161,6 +173,7 @@ impl QcNavigator {
 
         let data = Rc::new(RefCell::new(QcNavigationData::new(
             cfg.orbits,
+            cfg.clocks,
             cfg.solver.method,
         )));
 
@@ -205,7 +218,7 @@ impl QcNavigator {
     }
 
     /// Satellite clock offset (s) that was applied for `sv` at `t`
-    /// (relativistic correction included), from the selected orbital product.
+    /// (relativistic correction included), from the selected clock product.
     /// Valid for the satellites of the latest resolution attempt.
     pub fn satellite_clock_offset_s(&self, sv: SV, t: Epoch) -> Option<f64> {
         self.data.borrow().clock_s(sv, t)
@@ -214,6 +227,11 @@ impl QcNavigator {
     /// Orbital product used for `sv` in the latest resolution attempt
     pub fn orbit_kind(&self, sv: SV) -> Option<QcOrbitKind> {
         self.data.borrow().orbit_kind(sv)
+    }
+
+    /// Clock product used for `sv` in the latest resolution attempt
+    pub fn clock_kind(&self, sv: SV) -> Option<QcClockKind> {
+        self.data.borrow().clock_kind(sv)
     }
 
     fn base_indexing(&self) -> Option<&QcIndexing> {
@@ -328,6 +346,9 @@ impl QcNavigator {
         let counters = self.data.borrow().counters();
         report.precise_orbits = counters.precise;
         report.broadcast_orbits = counters.broadcast;
+        report.precise_clocks = counters.precise_clocks;
+        report.precise_state_clocks = counters.precise_state_clocks;
+        report.broadcast_clocks = counters.broadcast_clocks;
         Some(report)
     }
 }

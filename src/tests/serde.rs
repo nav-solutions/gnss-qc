@@ -56,6 +56,11 @@ fn serde_traits() {
     assert_serde::<QcPayload>();
     assert_serde::<QcSignal>();
     assert_serde::<QcPreciseState>();
+    assert_serde::<QcClockId>();
+    assert_serde::<QcPreciseClock>();
+    assert_serde::<QcMeteoSample>();
+    assert_serde::<QcTecPoint>();
+    assert_serde::<QcTecValue>();
     assert_serde::<QcSourceDescriptor>();
     assert_serde::<QcEngineStats>();
     assert_serde::<QcInterpolatedState>();
@@ -63,6 +68,8 @@ fn serde_traits() {
     // orbits
     assert_serde::<QcOrbitPreference>();
     assert_serde::<QcOrbitKind>();
+    assert_serde::<QcClockPreference>();
+    assert_serde::<QcClockKind>();
     assert_serde::<QcSatelliteState>();
     assert_serde::<crate::orbit::QcKepler>();
     assert_serde::<crate::orbit::QcKeplerState>();
@@ -71,6 +78,15 @@ fn serde_traits() {
     assert_serde::<QcObservationResidualConfig>();
     assert_serde::<QcOrbitResidualConfig>();
     assert_serde::<QcOrbitProduct>();
+    assert_serde::<QcPreciseClockConfig>();
+    assert_serde::<QcClockProduct>();
+    assert_serde::<QcClockAlignment>();
+    assert_serde::<QcClockResidualConfig>();
+    assert_serde::<QcTecConfig>();
+    assert_serde::<QcTecRegion>();
+    assert_serde::<QcTecSampling>();
+    assert_serde::<QcTecInterpolation>();
+    assert_serde::<QcMeteoConfig>();
 
     #[cfg(feature = "ionex")]
     assert_serde::<QcIppConfig>();
@@ -88,6 +104,11 @@ fn serde_traits() {
     assert_serde::<QcEphemerisCoverage>();
     assert_serde::<QcObservationResidual>();
     assert_serde::<QcOrbitResidual>();
+    assert_serde::<QcPreciseClockOutput>();
+    assert_serde::<QcClockResidual>();
+    assert_serde::<QcTecMapPoint>();
+    assert_serde::<QcTecMapStatistics>();
+    assert_serde::<QcMeteoOutput>();
 
     #[cfg(feature = "navigation")]
     assert_serde::<QcNavigationReport>();
@@ -170,6 +191,7 @@ fn input_configuration_serde() {
         meteo_rinex_indexing: None,
         clk_rinex_indexing: Some(QcIndexingConfig::FileName),
         sp3_indexing: Some(QcIndexingConfig::FileName),
+        ionex_indexing: Some(QcIndexingConfig::Custom("GIM".to_string())),
     };
 
     round_trip(&cfg);
@@ -202,6 +224,57 @@ fn input_configuration_serde() {
 fn processors_configuration_serde() {
     round_trip(&QcOrbitPreference::PreciseOnly);
     round_trip(&QcOrbitKind::Broadcast);
+
+    for clocks in [
+        QcClockPreference::Auto,
+        QcClockPreference::Precise,
+        QcClockPreference::Broadcast,
+    ] {
+        round_trip(&clocks);
+    }
+
+    for kind in [
+        QcClockKind::PreciseClock,
+        QcClockKind::PreciseState,
+        QcClockKind::Broadcast,
+    ] {
+        round_trip(&kind);
+    }
+
+    round_trip(&QcPreciseClockConfig::default());
+    round_trip(&QcPreciseClockConfig::stations_only().with_sampling(Duration::from_seconds(300.0)));
+    round_trip(&QcMeteoConfig::default());
+
+    round_trip(&QcClockResidualConfig::default());
+    round_trip(
+        &QcClockResidualConfig::clock_products(
+            QcIndexing::Agency("GRG".to_string()),
+            QcIndexing::Agency("JPL".to_string()),
+        )
+        .with_sampling(Duration::from_seconds(300.0))
+        .with_alignment(QcClockAlignment::Epoch)
+        .with_constellations(&[Constellation::GPS])
+        .stations_only(),
+    );
+    round_trip(&QcClockProduct::Broadcast(None));
+
+    round_trip(&QcTecConfig::default());
+    round_trip(
+        &QcTecConfig::default()
+            .with_upsampling_factor(2.0)
+            .with_interpolation(QcTecInterpolation::Linear)
+            .with_points()
+            .with_regions(vec![QcTecRegion::new(
+                "Europe",
+                (35.0, 70.0),
+                (-10.0, 30.0),
+            )]),
+    );
+    round_trip(&QcTecSampling::Period(Duration::from_seconds(1800.0)));
+    round_trip(&QcMeteoConfig::default().with_observables(&[
+        rinex::prelude::Observable::Pressure,
+        rinex::prelude::Observable::Temperature,
+    ]));
 
     round_trip(&QcObservationResidualConfig::default());
     round_trip(
@@ -256,6 +329,13 @@ fn processors_configuration_serde() {
         });
 
         json_round_trip(&QcNavigationConfig::default());
+        json_round_trip(&QcNavigationConfig::default().with_clocks(QcClockPreference::Precise));
+
+        // configurations written before the clocks preference
+        let mut json = serde_json::to_value(QcNavigationConfig::default()).unwrap();
+        json.as_object_mut().unwrap().remove("clocks");
+        let cfg: QcNavigationConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(cfg.clocks, QcClockPreference::Auto);
         json_round_trip(
             &QcNavigationConfig::default()
                 .with_method(Method::PPP)
@@ -269,6 +349,46 @@ fn processors_configuration_serde() {
 fn data_points_serde() {
     let t = epoch("2020-06-25T00:00:30 GPST");
     let sv = SV::new(Constellation::GPS, 1);
+
+    // precise clocks: satellites and stations
+    round_trip(&QcInputItem::precise_clock(
+        t,
+        QcClockId::Satellite(sv),
+        rinex::clock::ClockProfileType::AS,
+        1.59438015248E-05,
+    ));
+
+    let mut station = QcInputItem::precise_clock(
+        t,
+        QcClockId::Station("ESBC00DNK".to_string()),
+        rinex::clock::ClockProfileType::AR,
+        -1.0E-9,
+    );
+
+    if let QcPayload::PreciseClock(clock) = &mut station.payload {
+        clock.offset_dev_s = Some(1.0E-11);
+        clock.drift_s_s = Some(1.0E-13);
+    }
+
+    round_trip(&station);
+
+    round_trip(&QcInputItem::meteo(
+        t,
+        rinex::prelude::Observable::Pressure,
+        1013.25,
+    ));
+
+    // descriptors written before the precise clocks and meteo sources
+    let descriptor = QcSourceDescriptor::new(QcIndexing::Agency("GRG".to_string()))
+        .with_precise_clocks()
+        .with_meteo();
+    round_trip(&descriptor);
+
+    let mut json = serde_json::to_value(&descriptor).unwrap();
+    json.as_object_mut().unwrap().remove("precise_clocks");
+    json.as_object_mut().unwrap().remove("meteo");
+    let parsed: QcSourceDescriptor = serde_json::from_value(json).unwrap();
+    assert!(!parsed.precise_clocks && !parsed.meteo);
 
     let signal = pseudo_range_item("G01", t, 20_000_123.456);
     round_trip(&signal);
@@ -412,4 +532,105 @@ fn orbit_residuals_serde() {
     }
 
     assert_eq!(n, 500);
+}
+
+/// Precise clocks and meteo observations of real products
+#[test]
+fn clock_meteo_outputs_serde() {
+    let products = load_products(
+        &QcInputConfig::default(),
+        &[
+            "CLK/V3/COD0MGXFIN_20241280000_01D_30S_CLK.CLK.gz",
+            "MET/V3/POTS00DEU_R_20232540000_01D_05M_MM.rnx.gz",
+        ],
+    );
+
+    let engine = QcEngine::<QcOutput>::builder()
+        .with_products(products)
+        .with_processor(QcPreciseClockProcessor::new(
+            QcPreciseClockConfig::default().with_sampling(Duration::from_hours(1.0)),
+        ))
+        .with_processor(QcMeteoProcessor::default())
+        .build()
+        .unwrap();
+
+    let (mut clocks, mut meteo) = (0, 0);
+
+    for item in engine {
+        let item = item.unwrap();
+
+        match &item.payload {
+            QcOutput::PreciseClock(_) => clocks += 1,
+            QcOutput::Meteo(_) => meteo += 1,
+            _ => panic!("unexpected output"),
+        }
+
+        round_trip(&item);
+    }
+
+    assert!(clocks > 5000, "{}", clocks);
+    assert_eq!(meteo, 864);
+}
+
+/// Clock residuals and TEC maps of real products
+#[test]
+#[cfg(feature = "ionex")]
+fn clock_residuals_tec_outputs_serde() {
+    let products = load_products(
+        &QcInputConfig::default(),
+        &[
+            "CLK/V3/COD0MGXFIN_20241280000_01D_30S_CLK.CLK.gz",
+            "IONEX/V1/CKMG0080.09I.gz",
+        ],
+    );
+
+    let engine = QcEngine::<QcOutput>::builder()
+        .with_products(products)
+        .with_processor(QcTecProcessor::new(
+            QcTecConfig::default().with_upsampling_factor(2.0),
+        ))
+        .build()
+        .unwrap();
+
+    let mut tec = 0;
+
+    for item in engine {
+        let item = item.unwrap();
+        if matches!(item.payload, QcOutput::TecMap(_)) {
+            tec += 1;
+        }
+        round_trip(&item);
+    }
+
+    assert_eq!(tec, 25 * 6);
+
+    let item = QcOutputItem {
+        epoch: epoch("2020-06-25T00:00:00 GPST"),
+        payload: QcOutput::ClockResidual(QcClockResidual {
+            clock: QcClockId::Satellite(SV::new(Constellation::GPS, 1)),
+            lhs_source: QcIndexing::Agency("GRG".to_string()),
+            lhs_kind: QcClockKind::PreciseClock,
+            rhs_source: QcIndexing::Agency("JPL".to_string()),
+            rhs_kind: QcClockKind::PreciseClock,
+            residual_s: 1.234E-9,
+            datum_s: Some(1.1E-9),
+        }),
+    };
+    round_trip(&item);
+
+    let item = QcOutputItem {
+        epoch: epoch("2009-01-08T01:00:00 UTC"),
+        payload: QcOutput::TecPoint(QcTecMapPoint {
+            source: QcIndexing::Agency("AIUB".to_string()),
+            interpolated: true,
+            point: QcTecPoint {
+                latitude_deg: 43.5,
+                longitude_deg: 1.5,
+                altitude_km: 350.0,
+                tecu: 12.3,
+                rms_tecu: None,
+            },
+        }),
+    };
+    round_trip(&item);
 }

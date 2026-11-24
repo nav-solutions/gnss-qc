@@ -25,8 +25,12 @@ use gnss_rs::prelude::SV;
 use hifitime::Epoch;
 
 use rinex::{
+    clock::ClockProfileType,
     navigation::Ephemeris,
-    prelude::obs::{ClockObservation, EpochFlag, SignalObservation},
+    prelude::{
+        obs::{ClockObservation, EpochFlag, SignalObservation},
+        Observable,
+    },
 };
 
 use crate::io::input::indexing::QcIndexing;
@@ -113,6 +117,102 @@ pub struct QcPreciseState {
     pub clock_offset_s: Option<f64>,
 }
 
+/// Clock described by a precise clock product.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum QcClockId {
+    /// Onboard clock of a satellite
+    Satellite(SV),
+
+    /// Clock of a ground station (receiver clock), by station name
+    Station(String),
+}
+
+impl QcClockId {
+    /// Satellite, if this is an onboard clock
+    pub fn as_satellite(&self) -> Option<SV> {
+        match self {
+            Self::Satellite(sv) => Some(*sv),
+            Self::Station(_) => None,
+        }
+    }
+
+    /// Station name, if this is a ground clock
+    pub fn as_station(&self) -> Option<&str> {
+        match self {
+            Self::Satellite(_) => None,
+            Self::Station(name) => Some(name),
+        }
+    }
+}
+
+impl fmt::Display for QcClockId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Satellite(sv) => write!(f, "{}", sv),
+            Self::Station(name) => write!(f, "{}", name),
+        }
+    }
+}
+
+/// Precise clock state (typically from Clock RINEX).
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct QcPreciseClock {
+    /// Clock this state applies to
+    pub clock: QcClockId,
+
+    /// Kind of clock data (analysis result for satellites `AS` or receivers `AR`,
+    /// calibration `CR`, discontinuity `DR`, broadcast monitoring `MS`)
+    pub profile: ClockProfileType,
+
+    /// State [Epoch]
+    pub epoch: Epoch,
+
+    /// Clock offset, in seconds
+    pub offset_s: f64,
+
+    /// Possible standard deviation of the clock offset, in seconds
+    pub offset_dev_s: Option<f64>,
+
+    /// Possible clock drift, in s.s⁻¹
+    pub drift_s_s: Option<f64>,
+}
+
+/// One meteo sensor observation (typically from Meteo RINEX).
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct QcMeteoSample {
+    /// Observed physics: pressure (hPa), temperature (°C), relative humidity (%),
+    /// zenith delays (mm), wind direction (°) and speed (m/s), rain increment (0.1 mm),
+    /// hail indicator.
+    pub observable: Observable,
+
+    /// Measurement, in the unit of the [Observable]
+    pub value: f64,
+}
+
+/// One node of a Total Electron Content map (typically from IONEX):
+/// vertical TEC at these coordinates (map epoch: time tag of the data point).
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct QcTecPoint {
+    /// Latitude (°)
+    pub latitude_deg: f64,
+
+    /// Longitude (°)
+    pub longitude_deg: f64,
+
+    /// Altitude of the ionospheric layer (km)
+    pub altitude_km: f64,
+
+    /// Vertical Total Electron Content (TECu: 10¹⁶ electrons/m²)
+    pub tecu: f64,
+
+    /// Possible RMS of the TEC (TECu)
+    pub rms_tecu: Option<f64>,
+}
+
 /// All data points the engine knows how to process.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -130,6 +230,15 @@ pub enum QcPayload {
 
     /// Precise satellite state
     PreciseState(QcPreciseState),
+
+    /// Precise clock state (satellite or ground station)
+    PreciseClock(QcPreciseClock),
+
+    /// Meteo sensor observation
+    Meteo(QcMeteoSample),
+
+    /// Node of a TEC map
+    Tec(QcTecPoint),
 }
 
 /// Time tagged data point, delivered by a [QcSource].
@@ -183,6 +292,42 @@ impl QcInputItem {
         }
     }
 
+    /// Builds a new precise clock item (satellite or station).
+    pub fn precise_clock(
+        epoch: Epoch,
+        clock: QcClockId,
+        profile: ClockProfileType,
+        offset_s: f64,
+    ) -> Self {
+        Self {
+            epoch,
+            payload: QcPayload::PreciseClock(QcPreciseClock {
+                clock,
+                profile,
+                epoch,
+                offset_s,
+                offset_dev_s: None,
+                drift_s_s: None,
+            }),
+        }
+    }
+
+    /// Builds a new meteo sensor observation item.
+    pub fn meteo(epoch: Epoch, observable: Observable, value: f64) -> Self {
+        Self {
+            epoch,
+            payload: QcPayload::Meteo(QcMeteoSample { observable, value }),
+        }
+    }
+
+    /// Builds a new TEC map node item.
+    pub fn tec(epoch: Epoch, point: QcTecPoint) -> Self {
+        Self {
+            epoch,
+            payload: QcPayload::Tec(point),
+        }
+    }
+
     /// Builds a new receiver clock item.
     pub fn receiver_clock(epoch: Epoch, clock: ClockObservation) -> Self {
         Self {
@@ -196,7 +341,8 @@ impl QcInputItem {
 /// wait for before processing an epoch:
 /// - sources providing signals must have moved past the epoch being processed
 ///   (otherwise the epoch might be incomplete);
-/// - sources providing context data (ephemerides, precise states) must cover the
+/// - sources providing context data (ephemerides, precise states, precise clocks,
+///   meteo observations, TEC maps) must cover the
 ///   epoch being processed plus the lookahead window.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -217,6 +363,18 @@ pub struct QcSourceDescriptor {
 
     /// This source delivers precise states
     pub precise_states: bool,
+
+    /// This source delivers precise clock states
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub precise_clocks: bool,
+
+    /// This source delivers meteo observations
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub meteo: bool,
+
+    /// This source delivers TEC maps
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub tec_maps: bool,
 }
 
 impl QcSourceDescriptor {
@@ -228,6 +386,9 @@ impl QcSourceDescriptor {
             signals: false,
             ephemerides: false,
             precise_states: false,
+            precise_clocks: false,
+            meteo: false,
+            tec_maps: false,
         }
     }
 
@@ -255,10 +416,32 @@ impl QcSourceDescriptor {
         self
     }
 
+    /// Precise clocks source (Clock RINEX..)
+    pub fn with_precise_clocks(mut self) -> Self {
+        self.precise_clocks = true;
+        self
+    }
+
+    /// Meteo observations source (Meteo RINEX, meteo sensor..)
+    pub fn with_meteo(mut self) -> Self {
+        self.meteo = true;
+        self
+    }
+
+    /// TEC maps source (IONEX..)
+    pub fn with_tec_maps(mut self) -> Self {
+        self.tec_maps = true;
+        self
+    }
+
     /// Returns true if this source provides context data
     /// (anything that is not an observation).
     pub fn provides_context(&self) -> bool {
-        self.ephemerides || self.precise_states
+        self.ephemerides
+            || self.precise_states
+            || self.precise_clocks
+            || self.meteo
+            || self.tec_maps
     }
 }
 
