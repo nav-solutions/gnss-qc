@@ -40,4 +40,8 @@ pub enum QcProductType {
     /// SP3 file, from our SP3 parser <https://github.com/nav-solutions/sp3>
     #[cfg(feature = "sp3")]
     SP3,
+
+    /// IONEX file (TEC maps), from our IONEX parser <https://github.com/nav-solutions/ionex>
+    #[cfg(feature = "ionex")]
+    IONEX,
 }

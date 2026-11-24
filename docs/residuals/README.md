@@ -1,7 +1,7 @@
 Residual analysis
 =================
 
-[← Processors](../processors.md) · [README](../../README.md) · [Observation residuals →](observations.md) · [Orbit residuals →](orbits.md)
+[← Processors](../processors.md) · [README](../../README.md) · [Observation residuals →](observations.md) · [Orbit residuals →](orbits.md) · [Clock residuals →](clocks.md)
 
 Residual analyses differentiate two products that describe **the same physical quantity**:
 A − B. What remains is what differs between both producers: receivers, analysis centers,
@@ -16,10 +16,11 @@ any feature (`sp3` is only needed to load precise products).
 | [Orbit residuals](orbits.md) | `QcOrbitResidualProcessor` | precise − precise (two agencies) | consistency between analysis centers (cm level) |
 | | | broadcast − precise | broadcast ephemerides quality (m level) |
 | | | broadcast − broadcast (two sources) | decoding / encoding consistency between two receivers or NAV files |
+| [Clock residuals](clocks.md) | `QcClockResidualProcessor` | Clock RINEX − Clock RINEX (two agencies), Clock RINEX − SP3, precise − broadcast | consistency of the clock solutions (0.1 ns level), once the clock datum of each center is removed |
 
 ## In the MISO engine
 
-Both processors are regular `QcProcessor`s: they run on the synchronized epoch context, along
+These processors are regular `QcProcessor`s: they run on the synchronized epoch context, along
 with any other processor, from files or real-time streams.
 
 - **Observation residuals** run on the signal sources: one residual per observation of

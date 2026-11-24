@@ -227,6 +227,24 @@ pub struct QcIppOutput {
 
     /// Obliquity (slant) factor at the pierce point: STEC = factor x VTEC
     pub obliquity_factor: f64,
+
+    /// Vertical TEC at the pierce point (TECu), when TEC maps (IONEX) cover it:
+    /// spatial and temporal interpolation of the maps
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub vertical_tecu: Option<f64>,
+}
+
+#[cfg(feature = "ionex")]
+impl QcIppOutput {
+    /// Slant TEC along the line of sight (TECu), when TEC maps cover the pierce point
+    pub fn slant_tecu(&self) -> Option<f64> {
+        Some(self.vertical_tecu? * self.obliquity_factor)
+    }
+
+    /// First order ionospheric delay (m) at this frequency (Hz): 40.3 STEC / f²
+    pub fn ionospheric_delay_m(&self, frequency_hz: f64) -> Option<f64> {
+        Some(40.308193 * self.slant_tecu()? * 1.0E16 / frequency_hz.powi(2))
+    }
 }
 
 /// Observation residual: A - B, for one satellite and one observable
@@ -302,6 +320,90 @@ impl QcOrbitResidual {
     }
 }
 
+/// Clock residual: A - B between two clock products, for one clock
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct QcClockResidual {
+    /// Clock (satellite or ground station)
+    pub clock: crate::io::source::QcClockId,
+
+    /// Source (agency) of product A
+    pub lhs_source: QcIndexing,
+
+    /// Kind of product A
+    pub lhs_kind: crate::orbit::QcClockKind,
+
+    /// Source (agency) of product B
+    pub rhs_source: QcIndexing,
+
+    /// Kind of product B
+    pub rhs_kind: crate::orbit::QcClockKind,
+
+    /// Raw residual A - B (s)
+    pub residual_s: f64,
+
+    /// Clock datum difference between both products at this epoch (s), when estimated
+    /// (see [QcClockAlignment](crate::prelude::QcClockAlignment))
+    pub datum_s: Option<f64>,
+}
+
+impl QcClockResidual {
+    /// Residual, once the clock datum difference is removed (s)
+    pub fn aligned_s(&self) -> Option<f64> {
+        Some(self.residual_s - self.datum_s?)
+    }
+}
+
+/// Node of a TEC map (native or interpolated), see [QcTecProcessor](crate::prelude::QcTecProcessor)
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct QcTecMapPoint {
+    /// Product (agency) the map comes from
+    pub source: QcIndexing,
+
+    /// True if the map was interpolated in time (not a map of the product)
+    pub interpolated: bool,
+
+    /// Node
+    pub point: crate::io::source::QcTecPoint,
+}
+
+/// Statistics of one TEC map, over one region,
+/// see [QcTecProcessor](crate::prelude::QcTecProcessor)
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct QcTecMapStatistics {
+    /// Product (agency) the map comes from
+    pub source: QcIndexing,
+
+    /// Region
+    pub region: String,
+
+    /// True if the map was interpolated in time (not a map of the product)
+    pub interpolated: bool,
+
+    /// Number of nodes in this region
+    pub nodes: usize,
+
+    /// Mean vertical TEC (TECu)
+    pub mean_tecu: f64,
+
+    /// Standard deviation of the vertical TEC (TECu)
+    pub std_tecu: f64,
+
+    /// Minimal vertical TEC (TECu)
+    pub min_tecu: f64,
+
+    /// Maximal vertical TEC (TECu)
+    pub max_tecu: f64,
+
+    /// Latitude of the maximal TEC (°)
+    pub max_latitude_deg: f64,
+
+    /// Longitude of the maximal TEC (°)
+    pub max_longitude_deg: f64,
+}
+
 /// Results produced by the built-in processors.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -323,11 +425,20 @@ pub enum QcOutput {
     /// Orbit residual
     OrbitResidual(QcOrbitResidual),
 
+    /// Clock residual
+    ClockResidual(QcClockResidual),
+
     /// Precise clock state (passthrough)
     PreciseClock(QcPreciseClockOutput),
 
     /// Meteo observation (passthrough)
     Meteo(QcMeteoOutput),
+
+    /// Node of a TEC map (native or interpolated)
+    TecPoint(QcTecMapPoint),
+
+    /// Statistics of a TEC map, per region
+    TecMap(QcTecMapStatistics),
 
     /// P.V.T solution
     #[cfg(feature = "navigation")]

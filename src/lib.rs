@@ -51,9 +51,9 @@ pub mod prelude {
             product::{QcInputProducts, QcProductSources},
         },
         output::{
-            QcEphemerisCoverage, QcEphemerisOutput, QcFnSink, QcMeteoOutput, QcObservationResidual,
-            QcOrbitResidual, QcOutput, QcOutputItem, QcOutputQueue, QcPreciseClockOutput,
-            QcSignalOutput, QcSink,
+            QcClockResidual, QcEphemerisCoverage, QcEphemerisOutput, QcFnSink, QcMeteoOutput,
+            QcObservationResidual, QcOrbitResidual, QcOutput, QcOutputItem, QcOutputQueue,
+            QcPreciseClockOutput, QcSignalOutput, QcSink, QcTecMapPoint, QcTecMapStatistics,
         },
         rinex::{
             QcRinexClockSource, QcRinexMeteoSource, QcRinexNavSource, QcRinexObsSource,
@@ -62,22 +62,27 @@ pub mod prelude {
         source::{
             QcChainSource, QcChannelSource, QcClockId, QcEphemeris, QcInputItem, QcIterSource,
             QcLazySource, QcMeteoSample, QcPayload, QcPoll, QcPreciseClock, QcPreciseState,
-            QcSignal, QcSource, QcSourceDescriptor, QcSourceError,
+            QcSignal, QcSource, QcSourceDescriptor, QcSourceError, QcTecPoint,
         },
     };
     pub use crate::processors::{
+        QcClockAlignment, QcClockProduct, QcClockResidualConfig, QcClockResidualProcessor,
         QcEphemerisCoverageProcessor, QcEphemerisProcessor, QcMeteoConfig, QcMeteoProcessor,
         QcObservationResidualConfig, QcObservationResidualProcessor, QcOrbitProduct,
         QcOrbitResidualConfig, QcOrbitResidualProcessor, QcPreciseClockConfig,
-        QcPreciseClockProcessor, QcSignalProcessor,
+        QcPreciseClockProcessor, QcSignalProcessor, QcTecConfig, QcTecProcessor, QcTecRegion,
+        QcTecSampling,
     };
     pub use crate::sync::{
         QcBuffered, QcClockStore, QcEphemerisStore, QcInterpolatedState, QcMeteoStore,
-        QcPreciseStore, QcSvBuffer,
+        QcPreciseStore, QcSvBuffer, QcTecInterpolation, QcTecMap, QcTecStore, QcTecValue,
     };
 
     #[cfg(feature = "sp3")]
     pub use crate::io::sp3::QcSp3Source;
+
+    #[cfg(feature = "ionex")]
+    pub use crate::io::ionex::QcIonexSource;
 
     #[cfg(feature = "navigation")]
     pub use crate::{

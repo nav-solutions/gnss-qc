@@ -1,7 +1,7 @@
 Meteo observations
 ==================
 
-[← Precise clocks](clocks.md) · [README](../README.md) · [Processors →](processors.md)
+[← Precise clocks](clocks.md) · [README](../README.md) · [TEC maps (IONEX) →](ionex.md)
 
 Meteo RINEX files describe the observations of meteo sensors, usually colocated with a
 GNSS station: pressure, temperature, humidity, zenith delays, wind, rain..
@@ -130,4 +130,4 @@ streamed once with its value, both files in the same session.
   humidity (or the observed zenith delays) is the natural next step.
 - The position of the sensors (header) is not used.
 
-Next: [Processors →](processors.md)
+Next: [TEC maps (IONEX) →](ionex.md)

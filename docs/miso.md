@@ -14,6 +14,7 @@ which produce a single stream of results.
  QcSource ──poll──►│ precise states (per source, per satellite)        │                                  Iterator
  QcSource ──poll──►│ precise clocks (per source, per clock)            │                                  run(sink)
  QcSource ──poll──►│ meteo observations (per source, per observable)   │
+ QcSource ──poll──►│ TEC maps (per source, per epoch)                  │
                    │ static data (ANTEX)                               │
                    └───────────────────────────────────────────────────┘
 ```
@@ -60,6 +61,7 @@ order** by each source:
 | `QcPayload::PreciseState` | state epoch | precise position (km) and clock (s) |
 | `QcPayload::PreciseClock` | state epoch | precise clock state of a satellite or a ground station (s) |
 | `QcPayload::Meteo` | observation epoch | meteo sensor observation |
+| `QcPayload::Tec` | map epoch | node of a TEC map (vertical TEC) |
 
 Any source may deliver any payload: a real-time RTCM stream carries both observations and
 ephemerides. The `QcSourceDescriptor` tells the engine what to expect from a source, so it
@@ -83,6 +85,7 @@ let descriptor = QcSourceDescriptor::new(QcIndexing::Custom("rtcm".to_string()))
 | `QcSp3Source` | SP3 precise products |
 | `QcRinexClockSource` | Clock RINEX (satellite and station clock states) |
 | `QcRinexMeteoSource` | Meteo RINEX (sensor observations) |
+| `QcIonexSource` | IONEX (TEC maps, `ionex` feature) |
 | `QcIterSource` | Any `Iterator<Item = QcInputItem>` (in-memory datasets, adapters) |
 | `QcChannelSource` | Real-time: `std::sync::mpsc` channel fed by another thread |
 | `QcChainSource` | Concatenates sources that follow each other in time |
@@ -127,6 +130,7 @@ Context data is buffered **per source and per satellite**, around the epoch bein
 | `QcPreciseStore` | Lagrange interpolation, order 10 (position, velocity, clock), from any source (`interpolate`) or a given agency (`interpolate_from`) | 3 hours |
 | `QcClockStore` | linear interpolation of the clock states (satellites `AS`, stations `AR`), see [precise clocks](clocks.md) | 1 hour |
 | `QcMeteoStore` | latest observation or linear interpolation, per observable, see [meteo observations](meteo.md) | 3 hours |
+| `QcTecStore` | TEC maps: bilinear (space) and rotated maps (time) interpolation, see [TEC maps](ionex.md) | two maps behind |
 
 Precise products are never extrapolated, nor interpolated over a data gap. The default
 lookahead (3 hours) and retention (3 hours) allow interpolation up to the very beginning
@@ -211,6 +215,8 @@ Built-in processors produce `QcOutput`:
 | `OrbitResidual` | `QcOrbitResidualProcessor` |
 | `PreciseClock` | `QcPreciseClockProcessor` |
 | `Meteo` | `QcMeteoProcessor` |
+| `ClockResidual` | `QcClockResidualProcessor` |
+| `TecMap`, `TecPoint` | `QcTecProcessor` |
 
 The output type is generic: applications define their own type (`O: From<QcOutput>`)
 to stack their processors with the built-in ones, see [Processors](processors.md).

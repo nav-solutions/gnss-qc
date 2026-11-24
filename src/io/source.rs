@@ -192,6 +192,27 @@ pub struct QcMeteoSample {
     pub value: f64,
 }
 
+/// One node of a Total Electron Content map (typically from IONEX):
+/// vertical TEC at these coordinates (map epoch: time tag of the data point).
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct QcTecPoint {
+    /// Latitude (°)
+    pub latitude_deg: f64,
+
+    /// Longitude (°)
+    pub longitude_deg: f64,
+
+    /// Altitude of the ionospheric layer (km)
+    pub altitude_km: f64,
+
+    /// Vertical Total Electron Content (TECu: 10¹⁶ electrons/m²)
+    pub tecu: f64,
+
+    /// Possible RMS of the TEC (TECu)
+    pub rms_tecu: Option<f64>,
+}
+
 /// All data points the engine knows how to process.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -215,6 +236,9 @@ pub enum QcPayload {
 
     /// Meteo sensor observation
     Meteo(QcMeteoSample),
+
+    /// Node of a TEC map
+    Tec(QcTecPoint),
 }
 
 /// Time tagged data point, delivered by a [QcSource].
@@ -296,6 +320,14 @@ impl QcInputItem {
         }
     }
 
+    /// Builds a new TEC map node item.
+    pub fn tec(epoch: Epoch, point: QcTecPoint) -> Self {
+        Self {
+            epoch,
+            payload: QcPayload::Tec(point),
+        }
+    }
+
     /// Builds a new receiver clock item.
     pub fn receiver_clock(epoch: Epoch, clock: ClockObservation) -> Self {
         Self {
@@ -310,7 +342,7 @@ impl QcInputItem {
 /// - sources providing signals must have moved past the epoch being processed
 ///   (otherwise the epoch might be incomplete);
 /// - sources providing context data (ephemerides, precise states, precise clocks,
-///   meteo observations) must cover the
+///   meteo observations, TEC maps) must cover the
 ///   epoch being processed plus the lookahead window.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -339,6 +371,10 @@ pub struct QcSourceDescriptor {
     /// This source delivers meteo observations
     #[cfg_attr(feature = "serde", serde(default))]
     pub meteo: bool,
+
+    /// This source delivers TEC maps
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub tec_maps: bool,
 }
 
 impl QcSourceDescriptor {
@@ -352,6 +388,7 @@ impl QcSourceDescriptor {
             precise_states: false,
             precise_clocks: false,
             meteo: false,
+            tec_maps: false,
         }
     }
 
@@ -391,10 +428,20 @@ impl QcSourceDescriptor {
         self
     }
 
+    /// TEC maps source (IONEX..)
+    pub fn with_tec_maps(mut self) -> Self {
+        self.tec_maps = true;
+        self
+    }
+
     /// Returns true if this source provides context data
     /// (anything that is not an observation).
     pub fn provides_context(&self) -> bool {
-        self.ephemerides || self.precise_states || self.precise_clocks || self.meteo
+        self.ephemerides
+            || self.precise_states
+            || self.precise_clocks
+            || self.meteo
+            || self.tec_maps
     }
 }
 

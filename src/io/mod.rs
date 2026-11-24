@@ -1,3 +1,6 @@
+#[cfg(feature = "ionex")]
+pub mod ionex;
+
 pub mod input;
 pub mod output;
 pub mod rinex;

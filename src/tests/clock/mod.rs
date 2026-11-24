@@ -7,7 +7,7 @@ use crate::{
     io::rinex::{QcRinexClockSource, QcRinexMeteoSource},
     prelude::*,
     sync::interpolate_linear,
-    tests::miso::{load_products, load_rinex},
+    tests::miso::{data_path, load_products, load_rinex},
 };
 
 const GRG_CLK: &str = "CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz";
@@ -419,4 +419,243 @@ fn meteo_context() {
             None => assert!(interpolated.is_none()),
         }
     }
+}
+
+/// RMS (ns) of the raw and aligned residuals, per constellation ("station" for stations)
+fn clock_residual_stats(results: &[(Epoch, QcOutput)]) -> HashMap<String, (usize, f64, f64, f64)> {
+    let mut stats = HashMap::<String, (usize, f64, f64, f64)>::new();
+
+    for (_, output) in results.iter() {
+        if let QcOutput::ClockResidual(r) = output {
+            let key = match &r.clock {
+                QcClockId::Satellite(sv) => format!("{:?}", sv.constellation),
+                QcClockId::Station(_) => "station".to_string(),
+            };
+
+            let entry = stats.entry(key).or_default();
+            entry.0 += 1;
+            entry.1 += (r.residual_s * 1.0E9).powi(2);
+
+            if let Some(aligned) = r.aligned_s() {
+                entry.2 += (aligned * 1.0E9).powi(2);
+                entry.3 = entry.3.max((aligned * 1.0E9).abs());
+            }
+        }
+    }
+
+    stats
+        .into_iter()
+        .map(|(k, (n, raw, aligned, max))| {
+            (
+                k,
+                (n, (raw / n as f64).sqrt(), (aligned / n as f64).sqrt(), max),
+            )
+        })
+        .collect()
+}
+
+/// Two analysis centers: GRG (Clock RINEX) - IAC (SP3 clock states), 2020-06-25, every 15'.
+/// Raw residuals are dominated by the clock datum of each center (ns); once aligned
+/// (one datum per constellation and per epoch), GPS and Galileo agree at the 0.1 ns level.
+/// Glonass clocks absorb satellite specific biases (inter frequency biases): ns level.
+#[test]
+#[cfg(feature = "sp3")]
+fn clock_residuals_between_agencies() {
+    let products = load_products(
+        &QcInputConfig::default(),
+        &[GRG_CLK, "SP3/D/Sta21114.sp3.gz"],
+    );
+
+    let cfg = QcClockResidualConfig::new(
+        QcClockProduct::Clock(Some(QcIndexing::Agency("GRG".to_string()))),
+        QcClockProduct::PreciseState(Some(QcIndexing::Agency("IAC".to_string()))),
+    )
+    .with_sampling(Duration::from_seconds(900.0));
+
+    let results = run(QcEngine::builder()
+        .with_products(products)
+        .with_processor(QcClockResidualProcessor::new(cfg))
+        .build()
+        .unwrap());
+
+    for (_, output) in results.iter() {
+        if let QcOutput::ClockResidual(r) = output {
+            assert_eq!(r.lhs_source, QcIndexing::Agency("GRG".to_string()));
+            assert_eq!(r.rhs_source, QcIndexing::Agency("IAC".to_string()));
+            assert_eq!(r.lhs_kind, QcClockKind::PreciseClock);
+            assert_eq!(r.rhs_kind, QcClockKind::PreciseState);
+            assert!(r.datum_s.is_some());
+        }
+    }
+
+    let stats = clock_residual_stats(&results);
+
+    // 96 epochs
+    let (n, raw, aligned, max) = stats["GPS"];
+    assert!(n > 2800, "{}", n);
+    assert!(raw > 1.0, "{}", raw);
+    assert!(aligned < 0.5, "{}", aligned);
+    assert!(max < 1.5, "{}", max);
+
+    let (_, raw, aligned, _) = stats["Galileo"];
+    assert!(raw > 1.0 && aligned < 0.4, "{} {}", raw, aligned);
+
+    let (_, _, aligned, _) = stats["Glonass"];
+    assert!(aligned > 1.0 && aligned < 5.0, "{}", aligned);
+
+    // no alignment
+    let products = load_products(
+        &QcInputConfig::default(),
+        &[GRG_CLK, "SP3/D/Sta21114.sp3.gz"],
+    );
+
+    let results = run(QcEngine::builder()
+        .with_products(products)
+        .with_processor(QcClockResidualProcessor::new(
+            QcClockResidualConfig::new(
+                QcClockProduct::Clock(None),
+                QcClockProduct::PreciseState(None),
+            )
+            .with_sampling(Duration::from_seconds(900.0))
+            .with_alignment(QcClockAlignment::None),
+        ))
+        .build()
+        .unwrap());
+
+    for (_, output) in results.iter() {
+        if let QcOutput::ClockResidual(r) = output {
+            assert!(r.datum_s.is_none());
+        }
+    }
+}
+
+/// Clock RINEX and SP3 of the same analysis center: identical clocks at the SP3 epochs;
+/// in between, the residuals are the interpolation error of the 15' SP3 clock states
+#[test]
+#[cfg(feature = "sp3")]
+fn clock_residuals_same_agency() {
+    for sampling in [Some(Duration::from_seconds(900.0)), None] {
+        let products = load_products(&QcInputConfig::default(), &[GRG_CLK, GRG_SP3]);
+
+        let cfg = QcClockResidualConfig {
+            sampling,
+            ..Default::default()
+        };
+
+        let results = run(QcEngine::builder()
+            .with_products(products)
+            .with_processor(QcClockResidualProcessor::new(cfg))
+            .build()
+            .unwrap());
+
+        let stats = clock_residual_stats(&results);
+
+        for constellation in ["GPS", "Galileo", "Glonass"] {
+            let (n, raw, _, _) = stats[constellation];
+            assert!(n > 2000);
+
+            match sampling {
+                Some(_) => assert!(raw < 1.0E-3, "{}: {} ns", constellation, raw),
+                None => assert!(raw < 0.3, "{}: {} ns", constellation, raw),
+            }
+        }
+
+        if sampling.is_none() {
+            // 30": interpolation error of the 15' SP3 clocks (GPS ~4 cm)
+            let (_, raw, _, _) = stats["GPS"];
+            assert!(raw > 0.05, "{}", raw);
+        }
+    }
+}
+
+/// Two Clock RINEX (two products indexed under distinct aliases): satellite and
+/// station clocks; a product compared to itself gives null residuals
+#[test]
+fn clock_residuals_two_clock_rinex() {
+    let mut products = QcInputProducts::default();
+
+    for alias in ["A", "B"] {
+        let cfg = QcInputConfig {
+            clk_rinex_indexing: Some(QcIndexingConfig::Custom(alias.to_string())),
+            ..Default::default()
+        };
+        products
+            .load_rinex(&cfg, data_path(COD_CLK), load_rinex(COD_CLK))
+            .unwrap();
+    }
+
+    let a = QcIndexing::Custom("A".to_string());
+    let b = QcIndexing::Custom("B".to_string());
+
+    let results = run(QcEngine::builder()
+        .with_products(products)
+        .with_processor(QcClockResidualProcessor::new(
+            QcClockResidualConfig::clock_products(a.clone(), b.clone())
+                .with_sampling(Duration::from_seconds(3600.0)),
+        ))
+        .build()
+        .unwrap());
+
+    let stats = clock_residual_stats(&results);
+
+    // stations: 300" sampling (CODE MGEX), satellites: 30"
+    let (stations, raw, aligned, _) = stats["station"];
+    assert!(stations > 1000, "{}", stations);
+    assert_eq!(raw, 0.0);
+    assert_eq!(aligned, 0.0);
+
+    let (satellites, raw, _, _) = stats["GPS"];
+    assert!(satellites > 500, "{}", satellites);
+    assert_eq!(raw, 0.0);
+
+    // a product compared to itself is skipped
+    let mut products = QcInputProducts::default();
+    products
+        .load_rinex(
+            &QcInputConfig::default(),
+            data_path(COD_CLK),
+            load_rinex(COD_CLK),
+        )
+        .unwrap();
+
+    let results = run(QcEngine::builder()
+        .with_products(products)
+        .with_processor(QcClockResidualProcessor::new(QcClockResidualConfig::new(
+            QcClockProduct::Clock(None),
+            QcClockProduct::Clock(None),
+        )))
+        .build()
+        .unwrap());
+
+    assert!(results.is_empty());
+}
+
+/// Precise clocks - broadcast clocks (ESBC00DNK NAV): broadcast clock quality
+#[test]
+fn clock_residuals_broadcast() {
+    let products = load_products(
+        &QcInputConfig::default(),
+        &[GRG_CLK, "NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz"],
+    );
+
+    let results = run(QcEngine::builder()
+        .with_products(products)
+        .with_processor(QcClockResidualProcessor::new(
+            QcClockResidualConfig::new(
+                QcClockProduct::Clock(None),
+                QcClockProduct::Broadcast(None),
+            )
+            .with_sampling(Duration::from_seconds(900.0)),
+        ))
+        .build()
+        .unwrap());
+
+    let stats = clock_residual_stats(&results);
+
+    let (n, _, aligned, _) = stats["GPS"];
+    assert!(n > 1500, "{}", n);
+    assert!(aligned > 0.5 && aligned < 5.0, "{}", aligned);
+
+    let (_, _, aligned, _) = stats["Galileo"];
+    assert!(aligned < 2.0, "{}", aligned);
 }

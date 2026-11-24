@@ -8,7 +8,8 @@
 //! - [processors]: built-in processors, writing your own
 //! - `navigation`: P.V.T solutions (`navigation` feature), CGGTTS (`cggtts` feature)
 //! - `ipp`: Ionospheric Pierce Points (`ionex` feature)
-//! - `residuals`: observation and orbit residuals (A − B)
+//! - `residuals`: observation, orbit and clock residuals (A − B)
+//! - `ionex`: TEC maps (IONEX, `ionex` feature)
 //! - `clocks`: precise clocks (Clock RINEX), satellite clocks of the navigation
 //! - [meteo]: meteo observations (Meteo RINEX)
 //! - [testing]: test data and running the tests
@@ -36,6 +37,10 @@ pub mod clocks {}
 #[doc = include_str!("../docs/meteo.md")]
 pub mod meteo {}
 
+#[cfg(feature = "ionex")]
+#[doc = include_str!("../docs/ionex.md")]
+pub mod ionex {}
+
 #[cfg(feature = "sp3")]
 #[doc = include_str!("../docs/residuals/README.md")]
 pub mod residuals {
@@ -44,6 +49,9 @@ pub mod residuals {
 
     #[doc = include_str!("../docs/residuals/orbits.md")]
     pub mod orbits {}
+
+    #[doc = include_str!("../docs/residuals/clocks.md")]
+    pub mod clocks {}
 }
 
 #[cfg(all(feature = "navigation", feature = "sp3"))]

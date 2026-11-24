@@ -65,6 +65,12 @@ pub struct QcInputConfig {
     /// [QcIndexingConfig::FileName] apply; SP3 files do not describe receivers,
     /// antennas or operators: these preferences fall back to automatic indexing.
     pub sp3_indexing: Option<QcIndexingConfig>,
+
+    /// Prefered Indexing method for IONEX files (TEC maps).
+    /// [QcIndexingConfig::Agency] (default: "RUN BY" header field),
+    /// [QcIndexingConfig::Custom] and [QcIndexingConfig::FileName] apply;
+    /// other preferences fall back to automatic indexing.
+    pub ionex_indexing: Option<QcIndexingConfig>,
 }
 
 impl QcInputConfig {
@@ -96,6 +102,7 @@ impl Default for QcInputConfig {
             meteo_rinex_indexing: Some(QcIndexingConfig::Agency),
             clk_rinex_indexing: Some(QcIndexingConfig::Agency),
             sp3_indexing: Some(QcIndexingConfig::Agency),
+            ionex_indexing: Some(QcIndexingConfig::Agency),
         }
     }
 }
@@ -110,5 +117,6 @@ mod test {
         assert_eq!(default.nav_rinex_indexing, Some(QcIndexingConfig::Agency));
         assert_eq!(default.obs_rinex_indexing, Some(QcIndexingConfig::Receiver));
         assert_eq!(default.sp3_indexing, Some(QcIndexingConfig::Agency));
+        assert_eq!(default.ionex_indexing, Some(QcIndexingConfig::Agency));
     }
 }

@@ -50,7 +50,7 @@ use crate::{
             QcInputItem, QcPayload, QcPoll, QcSignal, QcSource, QcSourceDescriptor, QcSourceError,
         },
     },
-    sync::{QcClockStore, QcEphemerisStore, QcMeteoStore, QcPreciseStore},
+    sync::{QcClockStore, QcEphemerisStore, QcMeteoStore, QcPreciseStore, QcTecStore},
 };
 
 /// Context data stores, synchronized by the engine
@@ -60,6 +60,7 @@ struct QcStores {
     precise_states: QcPreciseStore,
     precise_clocks: QcClockStore,
     meteo: QcMeteoStore,
+    tec_maps: QcTecStore,
 }
 
 impl QcStores {
@@ -68,6 +69,7 @@ impl QcStores {
         self.precise_states.prune(t);
         self.precise_clocks.prune(t);
         self.meteo.prune(t);
+        self.tec_maps.prune(t);
     }
 }
 
@@ -147,6 +149,9 @@ pub struct QcEpochContext<'a> {
 
     /// Meteo observations, synchronized to this epoch
     pub meteo: &'a QcMeteoStore,
+
+    /// TEC maps, synchronized to this epoch (surrounding maps)
+    pub tec_maps: &'a QcTecStore,
 
     /// Session wide data
     pub statics: &'a QcStatics,
@@ -290,6 +295,9 @@ impl SourceSlot {
                 stores.precise_clocks.push(&self.descriptor.indexing, clock)
             }
             QcPayload::Meteo(sample) => stores.meteo.push(&self.descriptor.indexing, epoch, sample),
+            QcPayload::Tec(point) => stores
+                .tec_maps
+                .push(&self.descriptor.indexing, epoch, point),
         }
 
         Ok(Pull::Item)
@@ -511,6 +519,11 @@ impl<O> QcEngine<O> {
         &self.stores.meteo
     }
 
+    /// TEC maps store (current synchronization state)
+    pub fn tec_maps(&self) -> &QcTecStore {
+        &self.stores.tec_maps
+    }
+
     /// Non blocking: returns the next result if one is available,
     /// [QcPoll::Pending] if waiting on a real-time source,
     /// or [QcPoll::EndOfStream] once everything has been processed.
@@ -679,6 +692,7 @@ impl<O> QcEngine<O> {
             precise_states: &stores.precise_states,
             precise_clocks: &stores.precise_clocks,
             meteo: &stores.meteo,
+            tec_maps: &stores.tec_maps,
             statics,
         };
 
@@ -769,6 +783,7 @@ impl<O> QcEngine<O> {
             precise_states: &stores.precise_states,
             precise_clocks: &stores.precise_clocks,
             meteo: &stores.meteo,
+            tec_maps: &stores.tec_maps,
             statics,
         };
 

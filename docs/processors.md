@@ -19,6 +19,8 @@ synchronized `QcEpochContext` and produces results into the output queue.
 | `QcObservationResidualProcessor` | `QcOutput::ObservationResidual` | Observation residuals between two receivers (A − B), see [Observation residuals](residuals/observations.md) |
 | `QcOrbitResidualProcessor` | `QcOutput::OrbitResidual` | Orbit residuals between two orbital products: agencies, broadcast / precise, two NAV sources, see [Orbit residuals](residuals/orbits.md) |
 | `QcPreciseClockProcessor` | `QcOutput::PreciseClock` | Precise clock states (satellites, ground stations), see [Precise clocks](clocks.md) |
+| `QcClockResidualProcessor` | `QcOutput::ClockResidual` | Clock residuals between two clock products (Clock RINEX, SP3, broadcast), clock datum removed, see [Clock residuals](residuals/clocks.md) |
+| `QcTecProcessor` | `QcOutput::TecMap`, `QcOutput::TecPoint` | TEC maps statistics per region, temporal interpolation (`ionex` feature for IONEX inputs), see [TEC maps](ionex.md) |
 | `QcMeteoProcessor` | `QcOutput::Meteo` | Meteo observations, see [Meteo observations](meteo.md) |
 
 ## The epoch context
@@ -31,6 +33,7 @@ synchronized `QcEpochContext` and produces results into the output queue.
 | `precise_states` | `QcPreciseStore`, synchronized to this epoch |
 | `precise_clocks` | `QcClockStore` (Clock RINEX), synchronized to this epoch |
 | `meteo` | `QcMeteoStore` (Meteo RINEX), synchronized to this epoch |
+| `tec_maps` | `QcTecStore` (IONEX), surrounding TEC maps |
 | `statics` | Session wide data (ANTEX) |
 
 ## Writing a processor

@@ -26,12 +26,13 @@ default = ["sp3", "flate2", "cggtts"]
 log = ["dep:log"]
 
 # Serialization of the input configuration, indexing and output stream
-serde = ["dep:serde", "gnss-rtk?/serde", "cggtts?/serde"]
+serde = ["dep:serde", "gnss-rtk?/serde", "cggtts?/serde", "ionex?/serde"]
 
 # Support Gzip compressed files natively
 flate2 = [
     "rinex/flate2",
     "sp3?/flate2",
+    "ionex?/flate2",
 ]
 
 # Unlock support of high precision SP3 files.
@@ -56,6 +57,7 @@ cggtts = [
     "dep:cggtts",
 ]
 
+# IONEX files (TEC maps): inputs, TEC maps analysis and temporal interpolation,
 # Ionospheric Pierce Points (IPP) of the lines of sight, with the IONEX library.
 ionex = [
     "dep:ionex",
@@ -136,6 +138,14 @@ required-features = ["cggtts", "sp3"]
 [[example]]
 name = "ipp"
 required-features = ["ionex", "sp3"]
+
+[[example]]
+name = "clock_residuals"
+required-features = ["sp3"]
+
+[[example]]
+name = "tec_maps"
+required-features = ["ionex"]
 
 [[example]]
 name = "precise_clocks"

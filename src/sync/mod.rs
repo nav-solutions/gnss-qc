@@ -11,6 +11,9 @@
 use std::collections::{HashMap, VecDeque};
 
 mod clock;
+mod tec;
+
+pub use tec::{QcTecInterpolation, QcTecMap, QcTecMapBracket, QcTecStore, QcTecValue};
 
 pub use clock::{
     interpolate_linear, QcClockStore, QcMeteoStore, METEO_RETENTION, PRECISE_CLOCKS_RETENTION,

@@ -128,6 +128,17 @@ epoch,sv,orbit,elevation_deg,azimuth_deg,ipp_lat_deg,ipp_long_deg,obliquity
 | `latitude_deg`, `longitude_deg` | Pierce point |
 | `altitude_km` | Shell altitude |
 | `obliquity_factor` | Slant factor: `STEC = factor x VTEC` |
+| `vertical_tecu` | Vertical TEC at the pierce point (TECu), when TEC maps cover it, see below |
+
+`slant_tecu()` (vertical TEC × obliquity factor) and `ionospheric_delay_m(frequency)`
+(first order delay, 40.3 STEC / f²) are available when the vertical TEC is known.
+
+## TEC maps
+
+When TEC maps (IONEX files) are loaded with the observations, the vertical TEC at each pierce
+point is interpolated from the maps (bilinear in space, rotated maps in time), see
+[TEC maps](ionex.md). Verified by the test suite with synthetic worldwide maps
+(`src/tests/ipp.rs`).
 
 ## Orbital products
 

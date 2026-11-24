@@ -63,6 +63,7 @@ the identity is determined automatically, and this is infallible:
 | Navigation, Meteo RINEX | Agency, otherwise file name |
 | Clock RINEX | Agency, otherwise analysis center code (`ANALYSIS CENTER`), otherwise file name |
 | SP3 | Agency, otherwise file name |
+| IONEX | Agency (`RUN BY`), otherwise file name |
 
 The receiver serial number is part of its identity: two stations using the same receiver
 model (typical RTK base and rover) remain two different signal sources.
@@ -85,6 +86,7 @@ ESBC00DNK_R_20201770000_01D_MN     (NAV file without agency: file name)
 | `meteo_rinex_indexing` | Meteo RINEX | `Agency` |
 | `clk_rinex_indexing` | Clock RINEX | `Agency` |
 | `sp3_indexing` | SP3 | `Agency` |
+| `ionex_indexing` | IONEX (`ionex` feature) | `Agency` |
 
 with `QcIndexingConfig`:
 
@@ -165,6 +167,7 @@ assert_eq!(products.sp3_iter().count(), 3);
 | `load_gzip_file(cfg, path)` | Same, gzip compressed (`flate2` feature) |
 | `load_rinex(cfg, path, rinex)` | An already parsed `Rinex` |
 | `load_sp3(cfg, path, sp3)` | An already parsed `SP3` (`sp3` feature) |
+| `load_ionex(cfg, path, ionex)` | An already parsed `IONEX` (`ionex` feature) |
 
 Files sharing the same identity and type are **merged**. Two daily observation files of
 the same receiver become a single 48h signal source:
@@ -221,6 +224,7 @@ converts the table (`QcInputProducts::into_sources`):
 | ANTEX | Static data (`QcStatics`), not a source |
 | Clock RINEX | `QcRinexClockSource`: satellite and ground station clock states, chronological order, see [precise clocks](clocks.md) |
 | Meteo RINEX | `QcRinexMeteoSource`: meteo sensor observations, chronological order, see [meteo observations](meteo.md) |
+| IONEX | `QcIonexSource`: nodes of the TEC maps, map after map, see [TEC maps](ionex.md) |
 
 Sources drain the records they were built from: memory is released as the engine progresses.
 

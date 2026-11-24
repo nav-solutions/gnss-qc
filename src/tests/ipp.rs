@@ -163,3 +163,80 @@ fn ipp_time_series() {
         }
     }
 }
+
+/// TEC maps (IONEX) covering the session: the vertical TEC at each pierce point is
+/// interpolated from the maps. Synthetic worldwide maps (hourly, 2.5° x 5°):
+/// TEC = 10 + 0.1 latitude + hour, bilinear (and linear in time) interpolation is exact.
+#[test]
+fn ipp_vertical_tec() {
+    let t0 = epoch("2020-06-25T00:00:00 GPST");
+
+    let tec = |hour: f64, lat: f64| 10.0 + 0.1 * lat + hour;
+
+    let mut items = Vec::new();
+
+    for hour in 0..3 {
+        let mut lat = -87.5;
+        while lat <= 87.5 {
+            let mut lon = -180.0;
+            while lon <= 180.0 {
+                items.push(QcInputItem::tec(
+                    t0 + Duration::from_hours(hour as f64),
+                    QcTecPoint {
+                        latitude_deg: lat,
+                        longitude_deg: lon,
+                        altitude_km: 450.0,
+                        tecu: tec(hour as f64, lat),
+                        rms_tecu: None,
+                    },
+                ));
+                lon += 5.0;
+            }
+            lat += 2.5;
+        }
+    }
+
+    let maps = QcIterSource::new(
+        QcSourceDescriptor::new(QcIndexing::Agency("TEST".to_string())).with_tec_maps(),
+        items.into_iter(),
+    );
+
+    let products = load_products(&QcInputConfig::default(), &[ESBC_OBS, ESBC_NAV]);
+
+    let engine = QcEngine::<QcOutput>::builder()
+        .with_products(products)
+        .with_source(maps)
+        .with_time_window(Some(t0), Some(t0 + Duration::from_hours(1.0)))
+        .with_processor(QcIppProcessor::new(QcIppConfig::default()))
+        .build()
+        .unwrap();
+
+    let mut n = 0;
+
+    for item in engine {
+        let item = item.unwrap();
+        if let QcOutput::IPP(ipp) = item.payload {
+            let hour = (item.epoch - t0).to_seconds() / 3600.0;
+            let expected = tec(hour, ipp.latitude_deg);
+
+            let vertical = ipp.vertical_tecu.unwrap();
+            assert!(
+                (vertical - expected).abs() < 1.0E-6,
+                "{} {}",
+                vertical,
+                expected
+            );
+
+            let slant = ipp.slant_tecu().unwrap();
+            assert!((slant - vertical * ipp.obliquity_factor).abs() < 1.0E-9);
+
+            // L1: 0.162 m / TECu
+            let delay = ipp.ionospheric_delay_m(1575.42E6).unwrap();
+            assert!((delay / slant - 0.1624).abs() < 1.0E-3);
+
+            n += 1;
+        }
+    }
+
+    assert!(n > 1000, "{}", n);
+}

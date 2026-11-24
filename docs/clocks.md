@@ -19,6 +19,7 @@ Contents:
 - [Synchronization](#synchronization)
 - [Navigation: satellite clocks](#navigation-satellite-clocks)
 - [Precise clocks stream](#precise-clocks-stream)
+- [Clock residuals](#clock-residuals)
 - [Results](#results)
 - [Limitations](#limitations)
 
@@ -199,6 +200,13 @@ for item in engine {
 ```bash
 cargo run --release --example precise_clocks > clocks.csv
 ```
+
+## Clock residuals
+
+Clock products of two analysis centers (two Clock RINEX, a Clock RINEX and an SP3), or
+precise and broadcast clocks, are compared by the `QcClockResidualProcessor`: A − B per
+satellite and per station, with the clock datum of each center removed.
+See [clock residuals](residuals/clocks.md).
 
 ## Results
 
