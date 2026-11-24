@@ -53,7 +53,8 @@ pub struct QcInputProducts {
 
 fn file_stem<P: AsRef<Path>>(path: P) -> Result<String, QcInputError> {
     let path = path.as_ref();
-    let stem = path.file_stem().ok_or({
+    // ok_or_else: the error path must only be evaluated (and logged) on failure
+    let stem = path.file_stem().ok_or_else(|| {
         #[cfg(feature = "log")]
         error!("failed to determine {} file stem", path.display());
         QcInputError::FileStemIssue
