@@ -13,6 +13,7 @@ pub const SPEED_OF_LIGHT_M_S: f64 = 299_792_458.0;
 
 /// Keplerian parameters of one radio ephemeris, ready for repeated evaluation.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcKepler {
     pub sv: SV,
     /// Time of Clock
@@ -45,6 +46,7 @@ pub struct QcKepler {
 
 /// Satellite state obtained from Keplerian solving
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcKeplerState {
     /// ECEF position (m)
     pub position_m: (f64, f64, f64),

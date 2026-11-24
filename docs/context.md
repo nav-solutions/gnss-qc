@@ -238,4 +238,33 @@ let builder = QcEngine::<QcOutput>::builder()
     .with_antex(QcIndexing::Custom("igs20".to_string()), antex);
 ```
 
+## Serde support
+
+With the `serde` feature, the configurations, the indexing, the data points and the results
+implement `Serialize` and `Deserialize` (verified by JSON round trips in `tests::serde`):
+
+| Category | Types |
+|----------|-------|
+| Input | `QcIndexing`, `QcIndexingConfig`, `QcInputConfig`, `QcConfig`, `QcProductType`, `QcRINEXType` |
+| Processors configuration | `QcObservationResidualConfig`, `QcOrbitResidualConfig`, `QcOrbitProduct`, `QcOrbitPreference`, `QcIppConfig`, `QcNavigationConfig`, `QcNavigationTechnique` |
+| Data points | `QcInputItem`, `QcPayload`, `QcSignal`, `QcPreciseState`, `QcSourceDescriptor`, `QcPoll` |
+| Orbits | `QcOrbitKind`, `QcSatelliteState`, `QcKepler`, `QcKeplerState`, `QcInterpolatedState` |
+| Results | `QcOutputItem`, `QcOutput`, `QcSignalOutput`, `QcEphemerisCoverage`, `QcObservationResidual`, `QcOrbitResidual`, `QcIppOutput`, `QcNavigationReport`, `QcCggttsTrack`, `QcCggttsReport`, `QcEngineStats` |
+
+A deserialized `QcInputConfig` takes the default value of every missing field.
+
+Limitations, inherited from other libraries:
+
+| Type | Support | Reason |
+|------|---------|--------|
+| `QcEphemeris`, `QcEphemerisOutput` | `Serialize` only | the RINEX `Ephemeris` is not deserializable |
+| `QcPvtSolution` | `Serialize` only | the GNSS-RTK `PVTSolution` is not deserializable |
+| `QcCggttsConfig` | none | the CGGTTS `CommonViewCalendar` is not serializable |
+
+`QcOutput::Ephemeris`, `QcOutput::PVTSolution` and `QcPayload::Ephemeris` are serialized,
+but rejected when deserializing.
+
+Engines, sources, processors, stores and the products table (parsed files) are runtime
+objects: they are not serializable.
+
 Next: [MISO engine →](miso.md)

@@ -54,10 +54,19 @@ fn run_cggtts(method: Method) -> CggttsRun {
         match item.unwrap().payload {
             Out::Builtin(QcOutput::CggttsTrack(track)) => {
                 assert_eq!(track.receiver, esbc());
+
+                #[cfg(feature = "serde")]
+                crate::tests::serde_round_trip(&QcOutput::CggttsTrack(track.clone()));
+
                 tracks.push(*track.track);
             }
             Out::Builtin(QcOutput::PVTSolution(solution)) => solutions.push(solution),
-            Out::Builtin(QcOutput::CggttsReport(r)) => report = Some(r),
+            Out::Builtin(QcOutput::CggttsReport(r)) => {
+                #[cfg(feature = "serde")]
+                crate::tests::serde_round_trip(&QcOutput::CggttsReport(r.clone()));
+
+                report = Some(r)
+            }
             _ => {}
         }
     }

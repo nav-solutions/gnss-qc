@@ -46,6 +46,7 @@ pub enum QcOrbitKind {
 
 /// Satellite state resolved at one instant
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcSatelliteState {
     /// Product this state was resolved from
     pub kind: QcOrbitKind,

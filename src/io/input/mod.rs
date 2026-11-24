@@ -16,7 +16,7 @@ pub enum QcInputError {
     /// - the core has not been compiled for this format
     /// - one internal core dependency is unable to parse this input correctly
     /// - the input is not correctly formatted and is invalid according
-    /// to the standards
+    ///   to the standards
     #[error("file format not supported")]
     FormatNotSupported,
 

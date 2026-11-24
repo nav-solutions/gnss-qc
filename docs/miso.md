@@ -225,7 +225,36 @@ let stats = engine.run(&mut sink).unwrap();
 println!("{} results, {} epochs", count, stats.epochs);
 ```
 
-With the `serde` feature, the output stream is serializable.
+With the `serde` feature, the output stream is serializable **and deserializable**: a
+session can be recorded (JSON lines for example) and read back later as
+`QcOutputItem<QcOutput>`. Two results can only be serialized, because the libraries they
+come from do not support deserialization yet: radio ephemerides (`QcOutput::Ephemeris`,
+RINEX library) and P.V.T solutions (`QcOutput::PVTSolution`, GNSS-RTK). Reading them back
+returns an error. See [Serde support](context.md#serde-support) for the complete list.
+
+```rust,no_run
+# #[cfg(feature = "serde")]
+# {
+use gnss_qc::prelude::*;
+
+let engine = QcEngine::<QcOutput>::builder()
+    .with_products(QcInputProducts::default())
+    .with_processor(QcEphemerisCoverageProcessor::default())
+    .build()
+    .unwrap();
+
+// record
+let lines = engine
+    .map(|item| serde_json::to_string(&item.unwrap()).unwrap())
+    .collect::<Vec<_>>();
+
+// read back
+for line in lines.iter() {
+    let item: QcOutputItem<QcOutput> = serde_json::from_str(line).unwrap();
+    println!("{} {:?}", item.epoch, item.payload);
+}
+# }
+```
 
 ## Streaming files
 

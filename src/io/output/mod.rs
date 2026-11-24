@@ -19,12 +19,12 @@ use rinex::{
 use crate::io::input::indexing::QcIndexing;
 
 #[cfg(feature = "serde")]
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Ephemeris coverage of a signal source.
 /// Emitted on every change: coverage gained, coverage lost, or switch to another ephemeris.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcEphemerisCoverage {
     /// Receiver (signal source) being analyzed
     pub receiver: QcIndexing,
@@ -41,7 +41,7 @@ pub struct QcEphemerisCoverage {
 
 /// Signal observation, streamed out as is.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcSignalOutput {
     /// Receiver (signal source)
     pub receiver: QcIndexing,
@@ -97,7 +97,7 @@ impl PartialEq for QcPvtSolution {
 /// Navigation summary, emitted once all signal sources ended
 #[cfg(feature = "navigation")]
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcNavigationReport {
     /// Receiver (rover)
     pub receiver: QcIndexing,
@@ -140,7 +140,7 @@ impl QcNavigationReport {
 /// CGGTTS track, resolved for one receiver
 #[cfg(feature = "cggtts")]
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcCggttsTrack {
     /// Receiver
     pub receiver: QcIndexing,
@@ -152,7 +152,7 @@ pub struct QcCggttsTrack {
 /// CGGTTS summary, emitted once all signal sources ended
 #[cfg(feature = "cggtts")]
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcCggttsReport {
     /// Receiver
     pub receiver: QcIndexing,
@@ -184,7 +184,7 @@ impl QcCggttsReport {
 /// Ionospheric Pierce Point of one line of sight
 #[cfg(feature = "ionex")]
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcIppOutput {
     /// Receiver
     pub receiver: QcIndexing,
@@ -216,7 +216,7 @@ pub struct QcIppOutput {
 
 /// Observation residual: A - B, for one satellite and one observable
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcObservationResidual {
     /// Receiver A (minuend)
     pub lhs: QcIndexing,
@@ -240,7 +240,7 @@ pub struct QcObservationResidual {
 
 /// Orbit residual: A - B between two orbital products, for one satellite
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcOrbitResidual {
     /// Satellite
     pub sv: SV,
@@ -289,7 +289,7 @@ impl QcOrbitResidual {
 
 /// Results produced by the built-in processors.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[non_exhaustive]
 pub enum QcOutput {
     /// Signal observation (passthrough)
@@ -299,6 +299,7 @@ pub enum QcOutput {
     EphemerisCoverage(QcEphemerisCoverage),
 
     /// Radio ephemeris (passthrough)
+    #[cfg_attr(feature = "serde", serde(skip_deserializing))]
     Ephemeris(QcEphemerisOutput),
 
     /// Observation residual
@@ -309,6 +310,7 @@ pub enum QcOutput {
 
     /// P.V.T solution
     #[cfg(feature = "navigation")]
+    #[cfg_attr(feature = "serde", serde(skip_deserializing))]
     PVTSolution(QcPvtSolution),
 
     /// Navigation summary
@@ -330,7 +332,7 @@ pub enum QcOutput {
 
 /// Time tagged result.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcOutputItem<O = QcOutput> {
     /// [Epoch] this result applies to
     pub epoch: Epoch,

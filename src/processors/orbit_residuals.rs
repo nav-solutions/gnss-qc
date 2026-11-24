@@ -14,6 +14,7 @@ use crate::{
 
 /// One side of an orbit residual
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum QcOrbitProduct {
     /// Precise products (SP3) of this agency, or of any agency (None)
     Precise(Option<QcIndexing>),
@@ -24,6 +25,7 @@ pub enum QcOrbitProduct {
 
 /// Orbit residuals configuration
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcOrbitResidualConfig {
     /// Product A (minuend)
     pub lhs: QcOrbitProduct,

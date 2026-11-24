@@ -156,6 +156,7 @@ impl QcBuffered for QcPreciseState {
 
 /// Interpolated precise state
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QcInterpolatedState {
     /// ECEF position (km)
     pub position_km: (f64, f64, f64),

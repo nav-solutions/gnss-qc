@@ -39,6 +39,7 @@ The examples use `$GNSS_QC_ANISE_DIR` when defined, `MetaAlmanac::latest()` othe
 cargo test                       # context, MISO engine, synchronization (data submodule)
 cargo test --features navigation # + navigation scenarios (ANISE data)
 cargo test --features cggtts,ionex # + CGGTTS and Ionospheric Pierce Points
+cargo test --features serde      # + serialization round trips
 cargo test --doc                 # documentation examples (compiled, not run)
 ```
 
@@ -50,6 +51,8 @@ Test suites:
 | `tests::miso` | single OBS / CRINEX / NAV files, 48h combinations (merged, chained), coverage, RTK pair, real-time replay |
 | `tests::navigation` | Keplerian solving against SP3, SPP, CPP, PPP, RTK-CPP, RTK-PPP scenarios, precise products coverage loss |
 | `tests::navigation::cggtts` | CGGTTS (SPP, CPP, PPP): schedule, REFSYS / REFSV / MDTR against independent references, CGGTTS file round trip, RTK rejection |
+| `tests::input` | SP3 indexing preferences (agency, file name, custom alias, fallbacks), in the engine |
+| `tests::serde` | `serde` feature: Serialize / Deserialize of every public type, JSON round trips of configurations, data points and real output streams |
 | `tests::residuals` | observation residuals against `Rinex::observations_substract`, receiver clock analysis (PolaRx5 − GNSS-SDR), misaligned receivers, orbit residuals GRG − IAC, NAV − SP3, NAV − NAV |
 | `tests::ipp`, `tests::navigation::ipp` | pierce points: precise versus broadcast orbits, geometry, time series, lines of sight against the navigation solver |
 

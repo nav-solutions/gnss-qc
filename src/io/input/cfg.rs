@@ -39,8 +39,12 @@ impl QcIndexingConfig {
     }
 }
 
+/// Input products preferences.
+///
+/// When deserialized, missing fields take their [Default] value.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct QcInputConfig {
     /// Prefered Indexing method for signal streams.
     /// When set to none, the library will index automatically based on the input stream.
