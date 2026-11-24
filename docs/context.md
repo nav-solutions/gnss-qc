@@ -25,6 +25,33 @@ and how the data points are presented to the processors:
 | `Agency(String)` | Navigation and precise products, identified by their publisher: products of different agencies can be compared (residual analysis) |
 | `Custom(String)` | User defined alias |
 
+### Textual representation
+
+`QcIndexing` implements `Display` and its reciprocal `FromStr`, to designate products in
+command lines, configuration files or reports:
+
+| Text | `QcIndexing` |
+|------|--------------|
+| `receiver:SEPT POLARX5 #3047937` | `Receiver("SEPT POLARX5 #3047937")` |
+| `antenna:TRM59800.00 SCIS` | `Antenna("TRM59800.00 SCIS")` |
+| `operator:SDFE` | `Operator("SDFE")` |
+| `agency:GRGS` | `Agency("GRGS")` |
+| `ESBC00DNK_R_20201770000_01D_MN` | `Custom("ESBC00DNK_R_20201770000_01D_MN")` |
+| `custom:agency:GRGS` | `Custom("agency:GRGS")` |
+
+Prefixes are case sensitive and names are kept as is. A custom alias that starts with one of
+the prefixes is written with an explicit `custom:` prefix, so that parsing always gives back
+the same identity. An empty name is an error.
+
+```rust
+use std::str::FromStr;
+use gnss_qc::prelude::QcIndexing;
+
+let grg = QcIndexing::from_str("agency:GRGS").unwrap();
+assert_eq!(grg, QcIndexing::Agency("GRGS".to_string()));
+assert_eq!(QcIndexing::from_str(&grg.to_string()).unwrap(), grg);
+```
+
 ### Automatic indexing
 
 When no preference applies (or when the preferred information is missing from the file),

@@ -19,6 +19,10 @@ pub enum QcIndexingError {
     /// fails, we will wind up here.
     #[error("failed to determine file meta data")]
     FileMeta,
+
+    /// [QcIndexing] parsing: the name is empty
+    #[error("empty indexing name")]
+    EmptyName,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -42,15 +46,89 @@ pub enum QcIndexing {
     Custom(String),
 }
 
+/// Prefixes of the textual representation, see [QcIndexing::from_str].
+const ANTENNA_PREFIX: &str = "antenna:";
+const RECEIVER_PREFIX: &str = "receiver:";
+const OPERATOR_PREFIX: &str = "operator:";
+const AGENCY_PREFIX: &str = "agency:";
+const CUSTOM_PREFIX: &str = "custom:";
+
+const PREFIXES: [&str; 5] = [
+    ANTENNA_PREFIX,
+    RECEIVER_PREFIX,
+    OPERATOR_PREFIX,
+    AGENCY_PREFIX,
+    CUSTOM_PREFIX,
+];
+
 impl std::fmt::Display for QcIndexing {
+    /// Textual representation: `antenna:NAME`, `receiver:NAME`, `operator:NAME`,
+    /// `agency:NAME`, and `NAME` for custom aliases. A custom alias that starts with
+    /// one of these prefixes is written `custom:NAME`, so that
+    /// [QcIndexing::from_str] always reverses this representation.
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Antenna(name) => write!(f, "antenna:{}", name),
-            Self::Receiver(name) => write!(f, "receiver:{}", name),
-            Self::Operator(name) => write!(f, "operator:{}", name),
-            Self::Agency(name) => write!(f, "agency:{}", name),
-            Self::Custom(name) => write!(f, "{}", name),
+            Self::Antenna(name) => write!(f, "{}{}", ANTENNA_PREFIX, name),
+            Self::Receiver(name) => write!(f, "{}{}", RECEIVER_PREFIX, name),
+            Self::Operator(name) => write!(f, "{}{}", OPERATOR_PREFIX, name),
+            Self::Agency(name) => write!(f, "{}{}", AGENCY_PREFIX, name),
+            Self::Custom(name) => {
+                if PREFIXES.iter().any(|prefix| name.starts_with(prefix)) {
+                    write!(f, "{}{}", CUSTOM_PREFIX, name)
+                } else {
+                    write!(f, "{}", name)
+                }
+            }
         }
+    }
+}
+
+impl std::str::FromStr for QcIndexing {
+    type Err = QcIndexingError;
+
+    /// Parses the textual representation of [QcIndexing] (reciprocal of
+    /// [std::fmt::Display]):
+    /// - `antenna:NAME` → [QcIndexing::Antenna]
+    /// - `receiver:NAME` → [QcIndexing::Receiver]
+    /// - `operator:NAME` → [QcIndexing::Operator]
+    /// - `agency:NAME` → [QcIndexing::Agency]
+    /// - `custom:NAME` or any other `NAME` → [QcIndexing::Custom]
+    ///
+    /// Prefixes are case sensitive, names are kept as is (spaces included).
+    /// An empty name is an error.
+    ///
+    /// ```
+    /// use std::str::FromStr;
+    /// use gnss_qc::prelude::QcIndexing;
+    ///
+    /// let receiver = QcIndexing::from_str("receiver:SEPT POLARX5 #3047937").unwrap();
+    /// assert_eq!(receiver, QcIndexing::Receiver("SEPT POLARX5 #3047937".to_string()));
+    /// assert_eq!(receiver.to_string(), "receiver:SEPT POLARX5 #3047937");
+    ///
+    /// let alias = QcIndexing::from_str("ESBC00DNK_R_20201770000_01D_MN").unwrap();
+    /// assert_eq!(alias, QcIndexing::Custom("ESBC00DNK_R_20201770000_01D_MN".to_string()));
+    /// ```
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (variant, name): (fn(String) -> Self, &str) =
+            if let Some(name) = s.strip_prefix(ANTENNA_PREFIX) {
+                (Self::Antenna, name)
+            } else if let Some(name) = s.strip_prefix(RECEIVER_PREFIX) {
+                (Self::Receiver, name)
+            } else if let Some(name) = s.strip_prefix(OPERATOR_PREFIX) {
+                (Self::Operator, name)
+            } else if let Some(name) = s.strip_prefix(AGENCY_PREFIX) {
+                (Self::Agency, name)
+            } else if let Some(name) = s.strip_prefix(CUSTOM_PREFIX) {
+                (Self::Custom, name)
+            } else {
+                (Self::Custom, s)
+            };
+
+        if name.is_empty() {
+            return Err(QcIndexingError::EmptyName);
+        }
+
+        Ok(variant(name.to_string()))
     }
 }
 
@@ -130,7 +208,109 @@ impl QcIndexing {
 
 #[cfg(test)]
 mod test {
-    use crate::io::input::indexing::QcIndexing;
+    use std::str::FromStr;
+
+    use crate::io::input::indexing::{QcIndexing, QcIndexingError};
+
+    /// Display then FromStr gives back the same value
+    fn assert_round_trip(indexing: QcIndexing, expected: &str) {
+        let text = indexing.to_string();
+        assert_eq!(text, expected);
+        assert_eq!(QcIndexing::from_str(&text).unwrap(), indexing, "{}", text);
+    }
+
+    #[test]
+    fn antenna_from_str() {
+        assert_round_trip(
+            QcIndexing::Antenna("TRM59800.00 SCIS".to_string()),
+            "antenna:TRM59800.00 SCIS",
+        );
+    }
+
+    #[test]
+    fn receiver_from_str() {
+        assert_round_trip(
+            QcIndexing::Receiver("SEPT POLARX5 #3047937".to_string()),
+            "receiver:SEPT POLARX5 #3047937",
+        );
+    }
+
+    #[test]
+    fn operator_from_str() {
+        assert_round_trip(QcIndexing::Operator("SDFE".to_string()), "operator:SDFE");
+    }
+
+    #[test]
+    fn agency_from_str() {
+        assert_round_trip(QcIndexing::Agency("GRGS".to_string()), "agency:GRGS");
+    }
+
+    #[test]
+    fn custom_from_str() {
+        assert_round_trip(
+            QcIndexing::Custom("ESBC00DNK_R_20201770000_01D_MN".to_string()),
+            "ESBC00DNK_R_20201770000_01D_MN",
+        );
+
+        // explicit prefix is accepted too
+        assert_eq!(
+            QcIndexing::from_str("custom:base").unwrap(),
+            QcIndexing::Custom("base".to_string())
+        );
+
+        // ':' inside a custom alias, not a known prefix
+        assert_round_trip(QcIndexing::Custom("site:A".to_string()), "site:A");
+    }
+
+    #[test]
+    fn ambiguous_custom_from_str() {
+        // custom aliases that look like another indexing are escaped
+        for name in [
+            "agency:GRGS",
+            "antenna:x",
+            "receiver:x",
+            "operator:x",
+            "custom:x",
+        ] {
+            assert_round_trip(
+                QcIndexing::Custom(name.to_string()),
+                &format!("custom:{}", name),
+            );
+        }
+    }
+
+    #[test]
+    fn names_are_kept_as_is() {
+        // prefixes are case sensitive: this is a custom alias
+        assert_round_trip(QcIndexing::Custom("Agency:GRGS".to_string()), "Agency:GRGS");
+
+        // spaces are kept
+        assert_round_trip(QcIndexing::Agency(" IGS ".to_string()), "agency: IGS ");
+
+        // nested prefixes belong to the name
+        assert_round_trip(
+            QcIndexing::Agency("agency:x".to_string()),
+            "agency:agency:x",
+        );
+    }
+
+    #[test]
+    fn empty_names_from_str() {
+        for text in [
+            "",
+            "antenna:",
+            "receiver:",
+            "operator:",
+            "agency:",
+            "custom:",
+        ] {
+            assert!(
+                matches!(QcIndexing::from_str(text), Err(QcIndexingError::EmptyName)),
+                "{}",
+                text
+            );
+        }
+    }
 
     #[test]
     fn test_antenna_indexing() {
