@@ -51,9 +51,10 @@ pub mod prelude {
             product::{QcInputProducts, QcProductSources},
         },
         output::{
-            QcClockResidual, QcEphemerisCoverage, QcEphemerisOutput, QcFnSink, QcMeteoOutput,
-            QcObservationResidual, QcOrbitResidual, QcOutput, QcOutputItem, QcOutputQueue,
-            QcPreciseClockOutput, QcSignalOutput, QcSink, QcTecMapPoint, QcTecMapStatistics,
+            QcClockResidual, QcCombination, QcCombinationKind, QcEphemerisCoverage,
+            QcEphemerisOutput, QcFnSink, QcMeteoOutput, QcMultipathArc, QcObservationResidual,
+            QcOrbitResidual, QcOutput, QcOutputItem, QcOutputQueue, QcPreciseClockOutput,
+            QcSignalOutput, QcSink, QcTecMapPoint, QcTecMapStatistics,
         },
         rinex::{
             QcRinexClockSource, QcRinexMeteoSource, QcRinexNavSource, QcRinexObsSource,
@@ -67,11 +68,11 @@ pub mod prelude {
     };
     pub use crate::processors::{
         QcClockAlignment, QcClockProduct, QcClockResidualConfig, QcClockResidualProcessor,
-        QcEphemerisCoverageProcessor, QcEphemerisProcessor, QcMeteoConfig, QcMeteoProcessor,
-        QcObservationResidualConfig, QcObservationResidualProcessor, QcOrbitProduct,
-        QcOrbitResidualConfig, QcOrbitResidualProcessor, QcPreciseClockConfig,
-        QcPreciseClockProcessor, QcSignalProcessor, QcTecConfig, QcTecProcessor, QcTecRegion,
-        QcTecSampling,
+        QcCombinationConfig, QcCombinationProcessor, QcEphemerisCoverageProcessor,
+        QcEphemerisProcessor, QcMeteoConfig, QcMeteoProcessor, QcObservationResidualConfig,
+        QcObservationResidualProcessor, QcOrbitProduct, QcOrbitResidualConfig,
+        QcOrbitResidualProcessor, QcPreciseClockConfig, QcPreciseClockProcessor, QcSignalProcessor,
+        QcTecConfig, QcTecProcessor, QcTecRegion, QcTecSampling,
     };
     pub use crate::sync::{
         QcBuffered, QcClockStore, QcEphemerisStore, QcInterpolatedState, QcMeteoStore,

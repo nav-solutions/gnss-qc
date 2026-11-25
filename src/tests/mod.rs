@@ -10,6 +10,8 @@ mod ipp;
 mod miso;
 mod residuals;
 
+mod combinations;
+
 #[cfg(feature = "rtcm")]
 mod rtcm;
 

@@ -135,6 +135,9 @@ name = "miso"
 name = "realtime"
 
 [[example]]
+name = "combinations"
+
+[[example]]
 name = "ntrip"
 required-features = ["ntrip"]
 

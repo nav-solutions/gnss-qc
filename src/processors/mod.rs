@@ -4,6 +4,7 @@
 //! type `O: From<QcOutput>`, so they can be stacked next to application specific processors.
 mod clock;
 mod clock_residuals;
+mod combination;
 mod coverage;
 mod ephemeris;
 mod observation_residuals;
@@ -18,6 +19,7 @@ pub use clock::{QcMeteoConfig, QcMeteoProcessor, QcPreciseClockConfig, QcPrecise
 pub use clock_residuals::{
     QcClockAlignment, QcClockProduct, QcClockResidualConfig, QcClockResidualProcessor,
 };
+pub use combination::{QcCombinationConfig, QcCombinationProcessor};
 pub use coverage::QcEphemerisCoverageProcessor;
 pub use ephemeris::QcEphemerisProcessor;
 pub use observation_residuals::{QcObservationResidualConfig, QcObservationResidualProcessor};

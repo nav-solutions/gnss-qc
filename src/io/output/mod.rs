@@ -271,6 +271,117 @@ pub struct QcObservationResidual {
     pub rhs_epoch: Epoch,
 }
 
+/// Signal combination, see [QcCombinationProcessor](crate::prelude::QcCombinationProcessor)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum QcCombinationKind {
+    /// Geometry Free (GF): the geometry (ranges, clocks, troposphere) cancels out,
+    /// the ionospheric delay remains. Phase: `λ1 Φ1 − λj Φj`, code: `Cj − C1`.
+    GeometryFree,
+
+    /// Ionosphere Free (IF): the first order ionospheric delay cancels out.
+    /// `(f1² X1 − fj² Xj) / (f1² − fj²)`, X being the code or the phase (m).
+    IonosphereFree,
+
+    /// Code multipath (MP): code minus a phase combination that removes the geometry and
+    /// the ionosphere: `MPi = Ci − Li − 2 (Li − Lj) / (αij − 1)`, `αij = (fi / fj)²`.
+    /// Multipath and code noise remain, plus a constant bias per continuous phase arc.
+    Multipath,
+}
+
+impl std::fmt::Display for QcCombinationKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::GeometryFree => write!(f, "GF"),
+            Self::IonosphereFree => write!(f, "IF"),
+            Self::Multipath => write!(f, "MP"),
+        }
+    }
+}
+
+/// Signal combination of one satellite, see [QcCombinationKind]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct QcCombination {
+    /// Receiver (signal source) being analyzed
+    pub receiver: QcIndexing,
+
+    /// Satellite
+    pub sv: SV,
+
+    /// Combination
+    pub kind: QcCombinationKind,
+
+    /// First signal (reference signal 1: `L1C`, `C1C`..).
+    /// Multipath: the code being analyzed (`C2W` for MP2).
+    pub lhs: rinex::prelude::Observable,
+
+    /// Second signal (`L2W`, `C5Q`..).
+    /// Multipath: the phase of the other frequency (`L5Q`..).
+    pub rhs: rinex::prelude::Observable,
+
+    /// Value (m). Multipath: raw value, including the bias of the phase arc.
+    pub value_m: f64,
+
+    /// Multipath only: phase arc (increments on each loss of lock, data gap or jump)
+    pub arc: Option<u32>,
+
+    /// Multipath only: value minus the mean of its arc, so far (m)
+    pub debiased_m: Option<f64>,
+}
+
+impl QcCombination {
+    /// Returns true if this combination of codes (pseudo ranges)
+    pub fn is_code(&self) -> bool {
+        matches!(self.kind, QcCombinationKind::Multipath)
+            || matches!(self.lhs, rinex::prelude::Observable::PseudoRange(_))
+    }
+
+    /// Name of the combination: `GF L1C-L2W`, `IF C1C-C5Q`, `MP C2W (L1C)`..
+    pub fn name(&self) -> String {
+        match self.kind {
+            QcCombinationKind::Multipath => format!("MP {} ({})", self.lhs, self.rhs),
+            kind => format!("{} {}-{}", kind, self.lhs, self.rhs),
+        }
+    }
+}
+
+/// Code multipath statistics of one continuous phase arc, emitted when the arc ends
+/// (loss of lock, data gap, jump, end of stream).
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct QcMultipathArc {
+    /// Receiver (signal source) being analyzed
+    pub receiver: QcIndexing,
+
+    /// Satellite
+    pub sv: SV,
+
+    /// Code being analyzed
+    pub code: rinex::prelude::Observable,
+
+    /// Phase of the other frequency
+    pub phase: rinex::prelude::Observable,
+
+    /// Arc number
+    pub arc: u32,
+
+    /// First epoch of the arc
+    pub start: Epoch,
+
+    /// Last epoch of the arc
+    pub end: Epoch,
+
+    /// Number of samples
+    pub samples: usize,
+
+    /// Mean value of the arc (m): bias, ambiguities
+    pub mean_m: f64,
+
+    /// RMS of the multipath around the mean of the arc (m)
+    pub rms_m: f64,
+}
+
 /// Orbit residual: A - B between two orbital products, for one satellite
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -421,6 +532,12 @@ pub enum QcOutput {
 
     /// Observation residual
     ObservationResidual(QcObservationResidual),
+
+    /// Signal combination (GF, IF, MP)
+    Combination(QcCombination),
+
+    /// Code multipath statistics of one phase arc
+    MultipathArc(QcMultipathArc),
 
     /// Orbit residual
     OrbitResidual(QcOrbitResidual),
