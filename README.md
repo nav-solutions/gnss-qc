@@ -111,6 +111,7 @@ see the [navigation guide](docs/navigation/README.md).
 | ↳ [CGGTTS](docs/navigation/cggtts.md) | Common view time transfer: P.V.T solutions post-fitted into CGGTTS tracks |
 | [TEC maps (IONEX)](docs/ionex.md) | IONEX inputs: TEC maps statistics per region, temporal interpolation, synthesis of new IONEX files |
 | [Ionospheric Pierce Points](docs/ipp.md) | Pierce points of the lines of sight in the ionosphere, vertical TEC from the maps |
+| [Signal combinations](docs/combinations.md) | Geometry Free, Ionosphere Free and code multipath, for every pair of frequencies, phase arcs |
 | [Residual analysis](docs/residuals/README.md) | A − B analyses of standard products, available by default |
 | ↳ [Observation residuals](docs/residuals/observations.md) | Receiver A − receiver B: relative clock behavior, receiver artifacts |
 | ↳ [Orbit residuals](docs/residuals/orbits.md) | Agency A − agency B, broadcast − precise, NAV − NAV |
@@ -140,6 +141,7 @@ Runnable examples, based on the `data` submodule (run them from the repository r
 | [clock_residuals](examples/clock_residuals.rs) | GRG (Clock RINEX) − IAC (SP3) clock residuals |
 | [precise_clocks](examples/precise_clocks.rs) | Satellite and station clocks of a Clock RINEX (CODE MGEX) |
 | [meteo](examples/meteo.rs) | Meteo observations time series (POTS00DEU) |
+| [combinations](examples/combinations.rs) | GF, IF and code multipath of a geodetic receiver (ESBC00DNK) |
 | [observation_residuals](examples/observation_residuals.rs) | PolaRx5 − GNSS-SDR observation residuals (common antenna) |
 | [orbit_residuals](examples/orbit_residuals.rs) | GRG − IAC and NAV − GRG orbit residuals |
 
