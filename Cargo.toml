@@ -1,6 +1,6 @@
 [package]
 name = "gnss-qc"
-version = "0.7.0"
+version = "0.8.0"
 license = "MPL-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "GNSS data Quality Control"
@@ -133,6 +133,9 @@ name = "miso"
 
 [[example]]
 name = "realtime"
+
+[[example]]
+name = "combinations"
 
 [[example]]
 name = "ntrip"
