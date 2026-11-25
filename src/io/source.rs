@@ -239,6 +239,11 @@ pub enum QcPayload {
 
     /// Node of a TEC map
     Tec(QcTecPoint),
+
+    /// Reference position of the antenna of this source (ARP), ECEF meters.
+    /// Real-time sources learn it from the stream itself (RTCM 1005/1006 messages
+    /// of a reference station): it replaces the position of the [QcSourceDescriptor].
+    ReferencePosition((f64, f64, f64)),
 }
 
 /// Time tagged data point, delivered by a [QcSource].
@@ -325,6 +330,14 @@ impl QcInputItem {
         Self {
             epoch,
             payload: QcPayload::Tec(point),
+        }
+    }
+
+    /// Builds a new reference position item (antenna reference point, ECEF meters).
+    pub fn reference_position(epoch: Epoch, position_ecef_m: (f64, f64, f64)) -> Self {
+        Self {
+            epoch,
+            payload: QcPayload::ReferencePosition(position_ecef_m),
         }
     }
 

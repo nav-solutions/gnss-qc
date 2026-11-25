@@ -298,6 +298,16 @@ impl SourceSlot {
             QcPayload::Tec(point) => stores
                 .tec_maps
                 .push(&self.descriptor.indexing, epoch, point),
+            QcPayload::ReferencePosition(position_ecef_m) => {
+                if self.descriptor.reference_position_ecef_m != Some(position_ecef_m) {
+                    #[cfg(feature = "log")]
+                    debug!(
+                        "{}: reference position {:?} (ECEF m)",
+                        self.descriptor, position_ecef_m
+                    );
+                    self.descriptor.reference_position_ecef_m = Some(position_ecef_m);
+                }
+            }
         }
 
         Ok(Pull::Item)

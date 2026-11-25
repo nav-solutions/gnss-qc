@@ -63,6 +63,21 @@ ionex = [
     "dep:ionex",
 ]
 
+# RTCM 3 messages: MSM observations (code, phase, doppler, C/N0), radio ephemerides
+# and reference station coordinates, decoded into the inputs of the MISO engine.
+# Runtime agnostic (no I/O): RTCM files, serial ports, sockets..
+rtcm = ["dep:rtcm-rs"]
+
+# NTRIP clients as real-time inputs of the MISO engine (as many as needed):
+# each client streams the RTCM messages of one mount point (rover, RTK base, ephemerides..).
+# Each client runs in its own background thread (Tokio runtime).
+ntrip = [
+    "rtcm",
+    "dep:ntrip-client",
+    "dep:tokio",
+    "dep:futures",
+]
+
 # Unlock "embedded ephemeris" option,
 # which removes the need of Internet access on very first (ever) deployment
 # in order to obtain the ANISE database
@@ -101,6 +116,10 @@ hifitime = { version = "4", features = ["serde", "std"] }
 gnss-qc-traits = { version = "0.6", features = ["processing"] }
 sp3 = { version = "1.5", optional = true, features = ["serde", "qc", "processing"] }
 serde = { version = "1", optional = true, default-features = false, features = ["derive"] }
+rtcm-rs = { version = "0.11", optional = true }
+ntrip-client = { version = "0.3", optional = true, default-features = false, features = ["log"] }
+tokio = { version = "1", optional = true, features = ["rt"] }
+futures = { version = "0.3", optional = true }
 
 [dev-dependencies]
 serde_json = { version = "1", features = ["float_roundtrip"] }
@@ -114,6 +133,10 @@ name = "miso"
 
 [[example]]
 name = "realtime"
+
+[[example]]
+name = "ntrip"
+required-features = ["ntrip"]
 
 [[example]]
 name = "spp"

@@ -10,6 +10,9 @@ mod ipp;
 mod miso;
 mod residuals;
 
+#[cfg(feature = "rtcm")]
+mod rtcm;
+
 #[cfg(feature = "serde")]
 mod serde;
 
