@@ -27,12 +27,12 @@ GNSS-Qc is a **MISO** processor (Multiple Inputs, Single Output):
  SP3 (agency) ────┤    synchronization       │                          (display, files,
  CLK (agency) ────┤    per satellite         └─ P.V.T solutions          database, network..)
  MET (station) ───┤
- RTCM socket  ────┘
+ NTRIP clients ───┘  (RTCM streams: rover, base, ephemerides..)
  ANTEX (static)
 ```
 
 - **Any input, any nature**: files (Observation, Navigation, Clock and Meteo RINEX, CRINEX,
-  SP3, IONEX), streams (sockets, serial ports, decoders running in other threads), or anything
+  SP3, IONEX), streams (NTRIP clients, RTCM, sockets, serial ports, decoders running in other threads), or anything
   implementing the `QcSource` trait. Any source may deliver any kind of data point
   (observations, ephemerides, precise states, precise clocks, meteo observations, TEC maps).
 - **Pull based**: the application pulls results, the engine pulls just enough input data
@@ -101,6 +101,7 @@ see the [navigation guide](docs/navigation/README.md).
 | [MISO engine](docs/miso.md) | Sources, synchronization, lookahead, time windows, outputs and sinks, real-time operation |
 | [Precise clocks](docs/clocks.md) | Clock RINEX: satellite and station clocks, synchronization, satellite clocks of the navigation (Clock RINEX > SP3 > broadcast) |
 | [Meteo observations](docs/meteo.md) | Meteo RINEX: sensor observations, synchronization, stream |
+| [RTCM streams and NTRIP clients](docs/ntrip.md) | Real-time inputs: as many NTRIP clients as needed (rover, base, ephemerides), RTCM 3 decoding, indexing and roles, RTK in real-time |
 | [Processors](docs/processors.md) | Built-in processors, writing your own processor and output type |
 | [Navigation](docs/navigation/README.md) | P.V.T solutions with GNSS-RTK: orbital products (SP3 / NAV), satellite clocks (CLK / SP3 / NAV), configuration, performances |
 | ↳ [SPP](docs/navigation/spp.md) | Single frequency code navigation |
@@ -128,6 +129,7 @@ Runnable examples, based on the `data` submodule (run them from the repository r
 | [context](examples/context.rs) | Loading files, indexing, merging, custom aliases |
 | [miso](examples/miso.rs) | 48h streamed day after day, 48h of ephemerides, built-in + custom processors, custom output type, sink |
 | [realtime](examples/realtime.rs) | A stream decoded in another thread, non blocking engine polling |
+| [ntrip](examples/ntrip.rs) | NTRIP clients (one per argument: rover, base, ephemerides), real-time P.V.T solutions |
 | [spp](examples/spp.rs) | Single Point Positioning |
 | [cpp](examples/cpp.rs) | Code Precise Positioning |
 | [ppp](examples/ppp.rs) | Precise Point Positioning |
@@ -156,6 +158,8 @@ cargo run --release --features navigation --example ppp > solutions.csv
 | `navigation` | | P.V.T solutions, powered by [GNSS-RTK](https://github.com/nav-solutions/gnss-rtk) and [ANISE](https://github.com/nyx-space/anise). The heaviest option. |
 | `cggtts` | | CGGTTS solutions (common view time transfer), powered by [CGGTTS](https://github.com/nav-solutions/cggtts) (implies `navigation`) |
 | `ionex` | | IONEX inputs (TEC maps analysis, temporal interpolation) and Ionospheric Pierce Points, powered by [IONEX](https://github.com/nav-solutions/ionex) |
+| `rtcm` | | RTCM 3 decoding: MSM observations, radio ephemerides and station coordinates as inputs, powered by [rtcm-rs](https://github.com/martinhakansson/rtcm-rs), see [RTCM streams](docs/ntrip.md) |
+| `ntrip` | | NTRIP clients as real-time inputs (as many as needed), powered by [ntrip-client](https://github.com/nav-solutions/ntrip-client) and [Tokio](https://tokio.rs) (implies `rtcm`) |
 | `embed_ephem` | | Embeds the ANISE dataset at build time: no Internet access required at runtime (implies `navigation`) |
 | `serde` | | Serialization and deserialization of the configurations, indexing, data points and output stream, see [Serde support](docs/context.md#serde-support) |
 | `log` | | Debug traces (`$RUST_LOG`) |
@@ -175,3 +179,4 @@ GNSS-Qc relies on:
 - [GNSS-RTK](https://github.com/nav-solutions/gnss-rtk) and [ANISE](https://github.com/nyx-space/anise): navigation (`navigation` feature)
 - [CGGTTS](https://github.com/nav-solutions/cggtts): common view time transfer (`cggtts` feature)
 - [IONEX](https://github.com/nav-solutions/ionex): ionosphere models and maps (`ionex` feature)
+- [NTRIP client](https://github.com/nav-solutions/ntrip-client) and [rtcm-rs](https://github.com/martinhakansson/rtcm-rs): real-time RTCM streams (`ntrip` and `rtcm` features)
