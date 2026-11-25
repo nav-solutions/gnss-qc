@@ -103,6 +103,17 @@ pub fn build_candidates(
     }
 
     for (sv, carriers) in sorted {
+        // GNSS-RTK requires an L1 (or B1) pseudo range: it is the reference
+        // signal of each candidate (bias compensation, single frequency..).
+        // Without it, the satellite cannot be proposed (incomplete stream, signal loss..).
+        let has_l1 = carriers.iter().any(|(carrier, signals)| {
+            matches!(carrier, Carrier::L1 | Carrier::B1) && signals.pseudo_range.is_some()
+        });
+
+        if !has_l1 {
+            continue;
+        }
+
         let observations = carriers
             .into_iter()
             .filter_map(|(carrier, signals)| {
@@ -135,5 +146,53 @@ pub fn build_candidates(
         if !observations.is_empty() {
             candidates.push(Candidate::new(sv, t, observations));
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::str::FromStr;
+
+    fn signal(sv: &str, observable: Observable, value: f64) -> SignalObservation {
+        SignalObservation {
+            sv: SV::from_str(sv).unwrap(),
+            value,
+            observable,
+            lli: None,
+            snr: None,
+        }
+    }
+
+    #[test]
+    fn candidates_require_l1_pseudo_ranges() {
+        let t = Epoch::from_str("2020-06-25T00:00:00 GPST").unwrap();
+
+        let signals = [
+            // complete
+            signal("G01", Observable::PseudoRange("C1C".to_string()), 2.0E7),
+            signal("G01", Observable::PseudoRange("C2W".to_string()), 2.0E7),
+            // no L1 pseudo range (incomplete stream): not proposed
+            signal("G02", Observable::PseudoRange("C5Q".to_string()), 2.1E7),
+            signal("G02", Observable::PhaseRange("L1C".to_string()), 1.1E8),
+            // BeiDou B1I
+            signal("C10", Observable::PseudoRange("C2I".to_string()), 3.7E7),
+        ];
+
+        let mut candidates = Vec::new();
+
+        build_candidates(
+            t,
+            &signals,
+            &[Constellation::GPS, Constellation::BeiDou],
+            false,
+            &mut candidates,
+        );
+
+        let svs = candidates.iter().map(|cd| cd.sv).collect::<Vec<_>>();
+        assert_eq!(
+            svs,
+            vec![SV::from_str("G01").unwrap(), SV::from_str("C10").unwrap()]
+        );
     }
 }
