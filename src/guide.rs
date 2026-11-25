@@ -12,6 +12,7 @@
 //! - `ionex`: TEC maps (IONEX, `ionex` feature)
 //! - `clocks`: precise clocks (Clock RINEX), satellite clocks of the navigation
 //! - [meteo]: meteo observations (Meteo RINEX)
+//! - `ntrip`: RTCM streams and NTRIP clients (`rtcm` and `ntrip` features)
 //! - [testing]: test data and running the tests
 
 #[doc = include_str!("../docs/context.md")]
@@ -36,6 +37,10 @@ pub mod clocks {}
 
 #[doc = include_str!("../docs/meteo.md")]
 pub mod meteo {}
+
+#[cfg(feature = "ntrip")]
+#[doc = include_str!("../docs/ntrip.md")]
+pub mod ntrip {}
 
 #[cfg(feature = "ionex")]
 #[doc = include_str!("../docs/ionex.md")]

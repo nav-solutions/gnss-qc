@@ -62,6 +62,7 @@ order** by each source:
 | `QcPayload::PreciseClock` | state epoch | precise clock state of a satellite or a ground station (s) |
 | `QcPayload::Meteo` | observation epoch | meteo sensor observation |
 | `QcPayload::Tec` | map epoch | node of a TEC map (vertical TEC) |
+| `QcPayload::ReferencePosition` | reception epoch | reference position of the source (ARP, ECEF m), learned from the stream (RTCM 1005/1006) |
 
 Any source may deliver any payload: a real-time RTCM stream carries both observations and
 ephemerides. The `QcSourceDescriptor` tells the engine what to expect from a source, so it
@@ -88,6 +89,8 @@ let descriptor = QcSourceDescriptor::new(QcIndexing::Custom("rtcm".to_string()))
 | `QcIonexSource` | IONEX (TEC maps, `ionex` feature) |
 | `QcIterSource` | Any `Iterator<Item = QcInputItem>` (in-memory datasets, adapters) |
 | `QcChannelSource` | Real-time: `std::sync::mpsc` channel fed by another thread |
+| `QcNtripSource` | Real-time: NTRIP client, RTCM 3 stream of one mount point (`ntrip` feature, see [NTRIP](ntrip.md)) |
+| `QcRtcmSource` | Recorded RTCM 3 stream (`rtcm` feature) |
 | `QcChainSource` | Concatenates sources that follow each other in time |
 | `QcLazySource` | Opens a source (e.g. parses a file) when the engine first needs it |
 
@@ -350,6 +353,10 @@ loop {
 
 `poll_next` is also the entry point to wrap the engine into an async stream, if your
 application uses an async runtime.
+
+For RTCM streams, the `ntrip` feature provides ready to use NTRIP clients (`QcNtripSource`),
+and the `rtcm` feature the RTCM decoder (`QcRtcmDecoder`) for your own transports
+(serial ports, sockets..), see [RTCM streams and NTRIP clients](ntrip.md).
 
 ## Memory and performance
 
