@@ -20,10 +20,15 @@ use crate::{
 
 /// Preference among the signals of one frequency (RINEX attributes):
 /// civilian first, then precise codes, then the others.
-const ATTRIBUTES: &str = "CWPYXQILSBDMZAN";
+pub(crate) const ATTRIBUTES: &str = "CWPYXQILSBDMZAN";
 
 fn attribute_rank(attribute: char) -> usize {
-    ATTRIBUTES.find(attribute).unwrap_or(ATTRIBUTES.len())
+    rank(ATTRIBUTES, attribute)
+}
+
+/// Rank of an attribute in a preference list
+pub(crate) fn rank(preference: &str, attribute: char) -> usize {
+    preference.find(attribute).unwrap_or(preference.len())
 }
 
 /// Signal combinations configuration
@@ -112,16 +117,34 @@ impl QcCombinationConfig {
 
 /// Observations of one frequency
 #[derive(Debug, Default)]
-struct Band {
-    frequency_hz: f64,
-    wavelength_m: f64,
+pub(crate) struct Band {
+    pub frequency_hz: f64,
+    pub wavelength_m: f64,
     /// Codes (m), per attribute
-    codes: BTreeMap<char, (Observable, f64)>,
+    pub codes: BTreeMap<char, (Observable, f64)>,
     /// Phases (m), per attribute, loss of lock
-    phases: BTreeMap<char, (Observable, f64, bool)>,
+    pub phases: BTreeMap<char, (Observable, f64, bool)>,
 }
 
 impl Band {
+    /// Preferred code, according to this attribute preference
+    #[cfg_attr(not(feature = "ionex"), allow(dead_code))]
+    pub(crate) fn code_by(&self, preference: &str) -> Option<&(Observable, f64)> {
+        self.codes
+            .iter()
+            .min_by_key(|(attribute, _)| rank(preference, **attribute))
+            .map(|(_, code)| code)
+    }
+
+    /// Preferred phase, according to this attribute preference
+    #[cfg_attr(not(feature = "ionex"), allow(dead_code))]
+    pub(crate) fn phase_by(&self, preference: &str) -> Option<&(Observable, f64, bool)> {
+        self.phases
+            .iter()
+            .min_by_key(|(attribute, _)| rank(preference, **attribute))
+            .map(|(_, phase)| phase)
+    }
+
     fn code(&self) -> Option<&(Observable, f64)> {
         self.codes
             .iter()
@@ -138,7 +161,7 @@ impl Band {
 }
 
 /// Signals of one satellite, sorted per frequency band (RINEX band number)
-fn bands(sv: SV, signals: &[&SignalObservation]) -> BTreeMap<char, Band> {
+pub(crate) fn bands(sv: SV, signals: &[&SignalObservation]) -> BTreeMap<char, Band> {
     let mut bands = BTreeMap::<char, Band>::new();
 
     for signal in signals.iter() {

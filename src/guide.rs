@@ -10,6 +10,7 @@
 //! - `ipp`: Ionospheric Pierce Points (`ionex` feature)
 //! - `residuals`: observation, orbit and clock residuals (A − B)
 //! - `ionex`: TEC maps (IONEX, `ionex` feature)
+//! - `obs_tec`: TEC estimated from signal observations (`ionex` feature)
 //! - `clocks`: precise clocks (Clock RINEX), satellite clocks of the navigation
 //! - [meteo]: meteo observations (Meteo RINEX)
 //! - [combinations]: signal combinations (Geometry Free, Ionosphere Free, code multipath)
@@ -49,6 +50,10 @@ pub mod ntrip {}
 #[cfg(feature = "ionex")]
 #[doc = include_str!("../docs/ionex.md")]
 pub mod ionex {}
+
+#[cfg(feature = "ionex")]
+#[doc = include_str!("../docs/obs_tec.md")]
+pub mod obs_tec {}
 
 #[cfg(feature = "sp3")]
 #[doc = include_str!("../docs/residuals/README.md")]

@@ -12,6 +12,9 @@ mod residuals;
 
 mod combinations;
 
+#[cfg(feature = "ionex")]
+mod obs_tec;
+
 #[cfg(feature = "rtcm")]
 mod rtcm;
 

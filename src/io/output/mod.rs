@@ -234,6 +234,123 @@ pub struct QcIppOutput {
     pub vertical_tecu: Option<f64>,
 }
 
+/// TEC estimated from the signal observations of one receiver, for one satellite,
+/// at the Ionospheric Pierce Point of the line of sight (single layer model).
+/// See [QcObsTecProcessor](crate::prelude::QcObsTecProcessor).
+#[cfg(feature = "ionex")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct QcTecEstimate {
+    /// Receiver
+    pub receiver: QcIndexing,
+
+    /// Satellite
+    pub sv: SV,
+
+    /// Code of the first frequency (`C1W`, `C1C`..)
+    pub code_1: rinex::prelude::Observable,
+
+    /// Code of the second frequency (`C2W`, `C5Q`..)
+    pub code_j: rinex::prelude::Observable,
+
+    /// Phase of the first frequency
+    pub phase_1: rinex::prelude::Observable,
+
+    /// Phase of the second frequency
+    pub phase_j: rinex::prelude::Observable,
+
+    /// Phase arc number (leveling)
+    pub arc: u32,
+
+    /// Number of samples of the arc so far (leveling)
+    pub arc_samples: usize,
+
+    /// Elevation of the line of sight, at the receiver (degrees)
+    pub elevation_deg: f64,
+
+    /// Azimuth of the line of sight, at the receiver (degrees)
+    pub azimuth_deg: f64,
+
+    /// Latitude of the pierce point (degrees)
+    pub latitude_deg: f64,
+
+    /// Longitude of the pierce point (degrees)
+    pub longitude_deg: f64,
+
+    /// Altitude of the ionospheric shell (km)
+    pub altitude_km: f64,
+
+    /// Obliquity (mapping) factor at the pierce point: STEC = factor x VTEC
+    pub obliquity_factor: f64,
+
+    /// Slant TEC from the codes only (TECu): `k (Cj − C1)`, absolute but noisy
+    pub code_slant_tecu: f64,
+
+    /// Slant TEC from the phases only (TECu): `k (L1 − Lj)`, precise but ambiguous
+    pub phase_slant_tecu: f64,
+
+    /// Leveling of the phase (TECu): running mean of `STEC(code) − STEC(phase)` over the
+    /// phase arc, so far. The final mean of the arc is given by [QcTecArc].
+    pub leveling_tecu: f64,
+
+    /// Slant TEC (TECu): `STEC(phase) + leveling`. Uncalibrated: the differential
+    /// code biases of the satellite and of the receiver are not corrected yet.
+    pub slant_tecu: f64,
+
+    /// Vertical TEC at the pierce point (TECu): `STEC / obliquity factor`
+    pub vertical_tecu: f64,
+
+    /// Vertical TEC of the TEC maps (IONEX inputs) at the same pierce point, when available:
+    /// comparison
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub map_vertical_tecu: Option<f64>,
+}
+
+/// TEC leveling of one continuous phase arc (one receiver, one satellite), emitted when the arc
+/// ends (loss of lock, data gap, cycle slip, end of stream).
+/// See [QcObsTecProcessor](crate::prelude::QcObsTecProcessor).
+#[cfg(feature = "ionex")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct QcTecArc {
+    /// Receiver
+    pub receiver: QcIndexing,
+
+    /// Satellite
+    pub sv: SV,
+
+    /// Code of the first frequency
+    pub code_1: rinex::prelude::Observable,
+
+    /// Code of the second frequency
+    pub code_j: rinex::prelude::Observable,
+
+    /// Phase of the first frequency
+    pub phase_1: rinex::prelude::Observable,
+
+    /// Phase of the second frequency
+    pub phase_j: rinex::prelude::Observable,
+
+    /// Arc number
+    pub arc: u32,
+
+    /// First epoch of the arc
+    pub start: Epoch,
+
+    /// Last epoch of the arc
+    pub end: Epoch,
+
+    /// Number of samples
+    pub samples: usize,
+
+    /// Final leveling of the arc (TECu): mean of `STEC(code) − STEC(phase)`.
+    /// Exact leveling of a sample of this arc: `phase_slant_tecu + leveling_tecu`.
+    pub leveling_tecu: f64,
+
+    /// Dispersion of `STEC(code) − STEC(phase)` over the arc (TECu): code noise and multipath
+    pub code_noise_tecu: f64,
+}
+
 #[cfg(feature = "ionex")]
 impl QcIppOutput {
     /// Slant TEC along the line of sight (TECu), when TEC maps cover the pierce point
@@ -556,6 +673,15 @@ pub enum QcOutput {
 
     /// Statistics of a TEC map, per region
     TecMap(QcTecMapStatistics),
+
+    /// TEC estimated from signal observations, at a pierce point
+    /// (boxed: large structure, frequent output)
+    #[cfg(feature = "ionex")]
+    TecEstimate(Box<QcTecEstimate>),
+
+    /// TEC leveling of a phase arc (boxed: large structure)
+    #[cfg(feature = "ionex")]
+    TecArc(Box<QcTecArc>),
 
     /// P.V.T solution
     #[cfg(feature = "navigation")]

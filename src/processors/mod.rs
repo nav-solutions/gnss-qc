@@ -4,7 +4,7 @@
 //! type `O: From<QcOutput>`, so they can be stacked next to application specific processors.
 mod clock;
 mod clock_residuals;
-mod combination;
+pub(crate) mod combination;
 mod coverage;
 mod ephemeris;
 mod observation_residuals;
@@ -14,6 +14,9 @@ mod tec;
 
 #[cfg(feature = "ionex")]
 mod ipp;
+
+#[cfg(feature = "ionex")]
+mod obs_tec;
 
 pub use clock::{QcMeteoConfig, QcMeteoProcessor, QcPreciseClockConfig, QcPreciseClockProcessor};
 pub use clock_residuals::{
@@ -29,3 +32,6 @@ pub use tec::{QcTecConfig, QcTecProcessor, QcTecRegion, QcTecSampling};
 
 #[cfg(feature = "ionex")]
 pub use ipp::{elevation_azimuth_deg, QcIppConfig, QcIppProcessor};
+
+#[cfg(feature = "ionex")]
+pub use obs_tec::{tecu_per_meter, QcObsTecConfig, QcObsTecProcessor};

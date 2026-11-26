@@ -103,8 +103,8 @@ pub mod prelude {
 
     #[cfg(feature = "ionex")]
     pub use crate::{
-        io::output::QcIppOutput,
-        processors::{QcIppConfig, QcIppProcessor},
+        io::output::{QcIppOutput, QcTecArc, QcTecEstimate},
+        processors::{QcIppConfig, QcIppProcessor, QcObsTecConfig, QcObsTecProcessor},
     };
 
     pub use crate::orbit::{QcClockKind, QcClockPreference, QcOrbitKind, QcOrbitPreference};
