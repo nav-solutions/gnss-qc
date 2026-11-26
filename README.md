@@ -111,6 +111,7 @@ see the [navigation guide](docs/navigation/README.md).
 | ↳ [CGGTTS](docs/navigation/cggtts.md) | Common view time transfer: P.V.T solutions post-fitted into CGGTTS tracks |
 | [TEC maps (IONEX)](docs/ionex.md) | IONEX inputs: TEC maps statistics per region, temporal interpolation, synthesis of new IONEX files |
 | [Ionospheric Pierce Points](docs/ipp.md) | Pierce points of the lines of sight in the ionosphere, vertical TEC from the maps |
+| [TEC from signal observations](docs/obs_tec.md) | Slant and vertical TEC estimated from dual frequency observations (leveled phase), at the pierce points of a network of receivers: the raw material of TEC maps |
 | [Signal combinations](docs/combinations.md) | Geometry Free, Ionosphere Free and code multipath, for every pair of frequencies, phase arcs |
 | [Residual analysis](docs/residuals/README.md) | A − B analyses of standard products, available by default |
 | ↳ [Observation residuals](docs/residuals/observations.md) | Receiver A − receiver B: relative clock behavior, receiver artifacts |
@@ -137,6 +138,7 @@ Runnable examples, based on the `data` submodule (run them from the repository r
 | [rtk_ppp](examples/rtk_ppp.rs) | Differential navigation (RTK-PPP) |
 | [cggtts](examples/cggtts.rs) | CGGTTS solutions, formatted into a CGGTTS file |
 | [ipp](examples/ipp.rs) | Ionospheric Pierce Points time series |
+| [obs_tec](examples/obs_tec.rs) | TEC estimated from the observations of two receivers, at their pierce points (CSV) |
 | [tec_maps](examples/tec_maps.rs) | TEC maps statistics, interpolation ×2, synthesis of a new IONEX file |
 | [clock_residuals](examples/clock_residuals.rs) | GRG (Clock RINEX) − IAC (SP3) clock residuals |
 | [precise_clocks](examples/precise_clocks.rs) | Satellite and station clocks of a Clock RINEX (CODE MGEX) |
@@ -159,7 +161,7 @@ cargo run --release --features navigation --example ppp > solutions.csv
 | `sp3` | ✓ | SP3 precise products (sources, merging) |
 | `navigation` | | P.V.T solutions, powered by [GNSS-RTK](https://github.com/nav-solutions/gnss-rtk) and [ANISE](https://github.com/nyx-space/anise). The heaviest option. |
 | `cggtts` | | CGGTTS solutions (common view time transfer), powered by [CGGTTS](https://github.com/nav-solutions/cggtts) (implies `navigation`) |
-| `ionex` | | IONEX inputs (TEC maps analysis, temporal interpolation) and Ionospheric Pierce Points, powered by [IONEX](https://github.com/nav-solutions/ionex) |
+| `ionex` | | IONEX inputs (TEC maps analysis, temporal interpolation), Ionospheric Pierce Points and TEC estimated from the observations, powered by [IONEX](https://github.com/nav-solutions/ionex) |
 | `rtcm` | | RTCM 3 decoding: MSM observations, radio ephemerides and station coordinates as inputs, powered by [rtcm-rs](https://github.com/martinhakansson/rtcm-rs), see [RTCM streams](docs/ntrip.md) |
 | `ntrip` | | NTRIP clients as real-time inputs (as many as needed), powered by [ntrip-client](https://github.com/nav-solutions/ntrip-client) and [Tokio](https://tokio.rs) (implies `rtcm`) |
 | `embed_ephem` | | Embeds the ANISE dataset at build time: no Internet access required at runtime (implies `navigation`) |

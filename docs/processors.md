@@ -16,6 +16,7 @@ synchronized `QcEpochContext` and produces results into the output queue.
 | `QcNavigationProcessor` | `QcOutput::PVTSolution`, `QcOutput::NavigationReport` | P.V.T solutions (`navigation` feature), see [Navigation](navigation/README.md) |
 | `QcCggttsProcessor` | `QcOutput::CggttsTrack`, `QcOutput::CggttsReport` | CGGTTS solutions (`cggtts` feature), see [CGGTTS](navigation/cggtts.md) |
 | `QcIppProcessor` | `QcOutput::IPP` | Ionospheric Pierce Points (`ionex` feature), see [IPP](ipp.md) |
+| `QcObsTecProcessor` | `QcOutput::TecEstimate`, `QcOutput::TecArc` | TEC estimated from the signal observations at the pierce points (`ionex` feature), see [TEC from signal observations](obs_tec.md) |
 | `QcCombinationProcessor` | `QcOutput::Combination`, `QcOutput::MultipathArc` | Signal combinations of each satellite: Geometry Free, Ionosphere Free, code multipath, see [Signal combinations](combinations.md) |
 | `QcObservationResidualProcessor` | `QcOutput::ObservationResidual` | Observation residuals between two receivers (A − B), see [Observation residuals](residuals/observations.md) |
 | `QcOrbitResidualProcessor` | `QcOutput::OrbitResidual` | Orbit residuals between two orbital products: agencies, broadcast / precise, two NAV sources, see [Orbit residuals](residuals/orbits.md) |
