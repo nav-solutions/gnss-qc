@@ -15,6 +15,7 @@
 //! - [meteo]: meteo observations (Meteo RINEX)
 //! - [combinations]: signal combinations (Geometry Free, Ionosphere Free, code multipath)
 //! - `ntrip`: RTCM streams and NTRIP clients (`rtcm` and `ntrip` features)
+//! - `ntrip_tec`: real-time TEC maps of a network, from NTRIP streams (`ntrip` and `ionex` features)
 //! - [testing]: test data and running the tests
 
 #[doc = include_str!("../docs/context.md")]
@@ -54,6 +55,10 @@ pub mod ionex {}
 #[cfg(feature = "ionex")]
 #[doc = include_str!("../docs/obs_tec.md")]
 pub mod obs_tec {}
+
+#[cfg(all(feature = "ntrip", feature = "ionex"))]
+#[doc = include_str!("../docs/ntrip_tec.md")]
+pub mod ntrip_tec {}
 
 #[cfg(feature = "sp3")]
 #[doc = include_str!("../docs/residuals/README.md")]

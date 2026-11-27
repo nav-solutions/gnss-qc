@@ -122,6 +122,8 @@ tokio = { version = "1", optional = true, features = ["rt"] }
 futures = { version = "0.3", optional = true }
 
 [dev-dependencies]
+log = "0.4"
+env_logger = "0.11"
 serde_json = { version = "1", features = ["float_roundtrip"] }
 
 [[example]]
@@ -140,6 +142,11 @@ name = "combinations"
 [[example]]
 name = "ntrip"
 required-features = ["ntrip"]
+
+[[example]]
+name = "ntrip_tec"
+required-features = ["ntrip", "ionex"]
+test = true
 
 [[example]]
 name = "spp"

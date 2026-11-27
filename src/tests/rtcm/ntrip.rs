@@ -366,3 +366,136 @@ fn ntrip_rtk_cpp() {
         max_m
     );
 }
+
+/// Real-time TEC of a network: two NTRIP clients (ESBC00DNK, MOJN00DNK), the coordinates
+/// of both stations (RTCM 1005) and the radio ephemerides streamed by ESBC.
+/// Same estimates as the file based scenario (RINEX files), see examples/ntrip_tec.
+#[cfg(feature = "ionex")]
+#[test]
+fn ntrip_obs_tec() {
+    use crate::io::rinex::QcRinexObsSource;
+    use std::collections::HashMap;
+
+    let end = epoch("2020-06-25T01:00:00 GPST");
+
+    let cfg = || QcObsTecConfig::default().with_constellations(&[Constellation::GPS]);
+
+    type Estimates = HashMap<(String, SV, Epoch), QcTecEstimate>;
+
+    let collect = |engine: QcEngine<QcOutput>, station: &dyn Fn(&QcIndexing) -> String| {
+        let (mut estimates, mut arcs) = (Estimates::new(), 0);
+        for item in engine {
+            let item = item.unwrap();
+            match item.payload {
+                QcOutput::TecEstimate(e) => {
+                    if item.epoch <= end {
+                        estimates.insert((station(&e.receiver), e.sv, item.epoch), *e);
+                    }
+                }
+                QcOutput::TecArc(_) => arcs += 1,
+                _ => {}
+            }
+        }
+        (estimates, arcs)
+    };
+
+    // reference: files
+    let products = crate::tests::miso::load_products(
+        &QcInputConfig::default(),
+        &[ESBC_OBS, MOJN_OBS, ESBC_NAV],
+    );
+    let engine = QcEngine::<QcOutput>::builder()
+        .with_products(products)
+        .with_time_window(None, Some(end))
+        .with_processor(QcObsTecProcessor::new(cfg()))
+        .build()
+        .unwrap();
+
+    let (reference, _) = collect(engine, &|rx| {
+        if rx.to_string().contains("3047937") {
+            "ESBC".to_string()
+        } else {
+            "MOJN".to_string()
+        }
+    });
+
+    // streams: coordinates of each station (RINEX headers, as RTCM 1005)
+    let position = |obs: &str| QcRinexObsSource::antenna_reference_point(&load_rinex(obs)).unwrap();
+
+    let esbc_port = caster(
+        "ESBC00DNK0",
+        None,
+        station_frames(ESBC_OBS, Some(ESBC_NAV), Some(position(ESBC_OBS)), end),
+    );
+    let mojn_port = caster(
+        "MOJN00DNK0",
+        None,
+        station_frames(MOJN_OBS, None, Some(position(MOJN_OBS)), end),
+    );
+
+    let mut builder = QcEngine::<QcOutput>::builder()
+        .with_time_window(None, Some(end))
+        .with_processor(QcObsTecProcessor::new(cfg()));
+
+    for (mount, port) in [("ESBC00DNK0", esbc_port), ("MOJN00DNK0", mojn_port)] {
+        let stream = QcNtripConfig::new("127.0.0.1", port, mount)
+            .with_role(QcNtripRole::Base)
+            .with_reference_epoch(reference_epoch());
+        builder = builder.with_source(QcNtripSource::new(stream).unwrap());
+    }
+
+    let (streamed, arcs) = collect(builder.build().unwrap(), &|rx| {
+        rx.to_string()[..4].to_string()
+    });
+
+    assert!(arcs > 0, "phase arcs closed at the end of the streams");
+
+    let stations = streamed
+        .keys()
+        .map(|(station, _, _)| station.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(stations.len(), 2, "{:?}", stations);
+
+    // same lines of sight, same signals, same TEC
+    let mut common = 0;
+    let mut max_tecu: f64 = 0.0;
+
+    for (key, e) in streamed.iter() {
+        let Some(r) = reference.get(key) else {
+            continue;
+        };
+        if (&e.code_1, &e.code_j) != (&r.code_1, &r.code_j) {
+            continue;
+        }
+        common += 1;
+        assert!(
+            (e.latitude_deg - r.latitude_deg).abs() < 1.0E-6,
+            "{:?}",
+            key
+        );
+        assert!(
+            (e.longitude_deg - r.longitude_deg).abs() < 1.0E-6,
+            "{:?}",
+            key
+        );
+        max_tecu = max_tecu.max((e.vertical_tecu - r.vertical_tecu).abs());
+    }
+
+    println!(
+        "{} streamed estimates, {} file based, {} in common: max. difference {:.4} TECu",
+        streamed.len(),
+        reference.len(),
+        common,
+        max_tecu
+    );
+
+    assert!(
+        common as f64 > 0.9 * reference.len() as f64,
+        "{} estimates in common out of {}",
+        common,
+        reference.len()
+    );
+
+    // RTCM resolution: pseudo ranges 0.6 mm, phases 0.5 mm (×9.52 TECu/m)
+    assert!(max_tecu < 0.05, "max. difference {} TECu", max_tecu);
+}
