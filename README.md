@@ -164,7 +164,7 @@ cargo run --release --features navigation --example ppp > solutions.csv
 | `navigation` | | P.V.T solutions, powered by [GNSS-RTK](https://github.com/nav-solutions/gnss-rtk) and [ANISE](https://github.com/nyx-space/anise). The heaviest option. |
 | `cggtts` | | CGGTTS solutions (common view time transfer), powered by [CGGTTS](https://github.com/nav-solutions/cggtts) (implies `navigation`) |
 | `ionex` | | IONEX inputs (TEC maps analysis, temporal interpolation), Ionospheric Pierce Points and TEC estimated from the observations, powered by [IONEX](https://github.com/nav-solutions/ionex) |
-| `rtcm` | | RTCM 3 decoding: MSM observations, radio ephemerides and station coordinates as inputs, powered by [rtcm-rs](https://github.com/martinhakansson/rtcm-rs), see [RTCM streams](docs/ntrip.md) |
+| `rtcm` | | RTCM 3 decoding: MSM (GPS, Glonass, Galileo, SBAS, QZSS, BeiDou) and legacy observations, radio ephemerides, station coordinates and descriptors as inputs, powered by [rtcm-rs](https://github.com/martinhakansson/rtcm-rs), see [RTCM streams](docs/ntrip.md) |
 | `ntrip` | | NTRIP clients as real-time inputs (as many as needed), powered by [ntrip-client](https://github.com/nav-solutions/ntrip-client) and [Tokio](https://tokio.rs) (implies `rtcm`) |
 | `embed_ephem` | | Embeds the ANISE dataset at build time: no Internet access required at runtime (implies `navigation`) |
 | `serde` | | Serialization and deserialization of the configurations, indexing, data points and output stream, see [Serde support](docs/context.md#serde-support) |

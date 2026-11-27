@@ -5,6 +5,8 @@ pub mod encoder;
 #[cfg(feature = "ntrip")]
 mod ntrip;
 
+mod messages;
+
 use std::collections::HashMap;
 
 use rinex::prelude::{obs::SignalObservation, Observable};
@@ -109,12 +111,18 @@ pub fn station_frames(
     frames
 }
 
+/// Frequency channels of the Glonass satellites (RINEX header)
+pub fn glonass_channels(file: &str) -> HashMap<SV, i8> {
+    load_rinex(file).header.glo_channels.clone()
+}
+
+/// MSM7 of all constellations (GPS, Glonass, Galileo, SBAS, QZSS, BeiDou)
 #[test]
 fn msm7_observations() {
     let end = epoch("2020-06-25T00:30:00 GPST");
     let reference = rinex_epochs(ESBC_OBS, end);
 
-    let mut encoder = RtcmEncoder::default();
+    let mut encoder = RtcmEncoder::default().with_glonass_sbas(&glonass_channels(ESBC_OBS));
     let mut decoder = QcRtcmDecoder::new().with_reference_epoch(reference_epoch());
 
     // phase offsets (integer cycles) introduced by the alignment on the pseudo ranges
@@ -260,6 +268,10 @@ fn msm7_observations() {
 
     assert_eq!(constellations(&mut decoded_svs.into_iter()), in_sight);
     assert!(in_sight.len() >= 3, "{:?}", in_sight);
+
+    // Glonass (FDMA, Glonass time) and SBAS are part of it
+    assert!(in_sight.contains(&Constellation::Glonass), "{:?}", in_sight);
+    assert!(in_sight.iter().any(|c| c.is_sbas()), "{:?}", in_sight);
 }
 
 #[test]
