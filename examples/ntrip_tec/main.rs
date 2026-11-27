@@ -18,6 +18,11 @@
 //! UNCALIBRATED: the differential code biases (DCB) of the satellites and of the receivers
 //! are not corrected. Press Ctrl+C to stop (the IONEX file of the day remains valid),
 //! or use `--duration`.
+//!
+//! Real-time network: every client reconnects automatically (`--reconnect`), a station that
+//! lags behind the others by more than `--max-latency` is not waited for, and a station
+//! whose stream cannot be used (unknown mount point..) does not stop the others.
+//! The state of every station is reported every minute (`RUST_LOG=info`).
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -28,7 +33,7 @@ use std::{
 use gnss_qc::prelude::*;
 
 use env_logger::{Builder, Env, Target};
-use log::{debug, info};
+use log::{debug, error, info, warn};
 
 mod maps;
 
@@ -57,6 +62,11 @@ OPTIONS:
     --output DIR                 IONEX files directory (default: .)
     --prefix NAME                IONEX file name prefix (default: NTRIPTEC)
     --duration PERIOD            stops after PERIOD (default: never, Ctrl+C)
+    --max-latency PERIOD         a station lagging behind the others by more than PERIOD
+                                 is not waited for (default: \"30 s\")
+    --reconnect PERIOD           reconnection delay after a failure (default: \"10 s\",
+                                 doubled after each failure, up to 2 minutes)
+    --no-reconnect               no reconnection: a failed station is left out
     --reference-epoch EPOCH      approximate date of recorded streams (replay)";
 
 /// Command line
@@ -68,6 +78,7 @@ struct Options {
     output: PathBuf,
     prefix: String,
     duration: Option<StdDuration>,
+    max_latency: Duration,
 }
 
 fn fail(message: &str) -> ! {
@@ -94,7 +105,10 @@ fn parse_args() -> Options {
         output: PathBuf::from("."),
         prefix: "NTRIPTEC".to_string(),
         duration: None,
+        max_latency: Duration::from_seconds(30.0),
     };
+
+    let mut reconnection = Some(StdDuration::from_secs(10));
 
     let mut positions = Vec::<(String, (f64, f64, f64))>::new();
     let mut radius = None;
@@ -174,6 +188,12 @@ fn parse_args() -> Options {
                 options.duration = Some(StdDuration::from_secs_f64(duration.to_seconds()));
             }
             "--reference-epoch" => reference_epoch = Some(parse::<Epoch>(&arg, args.next())),
+            "--max-latency" => options.max_latency = parse(&arg, args.next()),
+            "--reconnect" => {
+                let delay = parse::<Duration>(&arg, args.next());
+                reconnection = Some(StdDuration::from_secs_f64(delay.to_seconds().max(0.1)));
+            }
+            "--no-reconnect" => reconnection = None,
             _ if arg.starts_with('-') => fail(&format!("unknown option \"{}\"", arg)),
             _ => {
                 let (role, url) = match arg.split_once('=') {
@@ -217,6 +237,16 @@ fn parse_args() -> Options {
             .find(|s| s.mount == mount)
             .unwrap_or_else(|| fail(&format!("--position: unknown station \"{}\"", mount)));
         *station = station.clone().with_reference_position_ecef_m(position);
+    }
+
+    if let Some(delay) = reconnection {
+        for stream in options
+            .stations
+            .iter_mut()
+            .chain(options.ephemerides.iter_mut())
+        {
+            *stream = stream.clone().with_reconnection(delay);
+        }
     }
 
     if let Some(epoch) = reference_epoch {
@@ -407,11 +437,19 @@ fn main() {
     }
     .with_constellations(&options.constellations);
 
-    let mut builder = QcEngine::<QcOutput>::builder().with_processor(QcObsTecProcessor::new(cfg));
+    // real-time network: lagging and failing stations do not hold the others
+    let mut builder = QcEngine::<QcOutput>::builder()
+        .with_max_latency(options.max_latency)
+        .with_fault_tolerance(true)
+        .with_processor(QcObsTecProcessor::new(cfg));
+
+    let mut monitors = Vec::new();
 
     for stream in options.stations.iter().chain(options.ephemerides.iter()) {
         info!("({}) {}", stream, stream.role);
-        builder = builder.with_source(QcNtripSource::new(stream.clone()).unwrap());
+        let source = QcNtripSource::new(stream.clone()).unwrap();
+        monitors.push(source.monitor());
+        builder = builder.with_source(source);
     }
 
     let mut engine = builder.build().unwrap();
@@ -458,14 +496,8 @@ fn main() {
                 publisher.consume(&item);
             }
             Ok(QcPoll::Pending) => {
-                if last_report.elapsed() > StdDuration::from_secs(30) {
-                    debug!(
-                        "{} TEC estimates per station: {:?}",
-                        latest
-                            .map(|t: Epoch| t.to_string())
-                            .unwrap_or("waiting for data..".to_string()),
-                        estimates
-                    );
+                if last_report.elapsed() > StdDuration::from_secs(60) {
+                    report(&monitors, &estimates, latest, &engine.stats());
                     last_report = Instant::now();
                 }
                 std::thread::sleep(StdDuration::from_millis(20));
@@ -475,18 +507,100 @@ fn main() {
                 break;
             }
             Err(e) => {
-                eprintln!("{}", e);
+                error!("{}", e);
                 break;
             }
         }
     }
 
+    report(&monitors, &estimates, latest, &engine.stats());
+
     // last update: every map of the day, partial maps included
     if let Some(t) = publisher.collector.samples.last().map(|s| s.epoch) {
         publisher.publish(t.floor(options.setup.interval), true);
     }
+}
 
-    info!("TEC estimates per station: {:?}", estimates);
+/// State of every station: connection, decoded messages, TEC estimates, with hints
+fn report(
+    monitors: &[QcNtripMonitor],
+    estimates: &BTreeMap<String, usize>,
+    latest: Option<Epoch>,
+    stats: &QcEngineStats,
+) {
+    info!(
+        "latest estimate: {}, epochs: {} ({} without a lagging station), late items: {}, failed streams: {}",
+        latest
+            .map(|t| t.to_string())
+            .unwrap_or("none yet".to_string()),
+        stats.epochs,
+        stats.incomplete_epochs,
+        stats.late_items,
+        stats.failed_sources,
+    );
+
+    for monitor in monitors.iter() {
+        let cfg = monitor.config();
+        let rtcm = monitor.stats();
+        let count = estimates
+            .get(&cfg.indexing().to_string())
+            .copied()
+            .unwrap_or_default();
+
+        info!(
+            "{} ({}): {}, {} connection(s), {} messages ({} MSM, {} legacy observations, {} ephemerides, {} coordinates), {} TEC estimates{}{}",
+            cfg.mount,
+            cfg.role,
+            if monitor.is_connected() { "connected" } else { "disconnected" },
+            monitor.connections(),
+            rtcm.messages,
+            rtcm.msm,
+            rtcm.legacy,
+            rtcm.ephemerides,
+            rtcm.stations,
+            count,
+            rtcm.receiver
+                .as_ref()
+                .map(|r| format!(", receiver {}", r))
+                .unwrap_or_default(),
+            rtcm.antenna
+                .as_ref()
+                .map(|a| format!(", antenna {}", a))
+                .unwrap_or_default(),
+        );
+
+        if let Some(error) = monitor.last_error() {
+            warn!("{}: last failure: {}", cfg.mount, error);
+        }
+
+        if !rtcm.ignored.is_empty() {
+            debug!(
+                "{}: messages not interpreted: {:?}",
+                cfg.mount, rtcm.ignored
+            );
+        }
+
+        // why no TEC estimate?
+        if cfg.role != QcNtripRole::Ephemerides && rtcm.messages > 0 && count == 0 {
+            if rtcm.msm + rtcm.legacy == 0 {
+                warn!("{}: no observation message (MSM, 1004, 1012)", cfg.mount);
+            }
+            if rtcm.stations == 0 && cfg.reference_position_ecef_m.is_none() {
+                warn!(
+                    "{}: station coordinates unknown (no RTCM 1005/1006): use --position",
+                    cfg.mount
+                );
+            }
+        }
+    }
+
+    let ephemerides = monitors
+        .iter()
+        .map(|m| m.stats().ephemerides)
+        .sum::<usize>();
+    if ephemerides == 0 && monitors.iter().any(|m| m.stats().messages > 0) {
+        warn!("no radio ephemeris received: add an ephemerides stream (ephemerides=ntrip://..)");
+    }
 }
 
 #[cfg(test)]

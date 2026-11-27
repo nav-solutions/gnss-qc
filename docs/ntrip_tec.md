@@ -60,6 +60,9 @@ can be mixed.
 | `--output DIR` | Directory of the IONEX files (default: `.`) |
 | `--prefix NAME` | IONEX file name prefix (default: `NTRIPTEC`) |
 | `--duration PERIOD` | Stops after PERIOD (default: never, Ctrl+C) |
+| `--max-latency PERIOD` | A station lagging behind the others by more than PERIOD is not waited for (default: `"30 s"`) |
+| `--reconnect PERIOD` | Reconnection delay after a failure (default: `"10 s"`, doubled after each failure, up to 2 minutes) |
+| `--no-reconnect` | No reconnection: a failed station is left out |
 | `--reference-epoch EPOCH` | Approximate date of recorded streams (replay, see [time tags](ntrip.md#time-tags)) |
 
 Requirements, per station: dual frequency code **and** phase observations (MSM4 to MSM7),
@@ -133,9 +136,21 @@ and does not grow from one day to the next. 1 Hz streams hold 30 times more.
 ## Network: what to watch for
 
 **Synchronization.** The engine processes an epoch once every *live* station moved past it, so
-that the stations of an epoch are presented together. A station whose caster closed the
-connection is simply left out, but a station that remains connected and silent holds the whole
-network: monitor the streams (`QcNtripSource::stats`). There is no automatic reconnection yet.
+that the stations of an epoch are presented together. A station that lags behind the others by
+more than `--max-latency` (silent, reconnecting, slow link) is no longer waited for: the network
+goes on without it, its late data is dropped until it catches up. Every client reconnects
+automatically (`--reconnect`), and a station that cannot be used (unknown mount point, refused
+credentials) is left out without stopping the others ([real-time networks](ntrip.md#real-time-networks)).
+
+**Monitoring.** The state of every station is reported every minute: connection, number of
+connections, last failure, decoded messages (MSM, legacy observations, ephemerides,
+coordinates), receiver and antenna (1033), TEC estimates. A station without TEC estimate comes with
+a hint: no observation message, unknown coordinates (`--position`), no radio ephemeris at all
+(add an `ephemerides=` stream, the Centipede streams do not always carry them).
+
+**Legacy and MSM.** Centipede stations stream their observations twice (legacy 1004/1012 and
+MSM7): the legacy messages are skipped once MSM were decoded. Glonass and SBAS are decoded, but
+not used for the TEC (Glonass: FDMA, SBAS: no orbits).
 
 **Signals.** Each station streams the signals of its receiver: C1C or C1W, C2W, C2L or C5Q..
 `QcObsTecProcessor` selects the best pair of each satellite, so two stations may estimate the TEC
@@ -167,7 +182,7 @@ disturbances, traveling ionospheric disturbances), not to absolute TEC. Correcti
 DCB (Bias SINEX) and estimating the DCB of every station is the next step.
 
 Other limitations: single layer model (inaccurate at low elevations), inverse distance weighting
-(no extrapolation, no smoothing in time), no automatic reconnection of the NTRIP clients.
+(no extrapolation, no smoothing in time).
 
 ## Validation
 
