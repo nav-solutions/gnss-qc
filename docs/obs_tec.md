@@ -184,7 +184,8 @@ for item in engine {
 }
 ```
 
-See also the [obs_tec example](../examples/obs_tec.rs) (CSV output).
+See also the [obs_tec example](../examples/obs_tec.rs) (CSV output), and the
+[ntrip_tec example](ntrip_tec.md): real-time TEC maps of a network of NTRIP streams, as IONEX.
 
 ## Building TEC maps (IONEX)
 

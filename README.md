@@ -112,6 +112,7 @@ see the [navigation guide](docs/navigation/README.md).
 | [TEC maps (IONEX)](docs/ionex.md) | IONEX inputs: TEC maps statistics per region, temporal interpolation, synthesis of new IONEX files |
 | [Ionospheric Pierce Points](docs/ipp.md) | Pierce points of the lines of sight in the ionosphere, vertical TEC from the maps |
 | [TEC from signal observations](docs/obs_tec.md) | Slant and vertical TEC estimated from dual frequency observations (leveled phase), at the pierce points of a network of receivers: the raw material of TEC maps |
+| [Real-time TEC maps from NTRIP streams](docs/ntrip_tec.md) | N NTRIP clients (a network of reference stations), real-time TEC estimation, TEC maps published as IONEX (uncalibrated) |
 | [Signal combinations](docs/combinations.md) | Geometry Free, Ionosphere Free and code multipath, for every pair of frequencies, phase arcs |
 | [Residual analysis](docs/residuals/README.md) | A − B analyses of standard products, available by default |
 | ↳ [Observation residuals](docs/residuals/observations.md) | Receiver A − receiver B: relative clock behavior, receiver artifacts |
@@ -139,6 +140,7 @@ Runnable examples, based on the `data` submodule (run them from the repository r
 | [cggtts](examples/cggtts.rs) | CGGTTS solutions, formatted into a CGGTTS file |
 | [ipp](examples/ipp.rs) | Ionospheric Pierce Points time series |
 | [obs_tec](examples/obs_tec.rs) | TEC estimated from the observations of two receivers, at their pierce points (CSV) |
+| [ntrip_tec](examples/ntrip_tec/main.rs) | Real-time TEC maps of a network: one NTRIP client per station, IONEX file of the day updated map after map |
 | [tec_maps](examples/tec_maps.rs) | TEC maps statistics, interpolation ×2, synthesis of a new IONEX file |
 | [clock_residuals](examples/clock_residuals.rs) | GRG (Clock RINEX) − IAC (SP3) clock residuals |
 | [precise_clocks](examples/precise_clocks.rs) | Satellite and station clocks of a Clock RINEX (CODE MGEX) |

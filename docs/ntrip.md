@@ -124,6 +124,9 @@ cargo run --release --features ntrip,navigation --example ntrip -- \
     base=ntrip://user:password@caster:2101/BASE
 ```
 
+For real-time TEC maps of a network of stations (one client per station, IONEX output),
+see [real-time TEC maps from NTRIP streams](ntrip_tec.md).
+
 ## RTK with two NTRIP clients
 
 Rover and base are two signal sources, synchronized epoch by epoch by the engine. The base
