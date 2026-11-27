@@ -118,7 +118,7 @@ sp3 = { version = "1.5", optional = true, features = ["serde", "qc", "processing
 serde = { version = "1", optional = true, default-features = false, features = ["derive"] }
 rtcm-rs = { version = "0.11", optional = true }
 ntrip-client = { version = "0.3", optional = true, default-features = false, features = ["log"] }
-tokio = { version = "1", optional = true, features = ["rt"] }
+tokio = { version = "1", optional = true, features = ["rt", "time"] }
 futures = { version = "0.3", optional = true }
 
 [dev-dependencies]

@@ -499,3 +499,179 @@ fn ntrip_obs_tec() {
     // RTCM resolution: pseudo ranges 0.6 mm, phases 0.5 mm (×9.52 TECu/m)
     assert!(max_tecu < 0.05, "max. difference {} TECu", max_tecu);
 }
+
+/// One connection to a [sessions_caster]
+pub enum CasterSession {
+    /// The caster closes the connection without any response ("empty response")
+    Refuse,
+    /// The caster streams these frames, then closes the connection
+    Stream(Vec<Vec<u8>>),
+    /// The caster accepts the connection and remains silent (station down)
+    Silent,
+}
+
+/// Local NTRIP caster serving one connection per session, in this order.
+/// Returns the port of the caster.
+pub fn sessions_caster(sessions: Vec<CasterSession>) -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+
+    thread::spawn(move || {
+        for session in sessions {
+            let Ok((mut socket, _)) = listener.accept() else {
+                return;
+            };
+
+            let mut request = Vec::new();
+            let mut buffer = [0u8; 1024];
+
+            while !request.windows(4).any(|w| w == b"\r\n\r\n") {
+                match socket.read(&mut buffer) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => request.extend_from_slice(&buffer[..n]),
+                }
+            }
+
+            match session {
+                CasterSession::Refuse => drop(socket),
+                CasterSession::Silent => {
+                    let _ = socket.write_all(b"ICY 200 OK\r\n\r\n");
+                    // keeps the connection open, silent
+                    thread::spawn(move || {
+                        let _socket = socket;
+                        thread::sleep(StdDuration::from_secs(600));
+                    });
+                }
+                CasterSession::Stream(frames) => {
+                    let _ = socket.write_all(b"ICY 200 OK\r\n\r\n");
+                    for (index, frame) in frames.iter().enumerate() {
+                        if socket.write_all(frame).is_err() {
+                            break;
+                        }
+                        if index % 32 == 0 {
+                            thread::sleep(StdDuration::from_millis(1));
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    port
+}
+
+/// Real-time network: a station refused once by its caster (reconnection), a silent station
+/// (maximal latency: not waited for), an unknown mount point (fault tolerance: ended).
+/// The session goes on with the other stations.
+#[test]
+fn ntrip_network_resilience() {
+    let end = epoch("2020-06-25T00:30:00 GPST");
+    let position = |obs: &str| {
+        crate::io::rinex::QcRinexObsSource::antenna_reference_point(&load_rinex(obs)).unwrap()
+    };
+
+    let esbc = sessions_caster(vec![CasterSession::Stream(station_frames(
+        ESBC_OBS,
+        Some(ESBC_NAV),
+        Some(position(ESBC_OBS)),
+        end,
+    ))]);
+
+    let mojn = sessions_caster(vec![
+        CasterSession::Refuse,
+        CasterSession::Stream(station_frames(
+            MOJN_OBS,
+            None,
+            Some(position(MOJN_OBS)),
+            end,
+        )),
+    ]);
+
+    let silent = sessions_caster(vec![CasterSession::Silent]);
+    let unknown = caster("MOUNT", None, vec![]);
+
+    let stream = |port: u16, mount: &str| {
+        QcNtripConfig::new("127.0.0.1", port, mount).with_reference_epoch(reference_epoch())
+    };
+
+    let clients = [
+        QcNtripSource::new(stream(esbc, "ESBC00DNK0")).unwrap(),
+        QcNtripSource::new(
+            stream(mojn, "MOJN00DNK0").with_reconnection(StdDuration::from_millis(100)),
+        )
+        .unwrap(),
+        QcNtripSource::new(stream(silent, "SILENT")).unwrap(),
+        QcNtripSource::new(stream(unknown, "UNKNOWN")).unwrap(),
+    ];
+
+    let monitors = clients.iter().map(|c| c.monitor()).collect::<Vec<_>>();
+
+    // the first connection of MOJN is refused
+    let start = std::time::Instant::now();
+    while monitors[1].last_error().is_none() && start.elapsed() < StdDuration::from_secs(10) {
+        thread::sleep(StdDuration::from_millis(1));
+    }
+    assert!(monitors[1]
+        .last_error()
+        .is_some_and(|e| e.contains("empty response")));
+
+    let mut builder = QcEngine::<TestOutput>::builder()
+        .with_max_latency(Duration::from_seconds(60.0))
+        .with_fault_tolerance(true)
+        .with_time_window(None, Some(end))
+        .with_processor(EpochRecorder::default());
+
+    for client in clients {
+        builder = builder.with_source(client);
+    }
+
+    let mut engine = builder.build().unwrap();
+
+    let mut epochs = Vec::new();
+    for item in engine.by_ref() {
+        if let TestOutput::Epoch(summary) = item.unwrap().payload {
+            epochs.push(summary);
+        }
+    }
+
+    let stats = engine.stats();
+    println!("{:?}", stats);
+
+    for monitor in monitors.iter() {
+        println!(
+            "{}: connected {}, connections {}, last error {:?}, {} messages",
+            monitor.config(),
+            monitor.is_connected(),
+            monitor.connections(),
+            monitor.last_error(),
+            monitor.stats().messages
+        );
+    }
+
+    // every epoch of ESBC was processed, without waiting for the silent station
+    let reference = rinex_epochs(ESBC_OBS, end);
+    let esbc = QcIndexing::Custom("ESBC00DNK0".to_string());
+    let esbc_epochs = epochs
+        .iter()
+        .filter(|e| e.receivers.iter().any(|r| r.receiver == esbc))
+        .count();
+    assert_eq!(esbc_epochs, reference.len());
+    assert!(stats.incomplete_epochs > 0);
+
+    // the unknown mount point failed and was ended
+    assert_eq!(stats.failed_sources, 1);
+
+    // MOJN: refused once ("empty response"), then reconnected (in the background)
+    let start = std::time::Instant::now();
+    while monitors[1].stats().msm == 0 && start.elapsed() < StdDuration::from_secs(10) {
+        thread::sleep(StdDuration::from_millis(10));
+    }
+    assert_eq!(monitors[1].connections(), 1);
+    assert!(monitors[1].stats().msm > 0);
+    // (then the caster closed the connection: the client keeps trying)
+    assert!(monitors[1].last_error().is_some());
+
+    // the silent station is connected, nothing received
+    assert!(monitors[2].is_connected());
+    assert_eq!(monitors[2].stats().messages, 0);
+}

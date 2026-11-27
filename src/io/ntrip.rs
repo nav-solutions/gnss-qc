@@ -32,6 +32,18 @@
 //! the engine itself remains runtime agnostic and is never blocked by a client
 //! ([QcPoll::Pending] while waiting for data). The client stops when the [QcNtripSource]
 //! is dropped, or when the caster closes the connection (end of stream).
+//!
+//! ## Reconnection
+//! By default, a connection failure is reported to the engine (a [QcSourceError]) and a
+//! closed connection ends the stream. Long running real-time services should rather reconnect
+//! ([QcNtripConfig::with_reconnection]): the client then retries forever, the delay doubling
+//! after each failure (up to 2 minutes), and the stream continues from where the caster
+//! resumes. Combine it with [crate::prelude::QcEngineBuilder::with_max_latency], so that
+//! a station that is reconnecting does not hold the other ones.
+//!
+//! ## Monitoring
+//! [QcNtripSource::monitor] returns a handle on the state of the client (connection, decoded
+//! messages), that remains available once the source is moved into the engine.
 use std::{
     str::FromStr,
     sync::{
@@ -48,7 +60,7 @@ use ntrip_client::{NtripClient, NtripClientError, NtripConfig, NtripCredentials}
 use thiserror::Error;
 
 #[cfg(feature = "log")]
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 
 use crate::io::{
     input::indexing::QcIndexing,
@@ -187,6 +199,12 @@ pub struct QcNtripConfig {
     /// Default: system time (live streams). Define it to replay recorded streams.
     #[cfg_attr(feature = "serde", serde(default))]
     pub reference_epoch: Option<Epoch>,
+
+    /// Reconnects after a connection failure, or when the caster closes the connection,
+    /// after this initial delay (doubled after each failure, up to 2 minutes).
+    /// Default: no reconnection (failures are reported, the stream ends).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub reconnection: Option<std::time::Duration>,
 }
 
 #[cfg(feature = "serde")]
@@ -207,6 +225,7 @@ impl std::fmt::Debug for QcNtripConfig {
             .field("role", &self.role)
             .field("reference_position_ecef_m", &self.reference_position_ecef_m)
             .field("reference_epoch", &self.reference_epoch)
+            .field("reconnection", &self.reconnection)
             .finish()
     }
 }
@@ -240,6 +259,7 @@ impl QcNtripConfig {
             role: QcNtripRole::default(),
             reference_position_ecef_m: None,
             reference_epoch: None,
+            reconnection: None,
         }
     }
 
@@ -284,6 +304,14 @@ impl QcNtripConfig {
     /// Copies and returns with this approximate date (recorded streams)
     pub fn with_reference_epoch(mut self, epoch: Epoch) -> Self {
         self.reference_epoch = Some(epoch);
+        self
+    }
+
+    /// Copies and returns with automatic reconnection: after a connection failure, or when
+    /// the caster closes the connection, the client reconnects after `delay`
+    /// (doubled after each failure, up to 2 minutes).
+    pub fn with_reconnection(mut self, delay: std::time::Duration) -> Self {
+        self.reconnection = Some(delay);
         self
     }
 
@@ -367,13 +395,53 @@ impl FromStr for QcNtripConfig {
 /// Messages from the client thread
 type ClientMessage = Result<QcInputItem, QcNtripError>;
 
+/// Longest delay between two reconnection attempts
+const MAX_RECONNECTION_DELAY: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// State of an NTRIP client, available once its [QcNtripSource] was moved into the engine
+/// ([QcNtripSource::monitor]).
+#[derive(Debug, Clone)]
+pub struct QcNtripMonitor {
+    cfg: QcNtripConfig,
+    stats: Arc<Mutex<QcRtcmStats>>,
+    connected: Arc<AtomicBool>,
+    connections: Arc<std::sync::atomic::AtomicUsize>,
+    last_error: Arc<Mutex<Option<String>>>,
+}
+
+impl QcNtripMonitor {
+    /// Connection settings of the client
+    pub fn config(&self) -> &QcNtripConfig {
+        &self.cfg
+    }
+
+    /// Returns true while the caster streams
+    pub fn is_connected(&self) -> bool {
+        self.connected.load(Ordering::Relaxed)
+    }
+
+    /// Number of successful connections (reconnections included)
+    pub fn connections(&self) -> usize {
+        self.connections.load(Ordering::Relaxed)
+    }
+
+    /// Latest connection failure, if any
+    pub fn last_error(&self) -> Option<String> {
+        self.last_error.lock().ok().and_then(|e| e.clone())
+    }
+
+    /// Statistics of the decoded stream (so far)
+    pub fn stats(&self) -> QcRtcmStats {
+        self.stats.lock().map(|s| s.clone()).unwrap_or_default()
+    }
+}
+
 /// Real-time [QcSource]: one NTRIP client, see the [module](crate::io::ntrip) documentation.
 pub struct QcNtripSource {
     cfg: QcNtripConfig,
     descriptor: QcSourceDescriptor,
     receiver: Receiver<ClientMessage>,
-    stats: Arc<Mutex<QcRtcmStats>>,
-    connected: Arc<AtomicBool>,
+    monitor: QcNtripMonitor,
     shutdown: Option<oneshot::Sender<()>>,
     thread: Option<JoinHandle<()>>,
 }
@@ -388,14 +456,18 @@ impl QcNtripSource {
         let (sender, receiver) = channel();
         let (shutdown, shutdown_rx) = oneshot::channel();
 
-        let stats = Arc::new(Mutex::new(QcRtcmStats::default()));
-        let connected = Arc::new(AtomicBool::new(false));
+        let monitor = QcNtripMonitor {
+            cfg: cfg.clone(),
+            stats: Arc::new(Mutex::new(QcRtcmStats::default())),
+            connected: Arc::new(AtomicBool::new(false)),
+            connections: Default::default(),
+            last_error: Default::default(),
+        };
 
         let client = Client {
             cfg: cfg.clone(),
             sender,
-            stats: Arc::clone(&stats),
-            connected: Arc::clone(&connected),
+            monitor: monitor.clone(),
         };
 
         let thread = std::thread::Builder::new()
@@ -407,8 +479,7 @@ impl QcNtripSource {
             cfg,
             descriptor,
             receiver,
-            stats,
-            connected,
+            monitor,
             shutdown: Some(shutdown),
             thread: Some(thread),
         })
@@ -419,14 +490,20 @@ impl QcNtripSource {
         &self.cfg
     }
 
-    /// Returns true once the caster accepted the connection
+    /// Returns true while the caster streams
     pub fn is_connected(&self) -> bool {
-        self.connected.load(Ordering::Relaxed)
+        self.monitor.is_connected()
     }
 
     /// Statistics of the decoded stream (so far)
     pub fn stats(&self) -> QcRtcmStats {
-        self.stats.lock().map(|s| s.clone()).unwrap_or_default()
+        self.monitor.stats()
+    }
+
+    /// Handle on the state of this client, that remains available once the source
+    /// is moved into the engine
+    pub fn monitor(&self) -> QcNtripMonitor {
+        self.monitor.clone()
     }
 }
 
@@ -460,8 +537,17 @@ impl Drop for QcNtripSource {
 struct Client {
     cfg: QcNtripConfig,
     sender: std::sync::mpsc::Sender<ClientMessage>,
-    stats: Arc<Mutex<QcRtcmStats>>,
-    connected: Arc<AtomicBool>,
+    monitor: QcNtripMonitor,
+}
+
+/// End of one connection
+enum Session {
+    /// The connection failed, or the caster closed it
+    Failed(QcNtripError),
+    /// The caster closed the connection (end of stream)
+    Ended,
+    /// Shutdown requested, or the source was dropped
+    Stopped,
 }
 
 impl Client {
@@ -481,6 +567,70 @@ impl Client {
     }
 
     async fn stream(self, mut shutdown: oneshot::Receiver<()>) {
+        let mut decoder = match self.cfg.reference_epoch {
+            Some(epoch) => QcRtcmDecoder::new().with_reference_epoch(epoch),
+            None => QcRtcmDecoder::new(),
+        };
+
+        let mut delay = self.cfg.reconnection;
+
+        loop {
+            let connections = self.monitor.connections();
+            let session = self.session(&mut decoder, &mut shutdown).await;
+            let streamed = self.monitor.connections() > connections;
+
+            self.monitor.connected.store(false, Ordering::Relaxed);
+
+            let error = match session {
+                Session::Stopped => return,
+                Session::Ended => None,
+                Session::Failed(error) => {
+                    if let Ok(mut last) = self.monitor.last_error.lock() {
+                        *last = Some(error.to_string());
+                    }
+                    Some(error)
+                }
+            };
+
+            let Some(wait) = delay else {
+                // no reconnection: failures are reported, the stream ends
+                if let Some(error) = error {
+                    let _ = self.sender.send(Err(error));
+                }
+                return;
+            };
+
+            #[cfg(feature = "log")]
+            warn!(
+                "{}: {}, reconnecting in {:?}",
+                self.cfg,
+                error
+                    .as_ref()
+                    .map(|e| e.to_string())
+                    .unwrap_or("end of stream".to_string()),
+                wait
+            );
+
+            let sleep = Box::pin(tokio::time::sleep(wait));
+            if let Either::Right(_) = futures::future::select(sleep, &mut shutdown).await {
+                return;
+            }
+
+            // the next failure waits longer, unless the caster accepted the connection
+            delay = Some(if streamed {
+                self.cfg.reconnection.unwrap_or(wait)
+            } else {
+                (wait * 2).min(MAX_RECONNECTION_DELAY)
+            });
+        }
+    }
+
+    /// One connection, until it fails or ends
+    async fn session(
+        &self,
+        decoder: &mut QcRtcmDecoder,
+        shutdown: &mut oneshot::Receiver<()>,
+    ) -> Session {
         let mount = self.cfg.mount.clone();
 
         let failure = |error: NtripClientError| QcNtripError::Connection {
@@ -513,57 +663,51 @@ impl Client {
                 Err(e) => {
                     #[cfg(feature = "log")]
                     error!("{}: {}", self.cfg, e);
-                    let _ = self.sender.send(Err(failure(e)));
-                    return;
+                    return Session::Failed(failure(e));
                 }
             },
             Err(e) => {
-                let _ = self.sender.send(Err(failure(e)));
-                return;
+                #[cfg(feature = "log")]
+                error!("{}: {}", self.cfg, e);
+                return Session::Failed(failure(e));
             }
         };
 
-        self.connected.store(true, Ordering::Relaxed);
+        self.monitor.connected.store(true, Ordering::Relaxed);
+        self.monitor.connections.fetch_add(1, Ordering::Relaxed);
 
         #[cfg(feature = "log")]
         info!("{}: connected ({})", self.cfg, self.cfg.role);
 
-        let mut decoder = match self.cfg.reference_epoch {
-            Some(epoch) => QcRtcmDecoder::new().with_reference_epoch(epoch),
-            None => QcRtcmDecoder::new(),
-        };
-
         let mut items = Vec::with_capacity(128);
 
         loop {
-            match futures::future::select(handle.next(), &mut shutdown).await {
+            match futures::future::select(handle.next(), &mut *shutdown).await {
                 Either::Left((Some((message, _)), _)) => {
                     decoder.decode(&message, &mut items);
 
-                    if let Ok(mut stats) = self.stats.lock() {
+                    if let Ok(mut stats) = self.monitor.stats.lock() {
                         *stats = decoder.stats().clone();
                     }
 
                     for item in items.drain(..) {
                         if self.sender.send(Ok(item)).is_err() {
-                            return; // source dropped
+                            return Session::Stopped; // source dropped
                         }
                     }
                 }
                 Either::Left((None, _)) => {
                     #[cfg(feature = "log")]
                     info!("{}: end of stream", self.cfg);
-                    break;
+                    return Session::Ended;
                 }
                 Either::Right(_) => {
                     #[cfg(feature = "log")]
                     debug!("{}: shutdown", self.cfg);
-                    break;
+                    return Session::Stopped;
                 }
             }
         }
-
-        self.connected.store(false, Ordering::Relaxed);
     }
 }
 

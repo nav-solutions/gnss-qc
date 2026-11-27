@@ -89,7 +89,9 @@ pub mod prelude {
     pub use crate::io::rtcm::{QcRtcmDecoder, QcRtcmSource, QcRtcmStats};
 
     #[cfg(feature = "ntrip")]
-    pub use crate::io::ntrip::{QcNtripConfig, QcNtripError, QcNtripRole, QcNtripSource};
+    pub use crate::io::ntrip::{
+        QcNtripConfig, QcNtripError, QcNtripMonitor, QcNtripRole, QcNtripSource,
+    };
 
     #[cfg(feature = "navigation")]
     pub use crate::{

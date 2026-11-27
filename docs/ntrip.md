@@ -35,22 +35,39 @@ navigation, RTK..):
 | RTCM messages | Constellation | Data points |
 |---------------|---------------|-------------|
 | 1074 - 1077 (MSM4 - MSM7) | GPS | Signals: pseudo range (`C1C`, m), phase (`L1C`, cycles), doppler (`D1C`, Hz, MSM5/7), C/N0 (`S1C`, dB-Hz), loss of lock (lock time indicators) |
+| 1084 - 1087 | Glonass | idem, FDMA: phases in cycles of the frequency channel of each satellite (MSM5/7, 1020 or 1012) |
 | 1094 - 1097 | Galileo | idem |
+| 1104 - 1107 | SBAS | idem (MSM satellite 1: PRN 120, `S20`) |
 | 1114 - 1117 | QZSS | idem |
 | 1124 - 1127 | BeiDou | idem |
+| 1004 (legacy L1/L2) | GPS | Signals `C1C`/`C1P`, `L1C`/`L1P`, `C2X`/`C2P`/`C2D`/`C2W` (L2 code indicator), phases, C/N0, when the stream has no GPS MSM |
+| 1012 (legacy L1/L2) | Glonass | Signals `C1C`/`C1P`, `C2C`/`C2P`, phases (frequency channel), C/N0, when the stream has no Glonass MSM |
 | 1019 | GPS | Radio ephemeris |
+| 1020 | Glonass | Radio ephemeris: PZ-90 state vector (`satPosX`.. km, `velX`.. km/s, `accelX`.. km/s²), `channel`, clock (−τn, γn) |
 | 1045 (F/NAV), 1046 (I/NAV) | Galileo | Radio ephemeris |
 | 1042 | BeiDou | Radio ephemeris |
 | 1044 | QZSS | Radio ephemeris |
 | 1005, 1006 | - | Coordinates of the station (antenna reference point) |
+| 1008, 1033 | - | Antenna and receiver descriptors (`QcRtcmStats::antenna`, `QcRtcmStats::receiver`) |
+| 1230 | Glonass | Code-phase biases of the station (`QcRtcmStats::glonass_code_phase_biases`) |
 
 Signals and ephemerides are expressed exactly like their RINEX counterparts (RINEX observables
 and units, RINEX orbital fields in radians), so the processors cannot tell a stream from a file.
 The coordinates of the station (1005/1006) update the reference position of the source
 (`QcPayload::ReferencePosition`): this is how the position of an RTK base is learned in real-time.
 
-Other messages (Glonass, SBAS, legacy observations 1001-1012, SSR..) are counted
-(`QcRtcmStats::ignored`) but not interpreted yet.
+Other messages (SSR corrections, network RTK, legacy L1 only observations 1001-1003, 1009-1011..)
+are counted (`QcRtcmStats::ignored`) but not interpreted.
+
+Many reference stations (the Centipede network, for example) stream the same observations
+twice: legacy messages (1004, 1012) for older rovers, and MSM. Once MSM observations of a
+constellation were decoded, its legacy messages are skipped (`QcRtcmStats::redundant`), and an
+observation is never delivered twice for the same epoch.
+
+Glonass signals are frequency multiplexed: until the frequency channel of a satellite is known
+(MSM5/7 extended information, 1020 or 1012), only its pseudo ranges and C/N0 are delivered.
+Glonass ephemerides are decoded and stored, but the orbits of Glonass satellites are not
+computed by GNSS-Qc yet (no Glonass navigation, TEC or signal combinations).
 
 ## Indexing and roles
 
@@ -159,6 +176,50 @@ for stream in streams {
 
 Precise products (SP3, Clock RINEX files) may be added as other sources, like in post processing.
 
+## Real-time networks
+
+A network of stations (many NTRIP clients deployed together) needs three settings, so that one
+station never holds or stops the other ones:
+
+```rust,ignore
+use std::time::Duration as StdDuration;
+use gnss_qc::prelude::*;
+
+let mut builder = QcEngine::<QcOutput>::builder()
+    // a station lagging behind the others by more than 30 s is not waited for
+    .with_max_latency(Duration::from_seconds(30.0))
+    // a station that fails (unknown mount point..) is ended, the others go on
+    .with_fault_tolerance(true);
+
+let mut monitors = Vec::new();
+
+for mount in ["STATION1", "STATION2", "STATION3"] {
+    let stream = QcNtripConfig::new("caster.centipede.fr", 2101, mount)
+        // reconnects after a failure: 10 s, doubled after each failure, up to 2 minutes
+        .with_reconnection(StdDuration::from_secs(10));
+
+    let source = QcNtripSource::new(stream)?;
+    monitors.push(source.monitor()); // connection state, decoded messages
+    builder = builder.with_source(source);
+}
+```
+
+- `QcNtripConfig::with_reconnection`: the client reconnects after a connection failure, or when the
+  caster closes the connection, forever (default: no reconnection, failures are reported).
+- `QcEngineBuilder::with_max_latency`: the engine waits for every live station, so that the
+  stations of an epoch are processed together. A station that lags behind the newest data of the
+  session by more than this latency (silent, reconnecting..) is no longer waited for: its late data
+  is dropped (`QcEngineStats::late_items`) until it catches up (`QcEngineStats::incomplete_epochs`
+  counts the epochs processed without it). Replays at accelerated speed need a large latency
+  (the streams do not progress at the same pace).
+- `QcEngineBuilder::with_fault_tolerance`: a source that fails (unknown mount point, refused
+  credentials) is ended and the session goes on (`QcEngineStats::failed_sources`). Default: the
+  failure of a source aborts the session.
+- `QcNtripSource::monitor`: a handle on the state of a client (connected, number of connections,
+  last failure, `QcRtcmStats`), that remains available once the source is moved into the engine.
+
+The [real-time TEC example](ntrip_tec.md) deploys these settings.
+
 ## Time tags
 
 MSM messages only carry the time of week (time of day for Glonass). The week is resolved against
@@ -169,9 +230,21 @@ recorded data. Then the reference follows the stream. All signals are time tagge
 constellations of one epoch share the same time tag, and the epochs of two stations
 (rover / base) match exactly.
 
+Glonass time tags (time of day, Moscow time UTC(SU) + 3 h) are converted to GPST with the leap
+seconds, so that Glonass observations share the time tag of the other constellations.
+
 Radio ephemerides and station coordinates are time tagged with their *reception* time
 (time tag of the last observation of the stream): each source must remain time ordered,
-while the Time of Clock of an ephemeris may lie in the future of the stream.
+while the Time of Clock of an ephemeris may lie in the future of the stream. The ephemerides and
+coordinates received before the first observation of a live stream are held until that
+observation, then tagged with its epoch: the system time is ahead of the observations (latency
+of the stream), so tagging them with the system time would make the stream look disordered
+(`source is not time ordered` warnings). A stream without observations (ephemerides only)
+releases them after 10 s, tagged with the system time.
+
+The `source is not time ordered` warning is not fatal: the observations are reordered by the
+engine, as long as their epoch was not processed yet (otherwise they are dropped and counted in
+`QcEngineStats::late_items`).
 
 ## Recorded streams
 
@@ -206,15 +279,22 @@ and streams them through local NTRIP casters:
 - ephemerides (2096 frames, four constellations): satellite positions within 5 cm, clocks within 0.1 ns;
 - week resolution (rollovers of the time of week and of the truncated week counters);
 - connection failures (credentials, unknown mount point, unreachable caster);
+- Glonass (MSM7 with frequency channels and Glonass time) and SBAS (MSM7): every observation is
+  decoded, like the other constellations; legacy observations (1004, 1012): pseudo ranges within
+  the 2 cm resolution, phases within the integer number of cycles of the alignment;
+  Glonass ephemerides (1020): state vectors within the RTCM resolution; descriptors (1008, 1033)
+  and Glonass biases (1230);
+- legacy and MSM observations streamed together: no duplicate;
+- a network of NTRIP clients: a station refused once by its caster ("empty response") reconnects,
+  a silent station is not waited for (maximal latency), an unknown mount point is ended (fault
+  tolerance), and the session goes on with the other stations;
 - RTK-CPP with two NTRIP clients (rover ESBC, base MOJN, 65 km, base coordinates and ephemerides
   from the base stream): 121 solutions over one hour, within 1 mm of the solutions obtained from
   the RINEX files.
 
 ## Limitations
 
-- Glonass MSM and ephemerides (1084-1087, 1020), SBAS, legacy observations (1001-1012) and
-  SSR corrections are not interpreted yet.
-- No automatic reconnection: when a caster closes the connection, the stream ends. Deploy a new
-  `QcNtripSource` to reconnect.
+- SSR corrections and legacy L1 only observations (1001-1003, 1009-1011) are not interpreted yet.
+- Glonass orbits are not computed yet (the ephemerides are decoded and stored).
 - A client does not send its position to the caster (`GGA` sentences): virtual reference
   station (VRS) networks are not supported yet.

@@ -37,7 +37,7 @@ use rinex::prelude::{
 use thiserror::Error;
 
 #[cfg(feature = "log")]
-use log::{debug, warn};
+use log::{debug, info, warn};
 
 use crate::{
     io::{
@@ -186,6 +186,13 @@ pub struct QcEngineStats {
 
     /// Items not consumed by the engine (yet)
     pub unhandled_items: usize,
+
+    /// Epochs processed without one (or more) lagging signal source
+    /// ([QcEngineBuilder::with_max_latency])
+    pub incomplete_epochs: usize,
+
+    /// Sources that failed and were ended ([QcEngineBuilder::with_fault_tolerance])
+    pub failed_sources: usize,
 }
 
 enum RxItem {
@@ -198,6 +205,12 @@ struct SourceSlot {
     source: Box<dyn QcSource>,
     watermark: Option<Epoch>,
     eos: bool,
+    /// A failure ends this source, instead of the session
+    tolerant: bool,
+    /// This source failed (and ended)
+    failed: bool,
+    /// This source is lagging (not waited for)
+    lagging: bool,
     peeked: Option<QcInputItem>,
     observations: std::collections::VecDeque<(Epoch, RxItem)>,
 }
@@ -231,6 +244,15 @@ impl SourceSlot {
                 Ok(QcPoll::EndOfStream)
             }
             Ok(other) => Ok(other),
+            Err(error) if self.tolerant => {
+                #[cfg(feature = "log")]
+                warn!("{}: {} (source ended)", self.descriptor, error);
+                #[cfg(not(feature = "log"))]
+                let _ = error;
+                self.eos = true;
+                self.failed = true;
+                Ok(QcPoll::EndOfStream)
+            }
             Err(error) => Err(QcEngineError::Source {
                 indexing: self.descriptor.indexing.clone(),
                 error,
@@ -337,6 +359,93 @@ impl SourceSlot {
     fn is_signal_source(&self) -> bool {
         self.descriptor.signals
     }
+
+    /// Updates the lagging state of this source (logged on change)
+    fn set_lagging(&mut self, lagging: bool) {
+        #[cfg(feature = "log")]
+        if lagging != self.lagging {
+            if lagging {
+                warn!(
+                    "{}: lagging (latest data: {}), not waited for",
+                    self.descriptor,
+                    self.watermark
+                        .map(|w| w.to_string())
+                        .unwrap_or("none".to_string())
+                );
+            } else {
+                info!("{}: caught up", self.descriptor);
+            }
+        }
+        self.lagging = lagging;
+    }
+}
+
+/// Real-time: returns true if the (pending) live signal source `index` lags behind the other
+/// signal sources by more than `max_latency`. The other sources are pulled ahead (at most
+/// `max_latency` beyond the lagging source) to decide.
+fn is_lagging(
+    slots: &mut [SourceSlot],
+    index: usize,
+    max_latency: Option<Duration>,
+    first_signal: &mut Option<Epoch>,
+    stores: &mut QcStores,
+    last_epoch: Option<Epoch>,
+    stats: &mut QcEngineStats,
+) -> Result<bool, QcEngineError> {
+    let Some(latency) = max_latency else {
+        return Ok(false);
+    };
+
+    let horizon = slots[index]
+        .watermark
+        .or(*first_signal)
+        .map(|t| t + latency);
+
+    for (j, slot) in slots.iter_mut().enumerate() {
+        if j == index || !slot.is_signal_source() {
+            continue;
+        }
+        loop {
+            let ahead = match (slot.watermark, horizon) {
+                (Some(w), Some(h)) => w > h,
+                (Some(_), None) => true, // first data of the session: one item is enough
+                (None, _) => false,
+            };
+            if ahead || slot.eos {
+                break;
+            }
+            match slot.pull(stores, last_epoch, stats)? {
+                Pull::Item => {}
+                Pull::Pending | Pull::EndOfStream => break,
+            }
+        }
+    }
+
+    let oldest = slots
+        .iter()
+        .filter(|s| s.is_signal_source())
+        .filter_map(|s| s.watermark)
+        .min();
+
+    if first_signal.is_none() {
+        *first_signal = oldest;
+    }
+
+    let newest = slots
+        .iter()
+        .filter(|s| s.is_signal_source())
+        .filter_map(|s| s.watermark)
+        .max();
+
+    let reference = slots[index].watermark.or(*first_signal);
+
+    let lagging = match (reference, newest) {
+        (Some(reference), Some(newest)) => reference + latency < newest,
+        _ => false,
+    };
+
+    slots[index].set_lagging(lagging);
+    Ok(lagging)
 }
 
 /// Result of one processing step
@@ -357,6 +466,8 @@ pub struct QcEngineBuilder<O = QcOutput> {
     lookahead: Duration,
     idle_sleep: StdDuration,
     window: (Option<Epoch>, Option<Epoch>),
+    max_latency: Option<Duration>,
+    fault_tolerance: bool,
 }
 
 impl<O> Default for QcEngineBuilder<O> {
@@ -368,6 +479,8 @@ impl<O> Default for QcEngineBuilder<O> {
             lookahead: Duration::from_hours(3.0),
             idle_sleep: StdDuration::from_millis(1),
             window: (None, None),
+            max_latency: None,
+            fault_tolerance: false,
         }
     }
 }
@@ -427,6 +540,25 @@ impl<O> QcEngineBuilder<O> {
         self
     }
 
+    /// Real-time networks: a live signal source whose data lags behind the newest data of the
+    /// session by more than `latency` (silent station, reconnecting client..) is no longer
+    /// waited for. The epochs are processed without it ([QcEngineStats::incomplete_epochs]),
+    /// its late observations are dropped ([QcEngineStats::late_items]), and it is waited for
+    /// again as soon as it catches up. Default: every live signal source is waited for
+    /// (files, recorded streams).
+    pub fn with_max_latency(mut self, latency: Duration) -> Self {
+        self.max_latency = Some(latency);
+        self
+    }
+
+    /// A source that fails (connection failure, corrupted file..) is ended and the session
+    /// continues with the other sources ([QcEngineStats::failed_sources]).
+    /// Default: the failure of one source aborts the session ([QcEngineError::Source]).
+    pub fn with_fault_tolerance(mut self, tolerant: bool) -> Self {
+        self.fault_tolerance = tolerant;
+        self
+    }
+
     /// Builds the [QcEngine].
     pub fn build(self) -> Result<QcEngine<O>, QcEngineError> {
         let mut slots: Vec<SourceSlot> = Vec::with_capacity(self.sources.len());
@@ -447,6 +579,9 @@ impl<O> QcEngineBuilder<O> {
                 source,
                 watermark: None,
                 eos: false,
+                tolerant: self.fault_tolerance,
+                failed: false,
+                lagging: false,
                 peeked: None,
                 observations: Default::default(),
             });
@@ -465,6 +600,8 @@ impl<O> QcEngineBuilder<O> {
             lookahead: self.lookahead,
             idle_sleep: self.idle_sleep,
             window: self.window,
+            max_latency: self.max_latency,
+            first_signal: None,
             pending_epochs: Default::default(),
             stores: Default::default(),
             output: Default::default(),
@@ -484,6 +621,9 @@ pub struct QcEngine<O = QcOutput> {
     lookahead: Duration,
     idle_sleep: StdDuration,
     window: (Option<Epoch>, Option<Epoch>),
+    max_latency: Option<Duration>,
+    /// Oldest data of the signal sources (lagging sources without data)
+    first_signal: Option<Epoch>,
     pending_epochs: std::collections::BTreeSet<Epoch>,
     stores: QcStores,
     output: QcOutputQueue<O>,
@@ -501,7 +641,9 @@ impl<O> QcEngine<O> {
 
     /// Engine statistics so far
     pub fn stats(&self) -> QcEngineStats {
-        self.stats
+        let mut stats = self.stats;
+        stats.failed_sources = self.slots.iter().filter(|s| s.failed).count();
+        stats
     }
 
     /// Last processed [Epoch]
@@ -580,6 +722,18 @@ impl<O> QcEngine<O> {
             return self.step_context_only();
         }
 
+        // end of the time window: nothing else to process, even if some (real-time)
+        // sources are still alive
+        if let (Some(end), Some(last)) = (self.window.1, self.last_epoch) {
+            if last >= end {
+                for processor in self.processors.iter_mut() {
+                    processor.finalize(&mut self.output);
+                }
+                self.finalized = true;
+                return Ok(Step::Done);
+            }
+        }
+
         let Self {
             slots,
             processors,
@@ -592,13 +746,34 @@ impl<O> QcEngine<O> {
             last_epoch,
             stats,
             finalized,
+            max_latency,
+            first_signal,
             ..
         } = self;
 
+        let max_latency = *max_latency;
+        let mut incomplete = false;
+
         // 1. each live signal source must expose its next observation
-        for slot in slots.iter_mut().filter(|s| s.is_signal_source()) {
-            while slot.observations.is_empty() && !slot.eos {
-                if let Pull::Pending = slot.pull(stores, *last_epoch, stats)? {
+        //    (real-time: unless it is lagging)
+        for index in 0..slots.len() {
+            if !slots[index].is_signal_source() {
+                continue;
+            }
+            while slots[index].observations.is_empty() && !slots[index].eos {
+                if let Pull::Pending = slots[index].pull(stores, *last_epoch, stats)? {
+                    if is_lagging(
+                        slots,
+                        index,
+                        max_latency,
+                        first_signal,
+                        stores,
+                        *last_epoch,
+                        stats,
+                    )? {
+                        incomplete = true;
+                        break;
+                    }
                     return Ok(Step::Pending);
                 }
             }
@@ -616,10 +791,25 @@ impl<O> QcEngine<O> {
             }
         };
 
-        // 3. epoch must be complete for every live signal source
-        for slot in slots.iter_mut().filter(|s| s.is_signal_source()) {
-            while !slot.eos && slot.watermark.is_none_or(|w| w <= t) {
-                if let Pull::Pending = slot.pull(stores, *last_epoch, stats)? {
+        // 3. epoch must be complete for every live signal source (lagging sources excepted)
+        for index in 0..slots.len() {
+            if !slots[index].is_signal_source() {
+                continue;
+            }
+            while !slots[index].eos && slots[index].watermark.is_none_or(|w| w <= t) {
+                if let Pull::Pending = slots[index].pull(stores, *last_epoch, stats)? {
+                    if is_lagging(
+                        slots,
+                        index,
+                        max_latency,
+                        first_signal,
+                        stores,
+                        *last_epoch,
+                        stats,
+                    )? {
+                        incomplete = true;
+                        break;
+                    }
                     return Ok(Step::Pending);
                 }
             }
@@ -693,6 +883,10 @@ impl<O> QcEngine<O> {
         }
 
         stats.epochs += 1;
+
+        if incomplete {
+            stats.incomplete_epochs += 1;
+        }
 
         // 6. run processors
         let ctx = QcEpochContext {

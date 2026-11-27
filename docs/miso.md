@@ -354,6 +354,18 @@ loop {
 `poll_next` is also the entry point to wrap the engine into an async stream, if your
 application uses an async runtime.
 
+Real-time sources do not end, and may stall or fail. Two settings keep a session of several
+real-time sources running (see [real-time networks](ntrip.md#real-time-networks)):
+
+- `QcEngineBuilder::with_max_latency(latency)`: a live signal source lagging behind the newest
+  data of the session by more than `latency` is no longer waited for (the epochs are processed
+  without it, `QcEngineStats::incomplete_epochs`), until it catches up;
+- `QcEngineBuilder::with_fault_tolerance(true)`: a source that fails is ended, instead of
+  aborting the session (`QcEngineStats::failed_sources`).
+
+With a time window (`with_time_window`), the session ends once its last epoch was processed,
+even if real-time sources are still alive.
+
 For RTCM streams, the `ntrip` feature provides ready to use NTRIP clients (`QcNtripSource`),
 and the `rtcm` feature the RTCM decoder (`QcRtcmDecoder`) for your own transports
 (serial ports, sockets..), see [RTCM streams and NTRIP clients](ntrip.md).
