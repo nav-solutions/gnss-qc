@@ -899,6 +899,14 @@ impl QcRtcmDecoder {
                 self.ephemeris(sv, toc, ephemeris.ephemeris, items);
                 return;
             }
+            Message::Msg1087T(m) => {}
+            Message::Msg1004T(m) => {}
+            Message::Msg1008T(m) => {}
+            Message::Msg1020T(m) => {}
+            Message::Msg1033T(m) => {}
+            Message::Msg1012T(m) => {}
+            Message::Msg1107T(m) => {}
+            Message::Msg1230T(m) => {}
             other => {
                 let number = other.number().unwrap_or_default();
                 let count = self.stats.ignored.entry(number).or_default();
